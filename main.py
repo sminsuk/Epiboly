@@ -409,23 +409,10 @@ def equilibrate_to_leading_edge(steps: int = 1):
     tf.step(steps)
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
-
-def remove_bonds():
-    """For presentation only. Recreating the unbonded clustering situation, but with the new better setup and
-    equilibration. Need to keep the bonded ring until after equilibration, then remove the bonds."""
-    print("Un-Bonding ring particles.")
-    for bond in tf.BondHandle.items():
-        bond.destroy()
-        
+    
 reset_camera()
 equilibrate_to_leading_edge(300)
 add_interior_bonds()
-
-# For presentation only. To recreate the unbonded clustering situation, comment out the above line
-# with add_interior_bonds(), and instead use the following two:
-# remove_bonds()
-# replace_all_small_small_potentials(new_potential=small_small_attraction_by_type
-#                                                  + small_small_repulsion)
 
 # dyn.set_tangent_forces()
 # dyn.set_tangent_forces()
