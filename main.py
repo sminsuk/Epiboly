@@ -1,8 +1,6 @@
-"""Small particle cap - Attractive potential experiment 17 - bond breaking & remaking (in PyCharm!)
+"""Epiboly simulation
 
-Tag: embrio_oct_2022: This is the version I used while preparing my talk for EMBRIO in Oct. 2022.
-Predecessor: Small particle cap - Attractive potential experiment 15 - infra for repeat events
-(Prior to git integration, I used to track my progress this kludgy way! My "versions" were renamed copies.)
+In progress: bond breaking & remaking (in PyCharm!)
 
 First experiment with bond maintenance once they've been created. I think there are 2 ways to break bonds,
 and you probably need both:
