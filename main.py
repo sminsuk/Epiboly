@@ -103,7 +103,7 @@ def initialize_interior(leading_edge_phi):
     function? Why would random_points() be slow?)
     """
     print("Calculating particle positions.")
-    start = time.time()
+    start = time.perf_counter()
     
     # Generate position vectors.
     # number of points requested are for the full sphere. Final total will be less after filtering.
@@ -136,7 +136,7 @@ def initialize_interior(leading_edge_phi):
         vectors = [vector.as_list() for vector in vectors]
         edge_margin = edge_margin_interior_points
     
-    random_points_time = time.time()
+    random_points_time = time.perf_counter()
     
     # Filter to include only the ones inside the existing ring of LeadingEdge particles
     # I could probably calculate this more correctly, but for now just subtract a little bit
@@ -146,7 +146,7 @@ def initialize_interior(leading_edge_phi):
                         if su.spherical_from_cartesian(vector)[2] < leading_edge_phi - edge_margin]
     num_particles = len(filtered_vectors)
     print(f"Creating {num_particles} particles.")
-    filtered_time = time.time()
+    filtered_time = time.perf_counter()
     
     # Transform unit sphere to sphere with radius = big particle radius + small particle radius
     # (i.e. particles just touching) and concentric on the big particle.
@@ -170,7 +170,7 @@ def initialize_interior(leading_edge_phi):
     # transformation, turn the resulting fVector3 objects back into normal python lists (hence normal
     # C++ vectors) using fVector3.as_list(), solved the problem.
     final_positions = [final_position(vector).as_list() for vector in filtered_vectors]
-    scaled_time = time.time()
+    scaled_time = time.perf_counter()
     
     # Original approach, slower: instantiate particles 1-at-a-time.
     # Benchmarked at around 0.009 seconds!
@@ -193,7 +193,7 @@ def initialize_interior(leading_edge_phi):
         particle.style.setColor("cornflowerblue")
         particle.style.visible = True
     
-    finished = time.time()
+    finished = time.perf_counter()
     print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
     print("filtering takes:", filtered_time - random_points_time, "seconds")
     print("scaling (and converting to list) takes:", scaled_time - filtered_time, "seconds")
