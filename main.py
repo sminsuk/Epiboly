@@ -47,7 +47,7 @@ Changes:
 • But actually I don't even need exec_queue! I should apply this plan to the dynamics module, but ToDo: retire exec_queue
 • Cleaned up the way I equilibrate, hold the leading edge with frozen z while doing so, and tweak the number
     of particles created until that works better. (Got it good enough for EMBRIO presentation; still needs more
-    tweaking, though.
+    tweaking, though. Note James thoughts in notes from 2022-09-21 Group Meeting about equilibration methods!)
 • More ToDo: Whip up some actin ring contraction, soon!
 
 Note to self -- to do next:
