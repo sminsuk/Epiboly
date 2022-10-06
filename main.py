@@ -77,6 +77,7 @@ import dynamics as dyn
 import exec_queue as xq
 import exec_tests as xt
 from interactive import *
+import microtubules as mt
 import neighbors as nbrs
 import sharon_utils as su
 
@@ -373,9 +374,9 @@ initialize_particles()
 #         #  },
 #         # {"invoke": toggle_visibility},
 #         # {"invoke": toggle_visibility},
-#         # {"invoke": dyn.set_tangent_forces},
-#         # {"invoke": dyn.set_tangent_forces},
 #         # Deprecated:
+#         # {"invoke": dyn.set_tangent_forces},
+#         # {"invoke": dyn.set_tangent_forces},
 #         # {"invoke": add_downward_force}
 #         ]
 #         )
@@ -405,9 +406,11 @@ reset_camera()
 equilibrate_to_leading_edge(300)
 add_interior_bonds()
 
-# dyn.set_tangent_forces()
-# dyn.set_tangent_forces()
-# tf.run()
+dyn.execute_repeatedly(tasks=[
+        {"invoke": mt.update_tangent_forces,
+         "args": {"magnitude": 5}
+         },
+        ])
 
 # tf.step()
 # while not xt.is_equilibrated(epsilon=0.01):

@@ -1,9 +1,7 @@
 """Set up dynamical changes to the system.
 
-Creates events that are run every simulation step, completely separate from the
-execution queue (module exec_queue). By default, they do nothing, but let you turn
-actions on or off, either interactively, or from within the execution queue, as
-appropriate.
+Creates events that are run every simulation step. By default, they do nothing,
+until execute_repeatedly() is called, creating a task list.
 
 The on_time event is for actions that involve iterating over multiple particles at once.
 The on_particle events are for actions that involve a single particle.
@@ -11,38 +9,45 @@ on_particle events only take a *single* ParticleType. So if you want to run an e
 more than one type, you have to turn on that event for each one.
 """
 
-import math
 import random
+
+from collections.abc import Callable
+from typing import Optional, TypedDict
 
 from epiboly_init import *
 import sharon_utils as su
 
 import neighbors as nbrs
 
-_set_tangent_allowed = False
+class Task(TypedDict, total=False):
+    invoke: Callable[..., None]     # required
+    args: dict                      # not required, if invoke function takes no args
+
+def execute_repeatedly(tasks: list[Task] = None) -> None:
+    """Execute these tasks, in order, once per timestep.
+    
+    Each time this is called, the old task list is replaced by the new one.
+    To clear the task list so nothing is happening, omit the arg or pass None or {}
+    """
+    global _tasks
+    
+    if tasks is None:
+        tasks = {}
+
+    # Validate each task in every possible way that this could go wrong
+    # (that I can think of, and am able to test).
+    # Filter out any baddies and keep the rest.
+    tasks = [task for task in tasks
+             if (task
+                 and "invoke" in task
+                 and task["invoke"]
+                 )
+             ]
+    _tasks = tasks
+    for task in _tasks:
+        print(f"setting up invoke: {task['invoke'].__name__} with args: {task['args']}")
+
 _set_bond_maint_allowed = False
-
-
-def set_tangent_forces():
-    # guard against calling from Jupyter when running all cells. In ipython, call twice the first time
-    global _set_tangent_allowed
-
-    global _tangent_forces_on
-    if _set_tangent_allowed:
-        _tangent_forces_on = True
-        print("Tangent forces enabled")
-    else:
-        print("First invoke, outside Jupyter call twice")
-        _set_tangent_allowed = True
-
-
-def unset_tangent_forces():
-    global _tangent_forces_on
-    _tangent_forces_on = False
-
-    for p in LeadingEdge.items():
-        p.force_init = [0, 0, 0]
-    print("Tangent forces disabled")
 
 
 def set_bond_maintenance(types):
@@ -73,26 +78,8 @@ def unset_bond_maintenance():
 
 
 ######## Private ########
-_tangent_forces_on = False
 _bond_maintenance = {Little.name: False, LeadingEdge.name: False}
-
-
-def _update_tangent_forces():
-    """Still to do! This needs a stopping criterion. Based on angle of phi? Or distance of particle
-    from the vegetal pole? Needs criterion both for the individual particle, and for when all of them
-    have arrived.
-    """
-    # For now, add a vector of fixed magnitude, in the tangent direction
-    magnitude = 5
-    big_particle = Big.particle(0)
-    for p in LeadingEdge.items():
-        r, theta, phi = p.sphericalPosition(particle=big_particle)
-        tangent_phi = phi + math.pi / 2
-        tangent_unit_vec = su.cartesian_from_spherical([1.0, theta, tangent_phi])
-
-        # product is an fVector3, and the assignment runs into the copy-constructor bug! So change to plain list
-        p.force_init = (tangent_unit_vec * magnitude).as_list()
-
+_tasks: Optional[list[Task]] = None
 
 def _maintain_bond(phandle: tf.ParticleHandle) -> None:
     # print(f"Bond maintenance invoked for particle {phandle.id} of type {phandle.type().name}")
@@ -173,13 +160,8 @@ def _maintain_bonds(particle_type: tf.ParticleType) -> None:
 
 def _master_event(evt):
     """This is intended to be run every simulation step. For now, ignoring evt and letting it run forever."""
-    global _tangent_forces_on, _bond_maintenance
-
-    if _tangent_forces_on:
-        try:
-            _update_tangent_forces()
-        except Exception as e:
-            su.exception_handler(e, _update_tangent_forces.__name__)
+    global _bond_maintenance
+    global _tasks
 
     # For now, hard-coding that this acts on the two types, Little and LeadingEdge.
     # This will be much cleaner if I improved the interface for this as planned.
@@ -194,6 +176,15 @@ def _master_event(evt):
             _maintain_bonds(LeadingEdge)
         except Exception as e:
             su.exception_handler(e, _master_event.__name__)
+            
+    for task in _tasks:
+        invoke: Callable[..., None] = task["invoke"]
+        args: dict = task["args"]
+        try:
+            # Can probably simplify this; unpacking should work when args empty?
+            invoke() if not args else invoke(**args)
+        except Exception as e:
+            su.exception_handler(e, invoke.__name__)
 
 
 #     _bond_maintenance = {Little.name: False, LeadingEdge.name: False} # for testing, do this just once!
@@ -217,7 +208,7 @@ def _master_event(evt):
 
 
 # This will happen as soon as it's imported (after the tf.init)
-tf.event.on_time(period=tf.Universe.dt, invoke_method=lambda event: _master_event(event))
+tf.event.on_time(period=tf.Universe.dt, invoke_method=_master_event)
 
 # These will happen as soon as they're imported (after the tf.init)
 # tf.event.on_particletime(period=10 * tf.Universe.dt, invoke_method=_master_particle_event, ptype=Little)
