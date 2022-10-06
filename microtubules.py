@@ -1,4 +1,4 @@
-""""""
+"""Simulate the towing of the margin toward the vegetal pole by microtubule arrays in the yolk cells"""
 import math
 
 from epiboly_init import *

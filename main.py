@@ -73,6 +73,7 @@ import time
 
 from epiboly_init import *  # Tissue Forge initialization and global ParticleType class/instance creation
 
+import bond_maintenance as bonds
 import dynamics as dyn
 import exec_queue as xq
 import exec_tests as xt
@@ -409,6 +410,12 @@ add_interior_bonds()
 dyn.execute_repeatedly(tasks=[
         {"invoke": mt.update_tangent_forces,
          "args": {"magnitude": 5}
+         },
+        {"invoke": bonds.maintain_bonds,
+         "args": {"ptypes": [Little,
+                             LeadingEdge,
+                             ]
+                  }
          },
         ])
 
