@@ -73,12 +73,12 @@ import time
 
 from epiboly_init import *  # Tissue Forge initialization and global ParticleType class/instance creation
 
-import bond_maintenance as bonds
-import dynamics as dyn
-import exec_queue as xq
-import exec_tests as xt
-from interactive import *
-import microtubules as mt
+from biology import bond_maintenance as bonds,\
+    microtubules as mt
+from control_flow import dynamics as dyn, \
+    exec_queue as xq, \
+    exec_tests as xt
+from control_flow.interactive import *
 import neighbors as nbrs
 import sharon_utils as su
 
