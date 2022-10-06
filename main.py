@@ -344,17 +344,12 @@ def random_initialization():
     # "calling <lambda>" which is what you get if you pass "None".
     pass
 
-def turn_on_bond_maint():
-    dyn.set_bond_maintenance({Little: True, LeadingEdge: True})
-    dyn.set_bond_maintenance({Little: True, LeadingEdge: False})
-
 ########
 
 # Want initialize_particles() to run *before* user clicks Run on the simulator, so run it
 # outside of the sequential queue:
 initialize_particles()
 
-# turn_on_bond_maint()
 # xq.execute_sequentially([
 #         {"invoke": random_initialization,
 #          "wait": xt.is_equilibrated,
@@ -366,19 +361,13 @@ initialize_particles()
 #         # {"invoke": xt.setup_keypress_detection,
 #         #      "wait": xt.keypress_event,
 #         #      "verbose": False},
-#         # {"invoke": turn_on_bond_maint},
 #         {"invoke": add_interior_bonds},
-#         # {"invoke": turn_on_bond_maint},   # COMMENTED OUT TO GENERATE PRESENTATION
 #         # Removing big-little attraction: I don't want this after all. (But great for testing "invoke_args"!)
 #         # {"invoke": tf.bind.types,
 #         #  "invoke_args": {"p": big_small_repulsion_only, "a": Big, "b": Little},
 #         #  },
 #         # {"invoke": toggle_visibility},
 #         # {"invoke": toggle_visibility},
-#         # Deprecated:
-#         # {"invoke": dyn.set_tangent_forces},
-#         # {"invoke": dyn.set_tangent_forces},
-#         # {"invoke": add_downward_force}
 #         ]
 #         )
 
@@ -424,10 +413,6 @@ dyn.execute_repeatedly(tasks=[
 #     # print("stepping!")
 #     tf.step()
 #     tf.Simulator.redraw()  # will this work once irun() is working? Do irun() before the loop?
-
-# add_interior_bonds()
-# turn_on_bond_maint()
-# tf.run()
 
 # tf.step(50)
 #

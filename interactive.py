@@ -9,7 +9,6 @@ from epiboly_init import *
 # And for now, when running from regular python, to run one of these at the start of the script, execute it twice in main.
 vis_toggle_allowed = False
 rad_toggle_allowed = False
-downward_force_allowed = False
 
 def toggle_visibility():
     """Depends on the fact that all Little particles were assigned a Style instance when they were created."""
@@ -26,7 +25,7 @@ toggle_invisibility = toggle_visibility
         
 def toggle_radius():
     """Careful! Best to run this only while paused, and then toggle it back again before
-    unpausing, or might affect the simulation"""
+    resuming, or might affect the simulation"""
     global rad_toggle_allowed
     if rad_toggle_allowed:
         threshold = Little.radius / 2
@@ -39,27 +38,6 @@ def toggle_radius():
     else:
         print("First invoke, outside Jupyter call twice")
         rad_toggle_allowed = True
-        
-# Now that have the dynamics module, don't need this. CustomForce isn't very useful;
-# even with a more complicated function, it cannot vary by particle. Marked for deletion!
-def add_downward_force():
-    global downward_force_allowed
-    if downward_force_allowed:
-        # The following force creation and assignment causes the kernel to die.
-        # Apparently python destroys it when it goes out of scope, unware that it is bound
-        # to a ParticleType at the C++ level.
-        #
-        # Setting thisown = 0 fixes it.
-        #
-        # Alternatively, create the variable at the global level, so that the python object is persistent,
-        # and that fixes it as well. (In case there's ever any issue with thisown.)
-        downward_force = tf.CustomForce([0, 0, -5], tf.Universe.dt)
-        downward_force.thisown = 0 # Don't destroy after going out of scope
-        tf.bind.force(downward_force, LeadingEdge)
-        print("Added downward force.")
-    else:
-        print("First invoke, outside Jupyter call twice")
-        downward_force_allowed = True
         
 def count_bonds():
     """Tally number of bonds per particle. Should never be > 6 if using that criterion
@@ -86,4 +64,5 @@ def count_bonds():
 # Remember to use "irun" rather than "tf.irun"!
 # Ugh, this doesn't work either!
 # irun = tf._SimulatorPy.irun
+# Nope, that either. TJ was able to reproduce. Waiting for fix.
 
