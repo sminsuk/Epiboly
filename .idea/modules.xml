@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$USER_HOME$/TissueForge/PycharmProjects/Epiboly 17/.idea/Epiboly 17.iml" filepath="$USER_HOME$/TissueForge/PycharmProjects/Epiboly 17/.idea/Epiboly 17.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../Epiboly/.idea/Epiboly.iml" filepath="$PROJECT_DIR$/../Epiboly/.idea/Epiboly.iml" />
     </modules>
   </component>
 </project>
