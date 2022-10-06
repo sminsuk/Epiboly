@@ -6,8 +6,10 @@ import sharon_utils as su
 
 
 class Task(TypedDict, total=False):
-    invoke: Callable[[], None]
-    wait: Callable[[], bool]
+    invoke: Callable[..., None]
+    invoke_args: dict
+    wait: Callable[..., bool]
+    wait_args: dict
     verbose: bool
 
 
@@ -17,17 +19,25 @@ def execute_sequentially(queue: list[Task] = None):
     queue: a list of tasks, each represented by a dictionary. Each task has a main function to be
         invoked (under the dictionary key "invoke"), and a second function representing a wait
         condition (under the dictionary key "wait"). For each task: 
-            "invoke": function to call, that requires no arguments; return values will be ignored.
-            "wait": function that takes no arguments and returns boolean; when it returns true,
+            "invoke": function to call; return values will be ignored. Can accept any number of args
+            "invoke_args": dict containing the keyword arguments for the invoke function.
+                (Note, I never implemented this to accept positional arguments, as a list instead of
+                a dict, but I could do so.)
+            "wait": function that takes any number of arguments and returns boolean; when it returns true,
                 control will proceed to the next task.
+            "wait_args": dict containing the keyword arguments for the wait condition.
+                (Note, I never implemented this to accept positional arguments, as a list instead of
+                a dict, but I could do so.)
             "verbose": boolean. If True, "." is printed each cycle as long as wait condition
                 continues to return False. (For the moment, cycle period is fixed equal to
                 Universe.dt.) Only meaningful for tasks that have a wait condition.
         
-    "invoke" and "wait" are callbacks, hence are just function *names*. Where these function calls
-    need arguments passed, lambdas can be provided, in order to do that. But progress reporting
-    and exception handling is more readable and informative if the functions have names. So,
-    preferably, write a short named function instead of a lambda.
+    "invoke" and "wait" are callbacks, hence are just function *names*. lambdas work, but should
+    no longer be needed just for wrapping function calls with arguments, now that I've implemented
+    the ability to actually pass arguments directly. The args dictionaries should contain all
+    required arguments.
+    (Progress reporting and exception handling is more readable and informative if the functions
+    have names. So, preferably, write a short named function instead of a lambda.)
     
     Within each task, each key is optional and can be given the value None, or simply omitted. Sequential
     execution continues until the last task has completed. A task is complete when the "invoke"
@@ -47,17 +57,19 @@ def execute_sequentially(queue: list[Task] = None):
     # the list and pop from the end. Alternatively, could import deque and popleft()
     queue.reverse()
 
-    invoke_func: Optional[Callable[[], None]] = None
-    wait_condition: Optional[Callable[[], bool]] = None
+    invoke_func: Optional[Callable[..., None]] = None
+    invoke_args: Optional[dict] = None
+    wait_condition: Optional[Callable[..., bool]] = None
+    wait_args: Optional[dict] = None
     verbose: bool = True
     ready_for_next_invoke: bool = True
 
-    def condition_tester(condition: Callable[[], bool]) -> bool:
+    def condition_tester(condition: Callable[..., bool], args: Optional[dict]) -> bool:
         """Test the condition, wrapped in a try/except"""
 
         result = True
         try:
-            result = condition()
+            result = condition() if not args else condition(**args)
         except Exception as e:
             su.exception_handler(e, condition.__name__)
         finally:
@@ -67,7 +79,7 @@ def execute_sequentially(queue: list[Task] = None):
             return result
 
     def get_next():
-        nonlocal invoke_func, wait_condition, verbose
+        nonlocal invoke_func, invoke_args, wait_condition, wait_args, verbose
 
         current_task = None if not queue else queue.pop() or {}
         invoke_func = (
@@ -77,11 +89,25 @@ def execute_sequentially(queue: list[Task] = None):
                 else current_task["invoke"] or (lambda: None)
             )
         )
+        invoke_args = (
+            None if not current_task
+            else (
+                None if "invoke_args" not in current_task
+                else current_task["invoke_args"] or None
+            )
+        )
         wait_condition = (
             None if not current_task
             else (
                 (lambda: True) if "wait" not in current_task
                 else current_task["wait"] or (lambda: True)
+            )
+        )
+        wait_args = (
+            None if not current_task
+            else (
+                None if "wait_args" not in current_task
+                else current_task["wait_args"] or None
             )
         )
         verbose = (
@@ -101,15 +127,15 @@ def execute_sequentially(queue: list[Task] = None):
             ready_for_next_invoke = False
             get_next()
             if invoke_func:
-                print(f"\n---Calling {invoke_func.__name__}()")
+                print(f"\n---Calling {invoke_func.__name__}({invoke_args})")
                 try:
-                    invoke_func()
+                    invoke_func() if not invoke_args else invoke_func(**invoke_args)
                 except Exception as e:
                     su.exception_handler(e, invoke_func.__name__)
             else:
                 # All out of functions to invoke, so we're done.
                 event.remove()
-        elif condition_tester(wait_condition):
+        elif condition_tester(wait_condition, wait_args):
             ready_for_next_invoke = True
         elif verbose:
             print(".", end="", flush=True)

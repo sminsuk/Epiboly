@@ -43,7 +43,7 @@ Changes:
     *is* the mechanism of turning on and off, all at once. Setter should replace old list with new list! This would also
     provide a natural way to set the order of operations from main calling code, not having to edit the module code.
     And finally, in both control modules I could pass "invoke_args" and "wait_args" dictionaries inside each task
-    dictionary, obviating the need for lambdas and such.
+    dictionary, obviating the need for lambdas and such. (Done for exec_queue; next, try it in dynamics!)
 • But actually I don't even need exec_queue! I should apply this plan to the dynamics module, but ToDo: retire exec_queue
 • Cleaned up the way I equilibrate, hold the leading edge with frozen z while doing so, and tweak the number
     of particles created until that works better. (Got it good enough for EMBRIO presentation; still needs more
@@ -335,25 +335,12 @@ small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
                                                       max=6
                                                       )
 
-######## short named functions to use in execute_sequentially(), rather than lambdas,
-######## for more informative progress reporting and exception handling.
+######## short named functions to use in execute_sequentially()
 def random_initialization():
     # proxy for initialize_particles(), because we want to call that *before* invoking the queue,
     # not inside it. Gave this a name that serves as a good output message, better than 
     # "calling <lambda>" which is what you get if you pass "None".
     pass
-
-def is_equilibrated_epsilon():
-    return xt.is_equilibrated(0.1)
-
-def is_equilibrated_0_2():
-    return xt.is_equilibrated(epsilon=0.2)
-
-def is_equilibrated_0_05():
-    return xt.is_equilibrated(epsilon=0.05)
-
-def remove_big_little_attraction():
-    tf.bind.types(big_small_repulsion_only, Big, Little)
 
 def turn_on_bond_maint():
     dyn.set_bond_maintenance({Little: True, LeadingEdge: True})
@@ -368,7 +355,8 @@ initialize_particles()
 # turn_on_bond_maint()
 # xq.execute_sequentially([
 #         {"invoke": random_initialization,
-#          "wait": is_equilibrated_0_05,
+#          "wait": xt.is_equilibrated,
+#          "wait_args": {"epsilon": 0.05}
 #          # "verbose": False,
 #          },
 #         # {"invoke": nbrs.paint_neighbors},
@@ -379,7 +367,10 @@ initialize_particles()
 #         # {"invoke": turn_on_bond_maint},
 #         {"invoke": add_interior_bonds},
 #         # {"invoke": turn_on_bond_maint},   # COMMENTED OUT TO GENERATE PRESENTATION
-#         # {"invoke": remove_big_little_attraction}, # Now not sure I want this after all
+#         # Removing big-little attraction: I don't want this after all. (But great for testing "invoke_args"!)
+#         # {"invoke": tf.bind.types,
+#         #  "invoke_args": {"p": big_small_repulsion_only, "a": Big, "b": Little},
+#         #  },
 #         # {"invoke": toggle_visibility},
 #         # {"invoke": toggle_visibility},
 #         # {"invoke": dyn.set_tangent_forces},
