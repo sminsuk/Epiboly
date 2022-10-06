@@ -16,10 +16,10 @@ def update_tangent_forces(magnitude: int) -> None:
     for p in LeadingEdge.items():
         r, theta, phi = p.sphericalPosition(particle=big_particle)
         tangent_phi = phi + math.pi / 2
-        tangent_unit_vec = su.cartesian_from_spherical([1.0, theta, tangent_phi])
+        tangent_force_vec: tf.fVector3 = su.cartesian_from_spherical([magnitude, theta, tangent_phi])
 
-        # product is an fVector3, and the assignment runs into the copy-constructor bug! So change to plain list
-        p.force_init = (tangent_unit_vec * magnitude).as_list()
+        # The assignment runs into the copy-constructor bug! So change to plain list
+        p.force_init = tangent_force_vec.as_list()
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""
