@@ -78,9 +78,16 @@ from biology import bond_maintenance as bonds,\
 from control_flow import dynamics as dyn, \
     exec_queue as xq, \
     exec_tests as xt
-from control_flow.interactive import *
 import neighbors as nbrs
 import sharon_utils as su
+
+from control_flow.interactive import is_interactive
+if is_interactive():
+    # Importing this at the global level causes PyCharm to keep deleting my epiboly_init import,
+    # I guess because it thinks it's redundant; something about the "import *".
+    # Doing it here prevents that. And this is only needed in interactive sessions.
+    from control_flow.interactive import *
+    print("Interactive module imported!")
 
 def freeze_leading_edge(frozen: bool = True):
     for particle in LeadingEdge.items():
@@ -350,26 +357,25 @@ def random_initialization():
 # outside of the sequential queue:
 initialize_particles()
 
-# xq.execute_sequentially([
-#         {"invoke": random_initialization,
-#          "wait": xt.is_equilibrated,
-#          "wait_args": {"epsilon": 0.05}
-#          # "verbose": False,
-#          },
-#         # {"invoke": nbrs.paint_neighbors},
-#         # Can't use this one because on_keypress() doesn't seem to work!
-#         # {"invoke": xt.setup_keypress_detection,
-#         #      "wait": xt.keypress_event,
-#         #      "verbose": False},
-#         {"invoke": add_interior_bonds},
-#         # Removing big-little attraction: I don't want this after all. (But great for testing "invoke_args"!)
-#         # {"invoke": tf.bind.types,
-#         #  "invoke_args": {"p": big_small_repulsion_only, "a": Big, "b": Little},
-#         #  },
-#         # {"invoke": toggle_visibility},
-#         # {"invoke": toggle_visibility},
-#         ]
-#         )
+xq.execute_sequentially([
+        # {"invoke": random_initialization,
+        #  "wait": xt.is_equilibrated,
+        #  "wait_args": {"epsilon": 0.05}
+        #  # "verbose": False,
+        #  },
+        # # {"invoke": nbrs.paint_neighbors},
+        # # Can't use this one because on_keypress() doesn't seem to work!
+        # # {"invoke": xt.setup_keypress_detection,
+        # #      "wait": xt.keypress_event,
+        # #      "verbose": False},
+        # {"invoke": add_interior_bonds},
+        # # Removing big-little attraction: I don't want this after all. (But great for testing "invoke_args"!)
+        # # {"invoke": tf.bind.types,
+        # #  "invoke_args": {"p": big_small_repulsion_only, "a": Big, "b": Little},
+        # #  },
+        # # {"invoke": toggle_visibility},
+        # # {"invoke": toggle_visibility},
+        ])
 
 ########################## interactive ##########################
 
