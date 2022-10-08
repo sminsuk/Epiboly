@@ -9,7 +9,7 @@ on_particle events only take a *single* ParticleType. So if you want to run an e
 more than one type, you have to turn on that event for each one.
 """
 from collections.abc import Callable
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 from epiboly_init import *
 import sharon_utils as su
@@ -22,7 +22,7 @@ def execute_repeatedly(tasks: list[Task] = None) -> None:
     """Execute these tasks, in order, once per timestep.
     
     Each time this is called, the old task list is replaced by the new one.
-    To clear the task list so nothing is happening, omit the arg or pass None or {}
+    To clear the task list so nothing is happening, omit the arg or pass [].
     """
     global _tasks
     
@@ -45,7 +45,7 @@ def execute_repeatedly(tasks: list[Task] = None) -> None:
         print(f"setting up invoke: {invoke.__name__} with args: {args}")
 
 ######## Private ########
-_tasks: Optional[list[Task]] = None
+_tasks: list[Task] = []
 
 def _master_event(evt):
     """This is intended to be run every simulation step. For now, ignoring evt and letting it run forever."""
