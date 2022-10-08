@@ -399,6 +399,7 @@ def equilibrate_to_leading_edge(steps: int = 1):
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
 reset_camera()
+print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(300)
 add_interior_bonds()
 
