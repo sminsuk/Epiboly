@@ -407,13 +407,21 @@ dyn.execute_repeatedly(tasks=[
         {"invoke": mt.update_tangent_forces,
          "args": {"magnitude": 5}
          },
-        {"invoke": bonds.maintain_bonds,
-         "args": {"ptypes": [Little,
-                             LeadingEdge,
-                             ]
-                  }
-         },
+        # {"invoke": bonds.maintain_bonds,
+        #  "args": {"ptypes": [Little,
+        #                      LeadingEdge,
+        #                      ]
+        #           }
+        #  },
         ])
+
+print("press space to starting stretching, then close window to stop...")
+tf.show()
+
+mt.remove_tangent_forces()
+dyn.execute_repeatedly()    # turn off everything
+print("Now press space to release")
+
 
 # tf.step()
 # while not xt.is_equilibrated(epsilon=0.01):
