@@ -38,13 +38,7 @@ Changes:
 • Note, NEXT TODO:
     ToDo: implement the next step in breaking and making bonds: find *un*-bonded neighbors able to make
      new bonds. Candidate bond creations. Calculate the energy. ===== in progress =====
-• Some more infrastructure thoughts: better to pass a list of dictionaries just like for exec_queue. Should make for
-    a much cleaner dynamics module. No need for individual function setters and unsetters, because passing the list
-    *is* the mechanism of turning on and off, all at once. Setter should replace old list with new list! This would also
-    provide a natural way to set the order of operations from main calling code, not having to edit the module code.
-    And finally, in both control modules I could pass "invoke_args" and "wait_args" dictionaries inside each task
-    dictionary, obviating the need for lambdas and such. (Done for exec_queue; next, try it in dynamics!)
-• But actually I don't even need exec_queue! I should apply this plan to the dynamics module, but ToDo: retire exec_queue
+• Some more infrastructure thoughts: pass a list of dictionaries. Done! Now just remaining ToDo: retire exec_queue
 • Cleaned up the way I equilibrate, hold the leading edge with frozen z while doing so, and tweak the number
     of particles created until that works better. (Got it good enough for EMBRIO presentation; still needs more
     tweaking, though. Note James thoughts in notes from 2022-09-21 Group Meeting about equilibration methods!)
