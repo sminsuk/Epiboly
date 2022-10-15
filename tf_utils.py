@@ -8,10 +8,6 @@ from typing import Optional
 
 import tissue_forge as tf
 
-def vec(sequence):
-    """More concise alias for constructing fVector3 from a sequence of three items"""
-    return tf.fVector3(sequence)
-
 def cartesian_from_spherical(sphere_vec):
     """Given a vector in spherical coords (with angles in radians), return the cartesian equivalent.
 
@@ -25,7 +21,7 @@ def cartesian_from_spherical(sphere_vec):
     dx = dxy * math.cos(theta)
     dy = dxy * math.sin(theta)
     dz = r * math.cos(phi)
-    return vec([dx, dy, dz])
+    return tf.fVector3([dx, dy, dz])
 
 def cartesian_from_spherical_degs(sphere_vec):
     """Given a vector in spherical coords (with angles in degrees), return the cartesian equivalent.
@@ -47,7 +43,7 @@ def spherical_from_cartesian(cartesian_vec):
     dxy = math.sqrt(dx ** 2 + dy ** 2)  # length of projection of vector onto the xy plane
     theta = 0 if dxy == 0 else math.copysign(math.acos(dx / dxy), dy)
     phi = 0 if r == 0 else math.acos(dz / r)
-    return vec([r, theta, phi])
+    return tf.fVector3([r, theta, phi])
 
 def spherical_degs_from_cartesian(cartesian_vec):
     """Given a vector in cartesian coords, return the spherical equivalent (with angles in degrees).
@@ -56,23 +52,7 @@ def spherical_degs_from_cartesian(cartesian_vec):
     returns: fVector3, vector in spherical coords [r, theta, phi] in degrees
     """
     r, theta, phi = spherical_from_cartesian(cartesian_vec)
-    return vec([r, math.degrees(theta), math.degrees(phi)])
-
-def phi_for_epiboly(epiboly_percentage=40):
-    """Zebrafish-specific: convert % epiboly into phi for spherical coordinates (in radians)
-
-    epiboly_percentage: % of *vertical* distance from animal to vegetal pole (not % of arc).
-    From staging description at zfin.org:
-
-    'The extent to which the blastoderm has spread over across the yolk cell provides an extremely useful staging index from this stage until epiboly ends. We define percent-epiboly to mean the fraction of the yolk cell that the blastoderm covers; percent-coverage would be a more precise term for what we mean to say, but percent-epiboly immediately focuses on the process and is in common usage. Hence, at 30%-epiboly the blastoderm margin is at 30% of the entire distance between the animal and vegetal poles, as one estimates along the animal-vegetal axis.'
-    """
-    radius_percentage = 2 * epiboly_percentage
-    adjacent = 100 - radius_percentage
-    cosine_phi = adjacent / 100
-    phi_rads = math.acos(cosine_phi)
-    #     print("intermediate results: radius_percentage, adjacent, cosine_phi, degrees =",
-    #           radius_percentage, adjacent, cosine_phi, math.degrees(phi_rads))
-    return phi_rads
+    return tf.fVector3([r, math.degrees(theta), math.degrees(phi)])
 
 def random_nd_spherical(npoints, dim):
     """Generate uniform distributed points on n-dimensional sphere

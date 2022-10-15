@@ -161,7 +161,7 @@ def initialize_interior(leading_edge_phi):
     # vectors here are already in that form, and it will crash.)
     # final_position = lambda vector: big_particle.position + su.vec(vector) * scale
     def final_position(vector):
-        return big_particle.position + tfu.vec(vector) * scale
+        return big_particle.position + tf.fVector3(vector) * scale
     
     # Better workaround of argument problem. Rebuilding the list of positions got past the
     # TypeError in factory(), but the error message for that TypeError showed that it wasn't
@@ -211,11 +211,32 @@ def add_interior_bonds():
     print(f"Created {len(tf.BondHandle.items())} bonds.")
 
 def initialize_bonded_edge():
+    def phi_for_epiboly(epiboly_percentage=40):
+        """Convert % epiboly into phi for spherical coordinates (in radians)
+
+        epiboly_percentage: % of *vertical* distance from animal to vegetal pole (not % of arc).
+        From staging description at zfin.org:
+
+        'The extent to which the blastoderm has spread over across the yolk cell provides an extremely useful staging
+        index from this stage until epiboly ends. We define percent-epiboly to mean the fraction of the yolk cell that
+        the blastoderm covers; percent-coverage would be a more precise term for what we mean to say, but
+        percent-epiboly immediately focuses on the process and is in common usage. Hence, at 30%-epiboly the blastoderm
+        margin is at 30% of the entire distance between the animal and vegetal poles, as one estimates along the
+        animal-vegetal axis.'
+        """
+        radius_percentage = 2 * epiboly_percentage
+        adjacent = 100 - radius_percentage
+        cosine_phi = adjacent / 100
+        phi_rads = math.acos(cosine_phi)
+        # print("intermediate results: radius_percentage, adjacent, cosine_phi, degrees =",
+        #       radius_percentage, adjacent, cosine_phi, math.degrees(phi_rads))
+        return phi_rads
+    
     def create_ring():
         print("Generating leading edge particles.")
         
         # Where the edge should go
-        leading_edge_phi = tfu.phi_for_epiboly(epiboly_percentage=epiboly_initial_percentage)
+        leading_edge_phi = phi_for_epiboly(epiboly_percentage=epiboly_initial_percentage)
         #         print("leading edge: phi =", math.degrees(leading_edge_phi))
         
         # some basic needed quantities
@@ -228,11 +249,11 @@ def initialize_bonded_edge():
         
         # make 3D and scaled
         z_latitude = math.cos(leading_edge_phi) * scale
-        latitude_center_position = big_particle.position + tfu.vec([0, 0, z_latitude])
+        latitude_center_position = big_particle.position + tf.fVector3([0, 0, z_latitude])
         
         def final_position(unit_vector):
             return (latitude_center_position
-                    + tfu.vec([*unit_vector, 0]) * r_latitude)
+                    + tf.fVector3([*unit_vector, 0]) * r_latitude)
         
         final_positions = [final_position(vector).as_list() for vector in unit_circle_vectors]
         
