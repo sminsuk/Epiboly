@@ -75,7 +75,7 @@ from control_flow import dynamics as dyn, \
 import neighbors as nbrs
 import sharon_utils as su
 
-from control_flow.interactive import is_interactive
+from control_flow.interactive import is_interactive, toggle_visibility
 if is_interactive():
     # Importing this at the global level causes PyCharm to keep deleting my epiboly_init import,
     # I guess because it thinks it's redundant; something about the "import *".
@@ -206,10 +206,7 @@ def initialize_interior(leading_edge_phi):
 def add_interior_bonds():
     print("Bonding interior particles.")
     for particle in Little.items():
-        # Bond to all neighbors not already bonded to        
-        neighbors = nbrs.get_non_bonded_neighbors(particle)
-        for neighbor in neighbors:
-            tf.Bond.create(small_small_attraction_bonded, neighbor, particle)
+        bonds.make_bonds(particle)
     
     print(f"Created {len(tf.BondHandle.items())} bonds.")
 
@@ -397,16 +394,13 @@ print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(300)
 add_interior_bonds()
 
+toggle_visibility()
+toggle_visibility()
 dyn.execute_repeatedly(tasks=[
         {"invoke": mt.update_tangent_forces,
          "args": {"magnitude": 5}
          },
-        {"invoke": bonds.maintain_bonds,
-         "args": {"ptypes": [Little,
-                             LeadingEdge,
-                             ]
-                  }
-         },
+        {"invoke": bonds.maintain_bonds},
         ])
 
 # tf.step()

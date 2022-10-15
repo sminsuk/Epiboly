@@ -4,7 +4,7 @@ import math
 
 from epiboly_init import *
 
-def _unshadowed_neighbors(p, distance_factor) -> list:
+def _unshadowed_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[tf.ParticleHandle]:
     """Not nearest neighbors, but best neighbors.
     
     p: particle_handle
@@ -73,7 +73,7 @@ def _unshadowed_neighbors(p, distance_factor) -> list:
     # We now have the neighbors of particle p. These are ordered by increasing distance from p.
     return neighbors
 
-def _native_neighbors(p, distance_factor) -> list:
+def _native_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[tf.ParticleHandle]:
     """Native method of Tissue Forge for finding neighbors of particle p
     
     p: particle_handle
@@ -86,7 +86,7 @@ def _native_neighbors(p, distance_factor) -> list:
     return neighbors
 
 # noinspection PyUnreachableCode
-def find_neighbors(p, distance_factor=1.5) -> list:
+def find_neighbors(p: tf.ParticleHandle, distance_factor: float =1.5) -> list[tf.ParticleHandle]:
     """A central place to keep the decision of which neighbor algorithm to use, consistently throughout the program.
     
     p: particle_handle
@@ -94,6 +94,8 @@ def find_neighbors(p, distance_factor=1.5) -> list:
         Default value works as basic threshold for making bonds while minimizing crossings.
     returns: neighbors of p in a plain python list, ordered by increasing distance from p
     """
+    neighbors: list[tf.ParticleHandle]
+    
     # Pick one of these methods (both return neighbors ordered by increasing distance from particle):
     if False:
         neighbors = _unshadowed_neighbors(p, distance_factor)
@@ -101,18 +103,22 @@ def find_neighbors(p, distance_factor=1.5) -> list:
         neighbors = _native_neighbors(p, distance_factor)
     return neighbors
 
-def get_non_bonded_neighbors(p):
+def get_non_bonded_neighbors(phandle: tf.ParticleHandle) -> list[tf.ParticleHandle]:
     """Not quite the inverse of particleHandle.getBondedNeighbors()
     
-    p: particleHandle
+    phandle: particleHandle
     returns: list of neighbors, using one of the neighbor algorithms in this module, but excluding any that
         the particle is already bonded to.
     """
+    my_bonded_neighbor_ids: list[int]
+    neighbors: list[tf.ParticleHandle]
+    non_bonded_neighbors: list[tf.ParticleHandle]
+    
     # Who am I already bonded to?
-    my_bonded_neighbor_ids = [neighbor.id for neighbor in p.getBondedNeighbors()]
+    my_bonded_neighbor_ids = [neighbor.id for neighbor in phandle.getBondedNeighbors()]
     
     # Who are all my neighbors? (bonded or not)
-    neighbors = find_neighbors(p)
+    neighbors = find_neighbors(phandle)
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor.id not in my_bonded_neighbor_ids]
     return non_bonded_neighbors

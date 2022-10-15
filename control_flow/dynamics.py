@@ -28,18 +28,22 @@ def execute_repeatedly(tasks: list[Task] = None) -> None:
     
     if tasks is None:
         tasks = []
-
+    
     # Validate each task in every possible way that this could go wrong
     # (that I can think of, and am able to test).
     # Filter out any baddies and keep the rest.
-    tasks = [task for task in tasks
-             if (task
-                 and "invoke" in task
-                 and task["invoke"]
-                 )
-             ]
-    _tasks = tasks
+    _tasks = [task for task in tasks
+              if (task
+                  and "invoke" in task
+                  and task["invoke"]
+                  )
+              ]
+    
     for task in _tasks:
+        # and although args not required, make sure there's an entry for it
+        if "args" not in task:
+            task["args"] = {}
+            
         invoke: Callable[..., None] = task["invoke"]
         args: dict = task["args"]
         print(f"setting up invoke: {invoke.__name__} with args: {args}")
@@ -50,13 +54,12 @@ _tasks: list[Task] = []
 def _master_event(evt):
     """This is intended to be run every simulation step. For now, ignoring evt and letting it run forever."""
     global _tasks
-
+    
     for task in _tasks:
         invoke: Callable[..., None] = task["invoke"]
         args: dict = task["args"]
         try:
-            # Can probably simplify this; unpacking should work when args empty?
-            invoke() if not args else invoke(**args)
+            invoke(**args)
         except Exception as e:
             su.exception_handler(e, invoke.__name__)
 

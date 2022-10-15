@@ -24,7 +24,7 @@ def _maintain_bond(phandle: tf.ParticleHandle) -> None:
     if random.random() < 0.1:
         p1.style.setColor("lightgray")  # testing
         p2.style.setColor("white")  # testing
-
+    
     # Now we have two particles and the bond between. Search nearby for particles (not necessarily bonded neighbors
     # of these two, or immediate neighbors at all), that are able to make any new bonds.
     # For simplicity, just use p1 as the search center. Was going to use both and combine them, but maybe not necessary?
@@ -33,7 +33,7 @@ def _maintain_bond(phandle: tf.ParticleHandle) -> None:
     # I waiver on whether to do this: if we break this bond, exclude these two particles from being involved in the new one:
     if p2 in vicinity:
         vicinity.remove(p2)
-
+    
     ######## This seems wrong, though. Maybe we only want to find a single pair?
     ######## Actually that seems wrong too; if we always break one and make one, then it enforces that the
     # total number of bonds in the system must be static. I highly doubt it! Rethink this. Maybe completely
@@ -70,10 +70,85 @@ def _maintain_bond(phandle: tf.ParticleHandle) -> None:
     if not bondable_pairs:
         # if we can't make any bonds, then we can't break any, either
         return
-
+    
     # Next: compare energies and make/break bonds. But first, rethink...
 
-def maintain_bonds(ptypes: list[tf.ParticleType]) -> None:
+def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
+    """Return a potential tailored to these 2 particles: generates no force because r0 = their current distance.
+    
+    min = r0 so that this also generates no force if the particles are subsequently pushed towards each other;
+    only generates force if they are pulled apart
+    """
+    distance: float = p1.distance(p2)
+    assert distance > 0.2, f"Making bond with r0 = {distance}"
+    potential: tf.Potential = tf.Potential.harmonic(r0=distance,
+                                                    k=7.0,
+                                                    min=distance,
+                                                    max=6
+                                                    )
+    tf.Bond.create(potential, p1, p2)
+
+def make_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
+    # Bond to all neighbors not already bonded to
+    neighbors = nbrs.get_non_bonded_neighbors(phandle)
+    for neighbor in neighbors:
+        if verbose:
+            print(f"Making new bond between particles {neighbor.id} and {phandle.id}")
+            neighbor.style.setColor("lightgray")  # testing
+            phandle.style.setColor("white")  # testing
+        _make_bond(neighbor, phandle)
+    return len(neighbors)
+
+def _break_bonds(saturation_factor: int) -> None:
+    """Decide which bonds will be broken, then break them
+    
+    saturation_factor: multiple of r0 at which probability of breaking = 1
+    """
+    def breaking_probability(bhandle: tf.BondHandle) -> float:
+        potential: tf.Potential = bhandle.potential
+        assert hasattr(potential, "r0"), f"Potential {potential} has no r0 attribute!"
+        r0: float = potential.r0
+        print(f"r0 = {r0}")
+        # assert r0 > 0.2, f"Found potential with r0 = {r0}"
+        r: float = su.bond_distance(bhandle)
+        saturation_distance: float = saturation_factor * r0
+        # ###### ToDo: This fails because r0 is being read as 0.0, hence every bond breaks!
+        # ###### Also sometimes potential is None, and throws error when trying to access r0.
+        # ###### Furthermore, pausing the simulator reproducibly causes that to happen!
+        # ###### ToDo: Need to implement the speed-up approach, as well
+        saturation_energy: float = potential(saturation_distance)
+        
+        # potential(r) should match the bond's energy property, though it won't be exact:
+        assert abs(bhandle.energy - potential(r)) < 0.0001, \
+            f"unexpected bond energy: property = {bhandle.energy}, calculated = {potential(r)}"
+    
+        p: float
+        if r <= r0:
+            p = 0
+        elif r > saturation_distance:
+            p = 1
+        else:
+            p = bhandle.energy / saturation_energy
+            
+        return p
+
+    print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to maybe break")
+    breaking_bonds = [bhandle for bhandle in tf.BondHandle.items()
+                      if random.random() < breaking_probability(bhandle)
+                      ]
+    initial_count = len(breaking_bonds)
+    print(f"breaking {initial_count} bonds")
+    
+    for bhandle in breaking_bonds:
+        bhandle.destroy()
+        # Okay to destroy items while iterating over the list?
+    final_count = len(breaking_bonds)
+    
+    assert initial_count == final_count, \
+        f"len(list) changed during iteration, from {initial_count} to {final_count}"
+    # i.e. if length changes, then shouldn't destroy while iterating (use pop instead!)
+
+def maintain_bonds_old_version(ptypes: list[tf.ParticleType]) -> None:
     """Worrying: this seems really slow. Might need, instead of visiting every particle and deciding whether
     to process it, decide in advance how many to process, and only visit those, randomly selected of course.
     Could also go less often than every dt."""
@@ -81,3 +156,12 @@ def maintain_bonds(ptypes: list[tf.ParticleType]) -> None:
         particles = [p for p in ptype.items()]
         for p in particles:
             _maintain_bond(p)
+
+def maintain_bonds() -> None:
+    total: int = 0
+    for ptype in [Little, LeadingEdge]:
+        for p in ptype.items():
+            total += make_bonds(p, verbose=True)
+    print(f"Created {total} bonds.")
+
+    _break_bonds(saturation_factor=3)
