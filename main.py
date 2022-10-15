@@ -191,10 +191,14 @@ def initialize_interior(leading_edge_phi):
     Little.factory(positions=final_positions)
     
     # Give these each a Style object so I can access them later
-    for particle in Little.items():
-        particle.style = tf.rendering.Style()
-        particle.style.setColor("cornflowerblue")
-        particle.style.visible = True
+    # Also add each particle to the global catalog
+    phandle: tf.ParticleHandle
+    for phandle in Little.items():
+        phandle.style = tf.rendering.Style()
+        phandle.style.setColor("cornflowerblue")
+        phandle.style.visible = True
+        particle_values: ParticleData = {"handle": phandle}
+        particles_by_id[phandle.id] = particle_values
     
     finished = time.perf_counter()
     print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
@@ -260,11 +264,15 @@ def initialize_bonded_edge():
         LeadingEdge.factory(positions=final_positions)
         
         # Give these each a Style object so I can access them later
-        for particle in LeadingEdge.items():
-            particle.style = tf.rendering.Style()
-            particle.style.setColor("gold")
-            particle.style.visible = True
-        
+        # Also add each particle to the global catalog
+        phandle: tf.ParticleHandle
+        for phandle in LeadingEdge.items():
+            phandle.style = tf.rendering.Style()
+            phandle.style.setColor("gold")
+            phandle.style.visible = True
+            particle_values: ParticleData = {"handle": phandle}
+            particles_by_id[phandle.id] = particle_values
+
         return leading_edge_phi
     
     def create_bonds():
@@ -274,6 +282,15 @@ def initialize_bonded_edge():
             # theta relative to the animal/vegetal axis
             r, theta, phi = particle.sphericalPosition(origin=big_particle.position)
             return theta
+
+        # Use for each of the bonds we'll create here
+        r0 = LeadingEdge.radius * 2
+        bond_values: BondData = {"r0": r0}
+        small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
+                                                              k=7.0,
+                                                              min=r0,
+                                                              max=6
+                                                              )
         
         # Sort all the new particles on theta, into a new list (copy, not live)
         sorted_particles = sorted(LeadingEdge.items(), key=theta)
@@ -281,10 +298,11 @@ def initialize_bonded_edge():
         # Now they can just be bonded in the order in which they are in the list
         previous_particle = sorted_particles[-1]  # last one
         for particle in sorted_particles:
-            #             print("binding particles with thetas:",
-            #                   math.degrees(theta(previous_particle)),
-            #                   math.degrees(theta(particle)))
-            tf.Bond.create(small_small_attraction_bonded, previous_particle, particle)
+            # print("binding particles with thetas:",
+            #       math.degrees(theta(previous_particle)),
+            #       math.degrees(theta(particle)))
+            handle: tf.BondHandle = tf.Bond.create(small_small_attraction_bonded, previous_particle, particle)
+            bonds_by_id[handle.id] = bond_values
             previous_particle = particle
     
     leading_edge_phi = create_ring()
@@ -349,14 +367,7 @@ replace_all_small_small_potentials(new_potential=small_small_repulsion)
 
 big_particle = Big([5, 5, 5])
 
-# Attractive potential to be used only in bonded interactions. Like before, only huge max!
-small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
-                                                      k=7.0,
-                                                      min=r0,
-                                                      max=6
-                                                      )
-
-######## short named functions to use in execute_sequentially()
+# ####### short named functions to use in execute_sequentially()
 def random_initialization():
     # proxy for initialize_particles(), because we want to call that *before* invoking the queue,
     # not inside it. Gave this a name that serves as a good output message, better than 
@@ -389,13 +400,14 @@ xq.execute_sequentially([
         # # {"invoke": toggle_visibility},
         ])
 
-########################## interactive ##########################
+# ######################### interactive ##########################
 
 def plots():
     big_small_pot.plot(potential=True, force=True, ymin=-1e2, ymax=1e2)
     # small_small_LJ.plot(potential=True, force=True, ymin=-1e1, ymax=1e1)
     small_small_repulsion.plot(potential=True, force=True, ymin=-0.1, ymax=0.01)
-    small_small_attraction_bonded.plot(potential=True, force=True, ymin=-0.001, ymax=0.01, min=0.28, max=0.34)
+    # Can't do this one anymore because I made the declaration local:
+    # small_small_attraction_bonded.plot(potential=True, force=True, ymin=-0.001, ymax=0.01, min=0.28, max=0.34)
     # This fails ("Maximum allowed size exceeded"):
     # combo = small_small_repulsion + small_small_attraction_bonded
     # combo.plot(potential=True, force=True, ymin=-1e1, ymax=1e1)
