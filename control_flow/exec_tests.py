@@ -1,6 +1,6 @@
 from epiboly_init import *
 import neighbors as nbrs
-import tf_utils as tfu
+from utils import tf_utils as tfu
 
 key_was_pressed = False
 

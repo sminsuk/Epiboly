@@ -3,8 +3,6 @@
 Everything that *should* be in the global namespace, should be here, and that should not be much.
 Everything else should be local to a function, or in a module.
 """
-from typing import TypedDict
-
 import tissue_forge as tf
 
 class LittleType(tf.ParticleTypeSpec):
@@ -35,23 +33,6 @@ tf.init(dim=dim)  # , cutoff = 2)
 Little: tf.ParticleType = LittleType.get()
 Big: tf.ParticleType = BigType.get()
 LeadingEdge: tf.ParticleType = LeadingEdgeType.get()
-
-# Global particle and bond data. For storing stuff that is irretrievable once created
-# Maybe put this in its own module, ore even a class?
-# Usage: for now, leaving it up to the caller, since these things only happen in a couple of places:
-#   Whenever creating a particle / bond, add it to particles_by_id / bonds_by_id, respectively
-#   Whenever deleting a particle / bond, delete it from those dicts
-#   BondData allows to retrieve the r0 from the potential attached to a given bond
-#   ParticleData allows to retrieve ParticleHandle from an id. (This may not work. May have to
-#       store actual Particles instead.)
-class BondData(TypedDict):
-    r0: float
-    
-class ParticleData(TypedDict):
-    handle: tf.ParticleHandle
-    
-bonds_by_id: dict[int, BondData] = {}
-particles_by_id: dict[int, ParticleData] = {}
 
 # Just while determining empirically, the right number of interior particles to use.
 # If there are too many, with frozen LeadingEdge, they'll pop past. If too few,

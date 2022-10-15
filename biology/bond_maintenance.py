@@ -2,7 +2,8 @@
 import random
 
 from epiboly_init import *
-import tf_utils as tfu
+from utils import tf_utils as tfu,\
+    global_catalogs as gc
 
 import neighbors as nbrs
 
@@ -87,8 +88,8 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
                                                     max=6
                                                     )
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
-    bond_values: BondData = {"r0": distance}
-    bonds_by_id[handle.id] = bond_values
+    bond_values: gc.BondData = {"r0": distance}
+    gc.bonds_by_id[handle.id] = bond_values
 
 def make_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
     # Bond to all neighbors not already bonded to
@@ -143,7 +144,7 @@ def _break_bonds(saturation_factor: int) -> None:
     
     bhandle: tf.BondHandle
     for bhandle in breaking_bonds:
-        del bonds_by_id[bhandle.id]
+        del gc.bonds_by_id[bhandle.id]
         bhandle.destroy()
         # Okay to destroy items while iterating over the list?
     final_count = len(breaking_bonds)

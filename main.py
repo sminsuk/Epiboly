@@ -73,7 +73,8 @@ from control_flow import dynamics as dyn, \
     exec_queue as xq, \
     exec_tests as xt
 import neighbors as nbrs
-import tf_utils as tfu
+from utils import tf_utils as tfu,\
+    global_catalogs as gc
 
 from control_flow.interactive import is_interactive, toggle_visibility
 if is_interactive():
@@ -197,8 +198,8 @@ def initialize_interior(leading_edge_phi):
         phandle.style = tf.rendering.Style()
         phandle.style.setColor("cornflowerblue")
         phandle.style.visible = True
-        particle_values: ParticleData = {"handle": phandle}
-        particles_by_id[phandle.id] = particle_values
+        particle_values: gc.ParticleData = {"handle": phandle}
+        gc.particles_by_id[phandle.id] = particle_values
     
     finished = time.perf_counter()
     print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
@@ -270,8 +271,8 @@ def initialize_bonded_edge():
             phandle.style = tf.rendering.Style()
             phandle.style.setColor("gold")
             phandle.style.visible = True
-            particle_values: ParticleData = {"handle": phandle}
-            particles_by_id[phandle.id] = particle_values
+            particle_values: gc.ParticleData = {"handle": phandle}
+            gc.particles_by_id[phandle.id] = particle_values
 
         return leading_edge_phi
     
@@ -285,7 +286,7 @@ def initialize_bonded_edge():
 
         # Use for each of the bonds we'll create here
         r0 = LeadingEdge.radius * 2
-        bond_values: BondData = {"r0": r0}
+        bond_values: gc.BondData = {"r0": r0}
         small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
                                                               k=7.0,
                                                               min=r0,
@@ -302,7 +303,7 @@ def initialize_bonded_edge():
             #       math.degrees(theta(previous_particle)),
             #       math.degrees(theta(particle)))
             handle: tf.BondHandle = tf.Bond.create(small_small_attraction_bonded, previous_particle, particle)
-            bonds_by_id[handle.id] = bond_values
+            gc.bonds_by_id[handle.id] = bond_values
             previous_particle = particle
     
     leading_edge_phi = create_ring()

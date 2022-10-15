@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import TypedDict
 
 from epiboly_init import *
-import tf_utils as tfu
+from utils import tf_utils as tfu
 
 class Task(TypedDict, total=False):
     invoke: Callable[..., None]     # required

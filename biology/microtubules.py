@@ -2,7 +2,7 @@
 import math
 
 from epiboly_init import *
-import tf_utils as tfu
+from utils import tf_utils as tfu
 
 def update_tangent_forces(magnitude: int) -> None:
     """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
