@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import Optional, TypedDict
 
 from epiboly_init import *
-import sharon_utils as su
+import tf_utils as tfu
 
 
 class Task(TypedDict, total=False):
@@ -71,7 +71,7 @@ def execute_sequentially(queue: list[Task] = None):
         try:
             result = condition() if not args else condition(**args)
         except Exception as e:
-            su.exception_handler(e, condition.__name__)
+            tfu.exception_handler(e, condition.__name__)
         finally:
             # If exception occurs in the condition, returns True to prevent it from
             # being called (and reported) over and over. This means execution will proceed
@@ -131,7 +131,7 @@ def execute_sequentially(queue: list[Task] = None):
                 try:
                     invoke_func() if not invoke_args else invoke_func(**invoke_args)
                 except Exception as e:
-                    su.exception_handler(e, invoke_func.__name__)
+                    tfu.exception_handler(e, invoke_func.__name__)
             else:
                 # All out of functions to invoke, so we're done.
                 event.remove()

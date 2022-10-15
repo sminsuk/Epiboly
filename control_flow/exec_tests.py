@@ -1,6 +1,6 @@
 from epiboly_init import *
 import neighbors as nbrs
-import sharon_utils as su
+import tf_utils as tfu
 
 key_was_pressed = False
 
@@ -16,12 +16,12 @@ def setup_keypress_detection():
     def respond_to_keypress(event):
         global key_was_pressed
         key_was_pressed = True
-        print(su.bluecolor + "Key detected" + su.endcolor)
+        print(tfu.bluecolor + "Key detected" + tfu.endcolor)
         event.remove()
 
     global key_was_pressed
     key_was_pressed = False
-    print(su.redcolor + "*** Press a key to proceed ***" + su.endcolor)
+    print(tfu.redcolor + "*** Press a key to proceed ***" + tfu.endcolor)
     tf.event.on_keypress(invoke_method=respond_to_keypress)
 
 

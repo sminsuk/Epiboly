@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import TypedDict
 
 from epiboly_init import *
-import sharon_utils as su
+import tf_utils as tfu
 
 class Task(TypedDict, total=False):
     invoke: Callable[..., None]     # required
@@ -61,7 +61,7 @@ def _master_event(evt):
         try:
             invoke(**args)
         except Exception as e:
-            su.exception_handler(e, invoke.__name__)
+            tfu.exception_handler(e, invoke.__name__)
 
 # def _master_particle_event(evt):
 #     """This runs every simulation step. Ignore evt and let it run forever, but pass the particle to the invoked actions.

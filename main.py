@@ -28,7 +28,7 @@ Changes:
     the bondHandle connecting them. (Need to fix though: should select at random.)
 • Found and remedied missing functionality in tf. Can't get a particle from a particle id (don't even bother, it
     would be expensive). Also no *direct* way, given a particle and one of its bondedNeighbors(), to access the
-    bond connecting them. Wrote a utility function to do this and added to sharon_utils.
+    bond connecting them. Wrote a utility function to do this and added to tf_utils.
 • Switched to processing *every* particle on each time step, not just one. It actually seems worryingly slow.
 • Some refactoring, in particular neighbor-finding stuff.
 • Import into PyCharm, do a fair bit of cleanup in response to all its errors and warnings, and start using
@@ -73,7 +73,7 @@ from control_flow import dynamics as dyn, \
     exec_queue as xq, \
     exec_tests as xt
 import neighbors as nbrs
-import sharon_utils as su
+import tf_utils as tfu
 
 from control_flow.interactive import is_interactive, toggle_visibility
 if is_interactive():
@@ -129,7 +129,7 @@ def initialize_interior(leading_edge_phi):
     if True:
         # new method:
         # (gets list of plain python list[3])
-        vectors = su.random_nd_spherical(npoints=num_spherical_positions, dim=3)
+        vectors = tfu.random_nd_spherical(npoints=num_spherical_positions, dim=3)
         edge_margin = edge_margin_interior_points
     else:
         # or alternatively, old method using tf built-in (and transform to match the output type of
@@ -146,7 +146,7 @@ def initialize_interior(leading_edge_phi):
     # from leading_edge_phi (eyeball it) so that the two particle types don't overrun each other.
     # This is in radians so 5 degrees ~ 0.09. (See edge_margin values above.)
     filtered_vectors = [vector for vector in vectors
-                        if su.spherical_from_cartesian(vector)[2] < leading_edge_phi - edge_margin]
+                        if tfu.spherical_from_cartesian(vector)[2] < leading_edge_phi - edge_margin]
     num_particles = len(filtered_vectors)
     print(f"Creating {num_particles} particles.")
     filtered_time = time.perf_counter()
@@ -161,7 +161,7 @@ def initialize_interior(leading_edge_phi):
     # vectors here are already in that form, and it will crash.)
     # final_position = lambda vector: big_particle.position + su.vec(vector) * scale
     def final_position(vector):
-        return big_particle.position + su.vec(vector) * scale
+        return big_particle.position + tfu.vec(vector) * scale
     
     # Better workaround of argument problem. Rebuilding the list of positions got past the
     # TypeError in factory(), but the error message for that TypeError showed that it wasn't
@@ -215,7 +215,7 @@ def initialize_bonded_edge():
         print("Generating leading edge particles.")
         
         # Where the edge should go
-        leading_edge_phi = su.phi_for_epiboly(epiboly_percentage=epiboly_initial_percentage)
+        leading_edge_phi = tfu.phi_for_epiboly(epiboly_percentage=epiboly_initial_percentage)
         #         print("leading edge: phi =", math.degrees(leading_edge_phi))
         
         # some basic needed quantities
@@ -224,15 +224,15 @@ def initialize_bonded_edge():
         
         # (gets list of plain python list[2] - unit vectors)
         # (note, unit circle, i.e., size of the unit sphere *equator*, not the size of that latitude circle)
-        unit_circle_vectors = su.random_nd_spherical(npoints=num_leading_edge_points, dim=2)
+        unit_circle_vectors = tfu.random_nd_spherical(npoints=num_leading_edge_points, dim=2)
         
         # make 3D and scaled
         z_latitude = math.cos(leading_edge_phi) * scale
-        latitude_center_position = big_particle.position + su.vec([0, 0, z_latitude])
+        latitude_center_position = big_particle.position + tfu.vec([0, 0, z_latitude])
         
         def final_position(unit_vector):
             return (latitude_center_position
-                    + su.vec([*unit_vector, 0]) * r_latitude)
+                    + tfu.vec([*unit_vector, 0]) * r_latitude)
         
         final_positions = [final_position(vector).as_list() for vector in unit_circle_vectors]
         

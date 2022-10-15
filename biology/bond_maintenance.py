@@ -2,7 +2,7 @@
 import random
 
 from epiboly_init import *
-import sharon_utils as su
+import tf_utils as tfu
 
 import neighbors as nbrs
 
@@ -18,7 +18,7 @@ def _maintain_bond(phandle: tf.ParticleHandle) -> None:
     # testing reasons: increase likelihood that I see something happening at all. But correct way to do it
     # is to select one of them at random, and then break according to energy considerations.
     p2 = max(bonded_neighbors, key=lambda other_p: p1.distance(other_p))
-    bond = su.bond_between(p1, p2)
+    bond = tfu.bond_between(p1, p2)
     # print("p1.id, p2.id, bond.parts =", p1.id, p2.id, bond.parts)
     # for testing, have a 10% chance of changing color
     if random.random() < 0.1:
@@ -110,7 +110,7 @@ def _break_bonds(saturation_factor: int) -> None:
         r0: float = potential.r0
         print(f"r0 = {r0}")
         # assert r0 > 0.2, f"Found potential with r0 = {r0}"
-        r: float = su.bond_distance(bhandle)
+        r: float = tfu.bond_distance(bhandle)
         saturation_distance: float = saturation_factor * r0
         # ###### ToDo: This fails because r0 is being read as 0.0, hence every bond breaks!
         # ###### Also sometimes potential is None, and throws error when trying to access r0.

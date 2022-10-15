@@ -2,7 +2,7 @@
 import math
 
 from epiboly_init import *
-import sharon_utils as su
+import tf_utils as tfu
 
 def update_tangent_forces(magnitude: int) -> None:
     """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
@@ -16,7 +16,7 @@ def update_tangent_forces(magnitude: int) -> None:
     for p in LeadingEdge.items():
         r, theta, phi = p.sphericalPosition(particle=big_particle)
         tangent_phi = phi + math.pi / 2
-        tangent_force_vec: tf.fVector3 = su.cartesian_from_spherical([magnitude, theta, tangent_phi])
+        tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([magnitude, theta, tangent_phi])
 
         # The assignment runs into the copy-constructor bug! So change to plain list
         p.force_init = tangent_force_vec.as_list()
