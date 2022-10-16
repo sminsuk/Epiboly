@@ -60,8 +60,8 @@ def _master_event(evt):
         args: dict = task["args"]
         try:
             invoke(**args)
-        except Exception as e:
-            tfu.exception_handler(e, invoke.__name__)
+        except Exception:
+            tfu.exception_handler()
 
 # def _master_particle_event(evt):
 #     """This runs every simulation step. Ignore evt and let it run forever, but pass the particle to the invoked actions.

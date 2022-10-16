@@ -68,9 +68,9 @@ def execute_sequentially(queue: list[Task] = None):
 
         result = True
         try:
-            result = condition() if not args else condition(**args)
-        except Exception as e:
-            tfu.exception_handler(e, condition.__name__)
+            result = condition(**args)
+        except Exception:
+            tfu.exception_handler()
         finally:
             # If exception occurs in the condition, returns True to prevent it from
             # being called (and reported) over and over. This means execution will proceed
@@ -128,9 +128,9 @@ def execute_sequentially(queue: list[Task] = None):
             if invoke_func:
                 print(f"\n---Calling {invoke_func.__name__}({invoke_args})")
                 try:
-                    invoke_func() if not invoke_args else invoke_func(**invoke_args)
-                except Exception as e:
-                    tfu.exception_handler(e, invoke_func.__name__)
+                    invoke_func(**invoke_args)
+                except Exception:
+                    tfu.exception_handler()
             else:
                 # All out of functions to invoke, so we're done.
                 event.remove()

@@ -4,6 +4,8 @@ These are general purpose utility functions for Tissue Forge, not specific to an
 """
 import math
 import numpy as np
+import sys
+import traceback
 from typing import Optional
 
 from utils import global_catalogs as gc
@@ -93,19 +95,21 @@ redcolor = "\033[91m"
 bluecolor = "\033[94m"
 endcolor = "\033[0m"
 
-def exception_handler(exception, funcname):
+def exception_handler():
     """General exception handler to be used inside tf events.
 
-    Python won't catch them on its own! Call this in the "except:" clause
-
-    exception: the exception object caught by try/except
-    funcname: name of the function called (func.__name__), or description of code executed, in the "try:" clause.
+    Python won't catch them on its own! Call this in the "except:" clause, inside event's invoke method:
+    
+    def my_func(event):
+        try:
+            [do something]
+        except Exception:
+            tf_utils.exception_handler()
+    tf.event.on_time(period=[some value], invoke_method=my_func)
     """
-    stars = "**************************"
-    print(redcolor + stars)
-    print(f"Exception in {funcname}():")
-    print(type(exception), exception)
-    print(stars + endcolor)
+    (exc_type, exc_value, exc_traceback) = sys.exc_info()
+    print(redcolor, exc_type, exc_value, endcolor)
+    traceback.print_tb(exc_traceback)
 
 # Hmm. May not need these two? At least in my own original use case, now that I know how to get a particleHandle
 # from a particle id, I may not have needed to write these.
