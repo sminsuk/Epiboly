@@ -51,8 +51,8 @@ def execute_repeatedly(tasks: list[Task] = None) -> None:
 ######## Private ########
 _tasks: list[Task] = []
 
-def _master_event(evt):
-    """This is intended to be run every simulation step. For now, ignoring evt and letting it run forever."""
+def _master_event(evt: tf.event.TimeEvent) -> int:
+    """This is intended to be run every simulation step. Runs repeatedly forever unless error."""
     global _tasks
     
     for task in _tasks:
@@ -61,7 +61,14 @@ def _master_event(evt):
         try:
             invoke(**args)
         except Exception:
+            # display the error and stack trace, which python fails to do
             tfu.exception_handler()
+            # python won't exit, so at least cancel the event instead of calling a broken event repeatedly
+            evt.remove()
+            # TF docs say to do this on error, unclear if it has any effect
+            return 1
+    
+    return 0
 
 # def _master_particle_event(evt):
 #     """This runs every simulation step. Ignore evt and let it run forever, but pass the particle to the invoked actions.

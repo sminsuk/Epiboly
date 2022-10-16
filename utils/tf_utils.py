@@ -96,15 +96,26 @@ bluecolor = "\033[94m"
 endcolor = "\033[0m"
 
 def exception_handler():
-    """General exception handler to be used inside tf events.
+    """General exception handler to be used inside TF events.
 
-    Python won't catch them on its own! Call this in the "except:" clause, inside event's invoke method:
+    Within TF events, python won't catch exceptions on its own!
+    Call this in the "except:" clause, inside your event's invoke_method:
     
     def my_func(event):
         try:
             [do something]
         except Exception:
+            # display the error and stack trace, which python fails to do
             tf_utils.exception_handler()
+            
+            # python also fails to exit the program if an error occurs during a TF event;
+            # but at least you can cancel the event instead of calling a broken event repeatedly
+            event.remove()
+            
+            # TF documentation says invoke_method should return 1 on error. Unclear whether this has any effect.
+            return 1
+        return 0
+        
     tf.event.on_time(period=[some value], invoke_method=my_func)
     """
     (exc_type, exc_value, exc_traceback) = sys.exc_info()
