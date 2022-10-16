@@ -126,7 +126,7 @@ def bond_between(p1, p2, verbose=True):
     p1, p2: particleHandle
     verbose: boolean. Set to False to suppress warnings. If True, warns when more than one bond found.
     returns: If there are no bonds between the two particles, returns None.
-        Otherwise returns BondHandle of the first bond found.
+        Otherwise, returns BondHandle of the first bond found.
     """
     p1p2bonds = bonds_between(p1, p2)
     if verbose and len(p1p2bonds) > 1:
@@ -143,13 +143,13 @@ def particle_from_id(id: int, type: tf.ParticleType = None) -> Optional[tf.Parti
     Correct way is to call the ParticleHandle constructor with the id:
         phandle = tf.ParticleHandle(id)
     But currently, tf barfs, telling me that's not an existing function overload:
-    **************************
+    
     Exception in maintain_bonds():
     <class 'TypeError'> Wrong number or type of arguments for overloaded function 'new_ParticleHandle'.
-      Possible C/C++ prototypes are:
-        TissueForge::ParticleHandle::ParticleHandle()
-        TissueForge::ParticleHandle::ParticleHandle(int const &,int const &)
-    **************************
+    Possible C/C++ prototypes are:
+    TissueForge::ParticleHandle::ParticleHandle()
+    TissueForge::ParticleHandle::ParticleHandle(int const &,int const &)
+    
     Probably a missing constructor? TJ says use the second one shown. Second int arg is the id of the ParticleType.
     Of course, can't get the ParticleType directly without knowing the particle! So I loop through all the particles
     looking for it, and at that point I'll have my ParticleHandle so won't actually need to get the ParticleType or
@@ -177,28 +177,18 @@ def particle_from_id(id: int, type: tf.ParticleType = None) -> Optional[tf.Parti
     assert p.id == id, "Got a particle, but the id is not as expected"
     return p
 
-# Hmm. These may never be useful either. At least in my original use case, trying to do all this from within
-# a key function passed to max() proved to be just too awkward; so I stuck with getting the particles first,
-# and *then* the bond, as above
 def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[tf.ParticleHandle]]:
     """Given a bondHandle, get particleHandles for the two bonded particles
 
-    This is like bondHandle.parts, except that only returns particle ids, not particleHandles.
+    This is like bondHandle.parts, except .parts only returns particle ids, not particleHandles.
     Note, TJ considering changing that.
 
-    b: bondHandle
+    b: bondHandle of an *active* bond
     returns: tuple of two particleHandles
     """
-    print(f"BondHandle.id = {b.id}")
-    assert type(b) is tf.BondHandle, f"b should be BondHandle, is {type(b)}"
-    result = b.parts
-    # without this assert, the subsequent try throws the exception: "not enough values to unpack (expected 2, got 0)"
-    assert len(result) == 2 and b.active, \
-        f"BondHandle returns id: {b.id}, active: {b.active}, parts: {result}, length: {len(result)}"
-    try:
-        id1, id2 = result
-    except Exception as e:
-        exception_handler(e, f"unpacking b.parts")
+    assert b.active, "Can't get particles from an inactive bond!"
+    # print(f"BondHandle.id = {b.id}")
+    id1, id2 = b.parts
     
     # This didn't work because of bug in tissue forge. Use this eventually, after it's fixed:
     # p1 = tf.ParticleHandle(id1)
@@ -206,29 +196,23 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
     # p2 = tf.ParticleHandle(id2)
     # print(f"found particles {p1.id} and {p2.id}")
     
-    # These also didn't work (not the right way. clean up once issue is fixed.)
-    # p1: tf.ParticleHandle = tf.Universe.particles[id1]
-    # assert p1.id == id1, f"tf.Universe.particles[{id1}] gave a particle with id {p1.id}"
-    # p2: tf.ParticleHandle = tf.Universe.particles[id2]
-    # assert p2.id == id2, f"tf.Universe.particles[{id2}] gave a particle with id {p2.id}"
-    
     # This worked, but was ridiculously (and predictably) slow
     # p1 = particle_from_id(id1)
     # p2 = particle_from_id(id2)
     
     # Faster and better
     gcdict = gc.particles_by_id
-    assert id1 in gcdict, f"Particle {id1} missing from global catalog"
-    assert id2 in gcdict, f"Particle {id2} missing from global catalog"
+    assert id1 in gcdict, f"Particle {id1} missing from global catalog!"
+    assert id2 in gcdict, f"Particle {id2} missing from global catalog!"
     p1 = gcdict[id1]["handle"]
     p2 = gcdict[id2]["handle"]
 
     return p1, p2
 
 def bond_distance(b: tf.BondHandle) -> float:
-    """"Get the distance between the two particles of a bond
+    """"Get the distance between the two particles of a bond, i.e. the "length" of the bond
 
-    b: bondHandle
+    b: bondHandle of an *active* bond
     returns: float
     """
     p1, p2 = bond_parts(b)

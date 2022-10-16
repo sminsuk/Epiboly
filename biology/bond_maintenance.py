@@ -110,16 +110,14 @@ def _break_bonds(saturation_factor: int) -> None:
     saturation_factor: multiple of r0 at which probability of breaking = 1
     """
     def breaking_probability(bhandle: tf.BondHandle) -> float:
+        """Probability of breaking bond. Bond must be active!"""
         gcdict = gc.bonds_by_id
-        bond_data: gc.BondData = None if bhandle.id not in gcdict else gcdict[bhandle.id]
-        assert bond_data is not None, "Bond data missing from global catalog"
+        assert bhandle.id in gcdict, "Bond data missing from global catalog!"
+        bond_data: gc.BondData = gcdict[bhandle.id]
         potential: tf.Potential = bond_data["potential"]
-        assert potential is not None, "Potential data missing for this bond"
         r0: float = bond_data["r0"]
-        print(f"r0 = {r0}")
-        # assert r0 > 0.2, f"Found potential with r0 = {r0}"
+        # print(f"r0 = {r0}")
         r: float = tfu.bond_distance(bhandle)
-        # ###### ToDo: bond_distance() sometimes fails because bond.parts are missing or inaccessible
         saturation_distance: float = saturation_factor * r0
         saturation_energy: float = potential(saturation_distance)
         
@@ -139,22 +137,16 @@ def _break_bonds(saturation_factor: int) -> None:
 
     print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to maybe break")
     breaking_bonds = [bhandle for bhandle in tf.BondHandle.items()
+                      if bhandle.active
                       if random.random() < breaking_probability(bhandle)
                       ]
-    initial_count = len(breaking_bonds)
-    print(f"breaking {initial_count} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
+    print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
     
     bhandle: tf.BondHandle
     for bhandle in breaking_bonds:
         del gc.bonds_by_id[bhandle.id]
         bhandle.destroy()
-        # Okay to destroy items while iterating over the list?
-    final_count = len(breaking_bonds)
     
-    assert initial_count == final_count, \
-        f"len(list) changed during iteration, from {initial_count} to {final_count}"
-    # i.e. if length changes, then shouldn't destroy while iterating (use pop instead!)
-
 def maintain_bonds_old_version(ptypes: list[tf.ParticleType]) -> None:
     """Worrying: this seems really slow. Might need, instead of visiting every particle and deciding whether
     to process it, decide in advance how many to process, and only visit those, randomly selected of course.
