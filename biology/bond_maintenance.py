@@ -89,8 +89,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
                                                     max=6
                                                     )
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
-    bond_values: gc.BondData = {"potential": potential,
-                                "r0": r0}
+    bond_values: gc.BondData = {"r0": r0}
     gc.bonds_by_id[handle.id] = bond_values
     if verbose:
         print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id}")
@@ -114,7 +113,7 @@ def _break_bonds(saturation_factor: int) -> None:
         gcdict = gc.bonds_by_id
         assert bhandle.id in gcdict, "Bond data missing from global catalog!"
         bond_data: gc.BondData = gcdict[bhandle.id]
-        potential: tf.Potential = bond_data["potential"]
+        potential: tf.Potential = bhandle.potential
         r0: float = bond_data["r0"]
         # print(f"r0 = {r0}")
         r: float = tfu.bond_distance(bhandle)

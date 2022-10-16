@@ -13,7 +13,6 @@ from typing import TypedDict
 import tissue_forge as tf
 
 class BondData(TypedDict):
-    potential: tf.Potential
     r0: float
 
 class ParticleData(TypedDict):

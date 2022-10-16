@@ -286,13 +286,12 @@ def initialize_bonded_edge():
 
         # Use for each of the bonds we'll create here
         r0 = LeadingEdge.radius * 2
+        bond_values: gc.BondData = {"r0": r0}
         small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
                                                               k=7.0,
                                                               min=r0,
                                                               max=6
                                                               )
-        bond_values: gc.BondData = {"potential": small_small_attraction_bonded,
-                                    "r0": r0}
 
         # Sort all the new particles on theta, into a new list (copy, not live)
         sorted_particles = sorted(LeadingEdge.items(), key=theta)
