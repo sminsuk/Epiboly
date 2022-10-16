@@ -6,6 +6,7 @@ import math
 import numpy as np
 from typing import Optional
 
+from utils import global_catalogs as gc
 import tissue_forge as tf
 
 def cartesian_from_spherical(sphere_vec):
@@ -137,6 +138,8 @@ def particle_from_id(id: int, type: tf.ParticleType = None) -> Optional[tf.Parti
 
     returns: None if particle not found
 
+    DEPRECATED: Hopefully do not need.
+    
     Correct way is to call the ParticleHandle constructor with the id:
         phandle = tf.ParticleHandle(id)
     But currently, tf barfs, telling me that's not an existing function overload:
@@ -186,7 +189,16 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
     b: bondHandle
     returns: tuple of two particleHandles
     """
-    id1, id2 = b.parts
+    print(f"BondHandle.id = {b.id}")
+    assert type(b) is tf.BondHandle, f"b should be BondHandle, is {type(b)}"
+    result = b.parts
+    # without this assert, the subsequent try throws the exception: "not enough values to unpack (expected 2, got 0)"
+    assert len(result) == 2 and b.active, \
+        f"BondHandle returns id: {b.id}, active: {b.active}, parts: {result}, length: {len(result)}"
+    try:
+        id1, id2 = result
+    except Exception as e:
+        exception_handler(e, f"unpacking b.parts")
     
     # This didn't work because of bug in tissue forge. Use this eventually, after it's fixed:
     # p1 = tf.ParticleHandle(id1)
@@ -200,10 +212,18 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
     # p2: tf.ParticleHandle = tf.Universe.particles[id2]
     # assert p2.id == id2, f"tf.Universe.particles[{id2}] gave a particle with id {p2.id}"
     
-    p1 = particle_from_id(id1)
-    p2 = particle_from_id(id2)
+    # This worked, but was ridiculously (and predictably) slow
+    # p1 = particle_from_id(id1)
+    # p2 = particle_from_id(id2)
     
-    return (p1, p2)
+    # Faster and better
+    gcdict = gc.particles_by_id
+    assert id1 in gcdict, f"Particle {id1} missing from global catalog"
+    assert id2 in gcdict, f"Particle {id2} missing from global catalog"
+    p1 = gcdict[id1]["handle"]
+    p2 = gcdict[id2]["handle"]
+
+    return p1, p2
 
 def bond_distance(b: tf.BondHandle) -> float:
     """"Get the distance between the two particles of a bond

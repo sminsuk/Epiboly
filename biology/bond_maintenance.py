@@ -74,32 +74,34 @@ def _maintain_bond(phandle: tf.ParticleHandle) -> None:
     
     # Next: compare energies and make/break bonds. But first, rethink...
 
-def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
+def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
     """Return a potential tailored to these 2 particles: generates no force because r0 = their current distance.
     
     min = r0 so that this also generates no force if the particles are subsequently pushed towards each other;
     only generates force if they are pulled apart
     """
     distance: float = p1.distance(p2)
-    assert distance > 0.2, f"Making bond with r0 = {distance}"
-    potential: tf.Potential = tf.Potential.harmonic(r0=distance,
+    # if particles are overlapping, set r0 so they won't:
+    r0: float = max(distance, Little.radius * 2)
+    potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=7.0,
-                                                    min=distance,
+                                                    min=r0,
                                                     max=6
                                                     )
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
-    bond_values: gc.BondData = {"r0": distance}
+    bond_values: gc.BondData = {"potential": potential,
+                                "r0": r0}
     gc.bonds_by_id[handle.id] = bond_values
+    if verbose:
+        print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id}")
+        p1.style.setColor("lightgray")  # testing
+        p2.style.setColor("white")  # testing
 
 def make_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
     # Bond to all neighbors not already bonded to
     neighbors = nbrs.get_non_bonded_neighbors(phandle)
     for neighbor in neighbors:
-        if verbose:
-            print(f"Making new bond between particles {neighbor.id} and {phandle.id}")
-            neighbor.style.setColor("lightgray")  # testing
-            phandle.style.setColor("white")  # testing
-        _make_bond(neighbor, phandle)
+        _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
 
 def _break_bonds(saturation_factor: int) -> None:
@@ -108,17 +110,17 @@ def _break_bonds(saturation_factor: int) -> None:
     saturation_factor: multiple of r0 at which probability of breaking = 1
     """
     def breaking_probability(bhandle: tf.BondHandle) -> float:
-        potential: tf.Potential = bhandle.potential
-        assert hasattr(potential, "r0"), f"Potential {potential} has no r0 attribute!"
-        r0: float = potential.r0
+        gcdict = gc.bonds_by_id
+        bond_data: gc.BondData = None if bhandle.id not in gcdict else gcdict[bhandle.id]
+        assert bond_data is not None, "Bond data missing from global catalog"
+        potential: tf.Potential = bond_data["potential"]
+        assert potential is not None, "Potential data missing for this bond"
+        r0: float = bond_data["r0"]
         print(f"r0 = {r0}")
         # assert r0 > 0.2, f"Found potential with r0 = {r0}"
         r: float = tfu.bond_distance(bhandle)
+        # ###### ToDo: bond_distance() sometimes fails because bond.parts are missing or inaccessible
         saturation_distance: float = saturation_factor * r0
-        # ###### ToDo: This fails because r0 is being read as 0.0, hence every bond breaks!
-        # ###### Also sometimes potential is None, and throws error when trying to access r0.
-        # ###### Furthermore, pausing the simulator reproducibly causes that to happen!
-        # ###### ToDo: Need to implement the speed-up approach, as well
         saturation_energy: float = potential(saturation_distance)
         
         # potential(r) should match the bond's energy property, though it won't be exact:
@@ -140,7 +142,7 @@ def _break_bonds(saturation_factor: int) -> None:
                       if random.random() < breaking_probability(bhandle)
                       ]
     initial_count = len(breaking_bonds)
-    print(f"breaking {initial_count} bonds")
+    print(f"breaking {initial_count} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
     
     bhandle: tf.BondHandle
     for bhandle in breaking_bonds:
