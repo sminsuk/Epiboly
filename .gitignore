@@ -1,2 +1,5 @@
 /Epiboly Notebook.ipynb
 /.ipynb_checkpoints/Epiboly Notebook-checkpoint.ipynb
+
+__pycache__
+.DS_Store
