@@ -103,10 +103,11 @@ def make_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
         _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
 
-def _break_bonds(saturation_factor: int) -> None:
+def _break_bonds(saturation_factor: float, max_prob: float) -> None:
     """Decide which bonds will be broken, then break them
     
-    saturation_factor: multiple of r0 at which probability of breaking = 1
+    saturation_factor: multiple of r0 at which probability of breaking = max_prob
+    max_prob: the max value that probability of breaking ever reaches. In range [0, 1].
     """
     def breaking_probability(bhandle: tf.BondHandle) -> float:
         """Probability of breaking bond. Bond must be active!"""
@@ -128,9 +129,9 @@ def _break_bonds(saturation_factor: int) -> None:
         if r <= r0:
             p = 0
         elif r > saturation_distance:
-            p = 1
+            p = max_prob
         else:
-            p = bhandle.energy / saturation_energy
+            p = max_prob * bhandle.energy / saturation_energy
             
         return p
 
@@ -162,4 +163,4 @@ def maintain_bonds() -> None:
             total += make_bonds(p, verbose=True)
     print(f"Created {total} bonds.")
 
-    _break_bonds(saturation_factor=3)
+    _break_bonds(saturation_factor=3, max_prob=0.001)
