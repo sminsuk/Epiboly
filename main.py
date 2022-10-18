@@ -1,65 +1,13 @@
 """Epiboly simulation
 
-In progress: bond breaking & remaking (in PyCharm!)
+In progress: bond breaking & remaking
 
-First experiment with bond maintenance once they've been created. I think there are 2 ways to break bonds,
-and you probably need both:
-B1. automatically when they get stretched too far;
-B2. stochastically among those that are *not* stretched too far.
-And maybe 3 ways to make new bonds as you go:
-M1. automatically whenever unbonded particles get within range (which would entail doing a neighbors
-    check on every particle, every time step, basically redoing all the bonds from scratch each time).
-    (Possibly is only likely to happen when other bonds break.)
-M2. explicitly coordinated with bond breaking, so that either
-        • whenever a bond breaks, you look for new neighbors to replace it with; but (in either case, but
-            especially in the case of B2), there might not be another new neighbor available, which means
-            you could end up with a more loosely connected network (does that matter?)
-        • bonds only are broken and made in pairs, so that a bond won't break *unless* there's
-            a new neighbor available to bond with in its place - including for bonds that have gotten too long.
-            
-As a first experiment, I think the best approach is B2 + M2. So don't actually consider distance at all
-(although perhaps consider it as a factor in how likely a bond is to "attempt" a break). Once you have a
-candidate bond for breaking, check both particles for neighbors that are close enough to bond to.
-Calculate the energy change from the lost bond and the newly made bonds, and only do it when the energy
-change is favorable. (Later, as a step 2, can add a stochastic Metropolis criterion just like in Potts.)
+Second experiment with bond maintenance once they've been created.
 
-Changes:
-• Implemented first step in algorithm: find the *furthest* bonded particle (the bond most likely to break), and
-    the bondHandle connecting them. (Need to fix though: should select at random.)
-• Found and remedied missing functionality in tf. Can't get a particle from a particle id (don't even bother, it
-    would be expensive). Also no *direct* way, given a particle and one of its bondedNeighbors(), to access the
-    bond connecting them. Wrote a utility function to do this and added to tf_utils.
-• Switched to processing *every* particle on each time step, not just one. It actually seems worryingly slow.
-• Some refactoring, in particular neighbor-finding stuff.
-• Import into PyCharm, do a fair bit of cleanup in response to all its errors and warnings, and start using
-    type hinting.
-    ToDo: I seem to have broken something! In iPython **only**, once bond maintenance starts,
-     it never returns. Need to troubleshoot this! -- actually, I just wasn't waiting long enough. Too slow!
-• Note, NEXT TODO:
-    ToDo: implement the next step in breaking and making bonds: find *un*-bonded neighbors able to make
-     new bonds. Candidate bond creations. Calculate the energy. ===== in progress =====
-• Some more infrastructure thoughts: pass a list of dictionaries. Done! Now just remaining ToDo: retire exec_queue
-• Cleaned up the way I equilibrate, hold the leading edge with frozen z while doing so, and tweak the number
-    of particles created until that works better. (Got it good enough for EMBRIO presentation; still needs more
-    tweaking, though. Note James thoughts in notes from 2022-09-21 Group Meeting about equilibration methods!)
-• More ToDo: Whip up some actin ring contraction, soon!
+Break bonds with a probability proportional to tension. Probability a linear function of energy (between r0 and
+a multiple of r0).
 
-Note to self -- to do next:
-• The gaps play havoc once a force is applied, especially since Expt. 13, now that the neighbor distance
-    criterion is much smaller. I think I need to work on the numbers of particles and the initial layout.
-    I need a way to fill in all the gaps, yet not distort the ring. Maybe, let the ring equilibrate first,
-    then try freezing those particles; then add the interior particles and let them equilibrate. And for as
-    long as it takes. With nowhere else to go, maybe they will fill in the gaps. And I can play around and
-    get exactly the right number of both types.
-• But maybe what comes first is, exploring the param space on the bond potentials, and figuring out how
-    to allow tissue remodeling (bond making and breaking). Then maybe easier and more productive
-    to fix the above in that context.
-
-Carry-forward reminder of a couple other things still ToDo:
-• get keypress wait condition working? Doesn't crash kernel anymore but still won't detect. (Of course, as a
-    workaround for my simple use case, you always can just pause)
-• continue to improve encapsulation of globals by writing classes/modules. And better code organization.
-
+Make new bonds whenever particles approach close enough to qualify as "nearby", same as the initial setup.
 """
 
 import math
@@ -70,7 +18,6 @@ from epiboly_init import *  # Tissue Forge initialization and global ParticleTyp
 from biology import bond_maintenance as bonds,\
     microtubules as mt
 from control_flow import dynamics as dyn, \
-    exec_queue as xq, \
     exec_tests as xt
 import neighbors as nbrs
 from utils import tf_utils as tfu,\
@@ -321,7 +268,7 @@ def replace_all_small_small_potentials(new_potential):
     tf.bind.types(new_potential, LeadingEdge, Little)
     tf.bind.types(new_potential, Little, Little)
 
-########################## main ##########################
+# ######################### main ##########################
 
 # Potentials, bound at the level of types:
 #
@@ -368,38 +315,7 @@ replace_all_small_small_potentials(new_potential=small_small_repulsion)
 
 big_particle = Big([5, 5, 5])
 
-# ####### short named functions to use in execute_sequentially()
-def random_initialization():
-    # proxy for initialize_particles(), because we want to call that *before* invoking the queue,
-    # not inside it. Gave this a name that serves as a good output message, better than 
-    # "calling <lambda>" which is what you get if you pass "None".
-    pass
-
-########
-
-# Want initialize_particles() to run *before* user clicks Run on the simulator, so run it
-# outside of the sequential queue:
 initialize_particles()
-
-xq.execute_sequentially([
-        # {"invoke": random_initialization,
-        #  "wait": xt.is_equilibrated,
-        #  "wait_args": {"epsilon": 0.05}
-        #  # "verbose": False,
-        #  },
-        # # {"invoke": nbrs.paint_neighbors},
-        # # Can't use this one because on_keypress() doesn't seem to work!
-        # # {"invoke": xt.setup_keypress_detection,
-        # #      "wait": xt.keypress_event,
-        # #      "verbose": False},
-        # {"invoke": add_interior_bonds},
-        # # Removing big-little attraction: I don't want this after all. (But great for testing "invoke_args"!)
-        # # {"invoke": tf.bind.types,
-        # #  "invoke_args": {"p": big_small_repulsion_only, "a": Big, "b": Little},
-        # #  },
-        # # {"invoke": toggle_visibility},
-        # # {"invoke": toggle_visibility},
-        ])
 
 # ######################### interactive ##########################
 

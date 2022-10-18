@@ -1,3 +1,6 @@
+"""Keeping this file around for now, but removing it from inclusion in the program (no longer imported).
+I may yet need parts of it.
+"""
 from collections.abc import Callable
 from typing import Optional, TypedDict
 
