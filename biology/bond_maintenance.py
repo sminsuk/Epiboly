@@ -36,21 +36,16 @@ def make_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
         _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
 
-def _break_bonds(saturation_factor: float, max_prob: float) -> None:
-    """Decide which bonds will be broken, then break them
+def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float) -> None:
+    """Decide which bonds will be broken, then break them. Relax those that survive.
     
     saturation_factor: multiple of r0 at which probability of breaking = max_prob
     max_prob: the max value that probability of breaking ever reaches. In range [0, 1].
+    viscosity: how much relaxation per timestep. In range [0, 1].
     """
-    def breaking_probability(bhandle: tf.BondHandle) -> float:
+    def breaking_probability(bhandle: tf.BondHandle, r0: float, r: float) -> float:
         """Probability of breaking bond. Bond must be active!"""
-        gcdict = gc.bonds_by_id
-        assert bhandle.id in gcdict, "Bond data missing from global catalog!"
-        bond_data: gc.BondData = gcdict[bhandle.id]
         potential: tf.Potential = bhandle.potential
-        r0: float = bond_data["r0"]
-        # print(f"r0 = {r0}")
-        r: float = tfu.bond_distance(bhandle)
         saturation_distance: float = saturation_factor * r0
         saturation_energy: float = potential(saturation_distance)
         
@@ -67,17 +62,47 @@ def _break_bonds(saturation_factor: float, max_prob: float) -> None:
             p = max_prob * bhandle.energy / saturation_energy
             
         return p
-
-    print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to maybe break")
-    breaking_bonds = [bhandle for bhandle in tf.BondHandle.items()
-                      if bhandle.active
-                      if random.random() < breaking_probability(bhandle)
-                      ]
-    print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
     
+    def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float) -> None:
+        """Relaxing a bond means to partially reduce the energy (hence the generated force) by changing
+        the r0 toward the current r.
+
+        viscosity: a value in the range [0, 1].
+            v = 0 is completely elastic (no change to r0, ever; so if a force is applied that stretches the bond, and
+                then released, the bond will recoil and tend to shrink back to its original length)
+            v = 1 is completely plastic (r0 instantaneously takes the value of r; so if a force is applied that
+                stretches the bond, and then released, there will be no recoil at all)
+            0 < v < 1 means r0 will change each timestep, but only by that fraction of the difference (r-r0). So bonds
+                will always be under some tension, but the longer a bond remains stretched, the less recoil there will
+                be if the force is released.
+        """
+        pass
+    
+    assert 0 <= max_prob <= 1, "max_prob out of bounds"
+    assert 0 <= viscosity <= 1, "viscosity out of bounds"
+
+    breaking_bonds: list[tf.BondHandle] = []
     bhandle: tf.BondHandle
+    gcdict: dict[int, gc.BondData] = gc.bonds_by_id
+
+    print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to either break, or relax")
+    for bhandle in tf.BondHandle.items():
+        if bhandle.active:
+            assert bhandle.id in gcdict, "Bond data missing from global catalog!"
+            bond_data: gc.BondData = gcdict[bhandle.id]
+            potential: tf.Potential = bhandle.potential
+            r0: float = bond_data["r0"]
+            # print(f"r0 = {r0}")
+            r: float = tfu.bond_distance(bhandle)
+            
+            if random.random() < breaking_probability(bhandle, r0, r):
+                breaking_bonds.append(bhandle)
+            else:
+                relax_bond(bhandle, r0, r, viscosity)
+
+    print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
     for bhandle in breaking_bonds:
-        del gc.bonds_by_id[bhandle.id]
+        del gcdict[bhandle.id]
         bhandle.destroy()
     
 def maintain_bonds() -> None:
@@ -87,4 +112,4 @@ def maintain_bonds() -> None:
             total += make_bonds(p, verbose=True)
     print(f"Created {total} bonds.")
 
-    _break_bonds(saturation_factor=3, max_prob=0.001)
+    _break_or_relax(saturation_factor=3, max_prob=0.001, viscosity=0)
