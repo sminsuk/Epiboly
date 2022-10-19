@@ -21,9 +21,8 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
                                                     min=r0,
                                                     max=6
                                                     )
-    handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
-    bond_values: gc.BondData = {"r0": r0}
-    gc.bonds_by_id[handle.id] = bond_values
+    handle: tf.BondHandle = gc.make_bond(potential, p1, p2, r0)
+
     if verbose:
         print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id}")
         p1.style.setColor("lightgray")  # testing
@@ -102,8 +101,7 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
 
     print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
     for bhandle in breaking_bonds:
-        del gcdict[bhandle.id]
-        bhandle.destroy()
+        gc.break_bond(bhandle)
     
 def maintain_bonds() -> None:
     total: int = 0

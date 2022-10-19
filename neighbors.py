@@ -86,7 +86,7 @@ def _native_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[tf.P
     return neighbors
 
 # noinspection PyUnreachableCode
-def find_neighbors(p: tf.ParticleHandle, distance_factor: float =1.5) -> list[tf.ParticleHandle]:
+def find_neighbors(p: tf.ParticleHandle, distance_factor: float = 1.5) -> list[tf.ParticleHandle]:
     """A central place to keep the decision of which neighbor algorithm to use, consistently throughout the program.
     
     p: particle_handle

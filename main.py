@@ -233,7 +233,6 @@ def initialize_bonded_edge():
 
         # Use for each of the bonds we'll create here
         r0 = LeadingEdge.radius * 2
-        bond_values: gc.BondData = {"r0": r0}
         small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
                                                               k=7.0,
                                                               min=r0,
@@ -249,8 +248,7 @@ def initialize_bonded_edge():
             # print("binding particles with thetas:",
             #       math.degrees(theta(previous_particle)),
             #       math.degrees(theta(particle)))
-            handle: tf.BondHandle = tf.Bond.create(small_small_attraction_bonded, previous_particle, particle)
-            gc.bonds_by_id[handle.id] = bond_values
+            gc.make_bond(small_small_attraction_bonded, previous_particle, particle, r0)
             previous_particle = particle
     
     leading_edge_phi = create_ring()

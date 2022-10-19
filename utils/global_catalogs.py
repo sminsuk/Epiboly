@@ -1,7 +1,9 @@
 """ Global particle and bond data. For storing stuff that is irretrievable once created
 
 Maybe put this in a class?
-Usage: for now, leaving it up to the caller, since these things only happen in a couple of places:
+Usage:
+    For particles: leaving this up to the caller, since it only happens in a couple of places, and is more convenient.
+    For bonds: use the convenience functions below.
     Whenever creating a particle / bond, add it to particles_by_id / bonds_by_id, respectively
     Whenever deleting a particle / bond, delete it from those dicts
     BondData allows to retrieve the r0 from the potential attached to a given bond
@@ -20,3 +22,13 @@ class ParticleData(TypedDict):
 
 bonds_by_id: dict[int, BondData] = {}
 particles_by_id: dict[int, ParticleData] = {}
+
+def make_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHandle, r0: float) -> tf.BondHandle:
+    handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
+    bond_values: BondData = {"r0": r0}
+    bonds_by_id[handle.id] = bond_values
+    return handle
+
+def break_bond(bhandle: tf.BondHandle) -> None:
+    del bonds_by_id[bhandle.id]
+    bhandle.destroy()
