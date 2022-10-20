@@ -7,8 +7,13 @@ Usage:
     Whenever creating a particle / bond, add it to particles_by_id / bonds_by_id, respectively
     Whenever deleting a particle / bond, delete it from those dicts
     BondData allows to retrieve the r0 from the potential attached to a given bond
-    ParticleData allows to retrieve ParticleHandle from an id. (This may not work. May have to
-        store actual Particles instead.)
+    ParticleData allows to retrieve ParticleHandle from an id.
+    
+future: storing r0 is not supposed to be necessary, because it should be retrievable from potential object.
+Currently broken in harmonic, maybe others. May be able to do without this in future release.
+
+future: storing particleHandles should not be necessary, as it should be possible to retrieve from particle.id.
+Currently you can only do that if you also have the particle.type_id. Should be fixed in a future release.
 """
 from typing import TypedDict
 

@@ -200,6 +200,9 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
 
     b: bondHandle of an *active* bond
     returns: tuple of two particleHandles
+    
+    future: checking .active is not supposed be needed; those are supposed to be filtered out before you see them.
+    Possibly the flag may not even be accessible in future versions.
     """
     assert b.active, "Can't get particles from an inactive bond!"
     # print(f"BondHandle.id = {b.id}")
@@ -229,6 +232,9 @@ def bond_distance(b: tf.BondHandle) -> float:
 
     b: bondHandle of an *active* bond
     returns: float
+    
+    future: checking .active is not supposed be needed; those are supposed to be filtered out before you see them.
+    Possibly the flag may not even be accessible in future versions.
     """
     p1, p2 = bond_parts(b)
     return p1.distance(p2)

@@ -336,6 +336,8 @@ def equilibrate_to_leading_edge(steps: int = 1):
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
+# Future note: I'd like to be able to enable lagging here, programmatically, but it's missing from the API.
+# TJ will add it in a future release.
 reset_camera()
 print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(300)

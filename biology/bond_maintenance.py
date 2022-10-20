@@ -109,6 +109,8 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
 
     print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to either break, or relax")
     for bhandle in tf.BondHandle.items():
+        # future: checking .active is not supposed be needed; those are supposed to be filtered out before you see them.
+        # Possibly the flag may not even be accessible in future versions.
         if bhandle.active:
             assert bhandle.id in gcdict, "Bond data missing from global catalog!"
             p1: tf.ParticleHandle
