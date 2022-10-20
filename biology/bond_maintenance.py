@@ -10,15 +10,16 @@ import neighbors as nbrs
 def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
     """Return a potential tailored to these 2 particles: generates no force because r0 = their current distance.
     
-    min = r0 so that this also generates no force if the particles are subsequently pushed towards each other;
-    only generates force if they are pulled apart
+    Accepts the TF default min (half of r0). After initial equilibration, type-based repulsive potential
+    between small particles is removed, and these bonds take over full responsibility for that interaction.
+    
+    Also note that this allows overlap if particles happen to be very close, but that should be minimal if
+    particles are well equilibrated before making the initial bonds, and unlikely for bonds created later,
+    since particles should bond before getting that close.
     """
-    distance: float = p1.distance(p2)
-    # if particles are overlapping, set r0 so they won't:
-    r0: float = max(distance, Little.radius * 2)
+    r0: float = p1.distance(p2)
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=7.0,
-                                                    min=r0,
                                                     max=6
                                                     )
     handle: tf.BondHandle = gc.make_bond(potential, p1, p2, r0)
@@ -42,12 +43,16 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
     max_prob: the max value that probability of breaking ever reaches. In range [0, 1].
     viscosity: how much relaxation per timestep. In range [0, 1].
     """
+    alert_once = True
+    
     def breaking_probability(bhandle: tf.BondHandle, r0: float, r: float) -> float:
-        """Probability of breaking bond. Bond must be active!"""
+        """Probability of breaking bond"""
+        nonlocal alert_once
         potential: tf.Potential = bhandle.potential
         saturation_distance: float = saturation_factor * r0
         saturation_energy: float = potential(saturation_distance)
         
+        # Note, in extreme cases, i.e. after alert_once has been tripped, this assert will fail, but is meaningless.
         # potential(r) should match the bond's energy property, though it won't be exact:
         assert abs(bhandle.energy - potential(r)) < 0.0001, \
             f"unexpected bond energy: property = {bhandle.energy}, calculated = {potential(r)}"
@@ -57,12 +62,22 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
             p = 0
         elif r > saturation_distance:
             p = max_prob
+        elif saturation_energy == 0:
+            # This is to trap the error that would otherwise occur in extreme cases; if this happens, most likely
+            # r0 has gotten so big that saturation_distance is well beyond potential.max, hence
+            # potential() evaluates to 0. Just go ahead and break the bond.
+            # "alert_once" means once per event invocation.
+            p = max_prob
+            if alert_once:
+                alert_once = False
+                print(tfu.bluecolor + "WARNING: potential.max exceeded" + tfu.endcolor)
         else:
             p = max_prob * bhandle.energy / saturation_energy
             
         return p
     
-    def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float) -> None:
+    def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float,
+                   p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
         """Relaxing a bond means to partially reduce the energy (hence the generated force) by changing
         the r0 toward the current r.
 
@@ -75,8 +90,16 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
                 will always be under some tension, but the longer a bond remains stretched, the less recoil there will
                 be if the force is released.
         """
-        pass
-    
+        # Because existing bonds can't be modified, we destroy it and replace it with a new one, with new properties
+        gc.break_bond(bhandle)
+
+        new_r0: float = r0 + viscosity * (r - r0)
+        potential: tf.Potential = tf.Potential.harmonic(r0=new_r0,
+                                                        k=7.0,
+                                                        max=6
+                                                        )
+        gc.make_bond(potential, p1, p2, new_r0)
+
     assert 0 <= max_prob <= 1, "max_prob out of bounds"
     assert 0 <= viscosity <= 1, "viscosity out of bounds"
 
@@ -88,16 +111,18 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
     for bhandle in tf.BondHandle.items():
         if bhandle.active:
             assert bhandle.id in gcdict, "Bond data missing from global catalog!"
+            p1: tf.ParticleHandle
+            p2: tf.ParticleHandle
+            p1, p2 = tfu.bond_parts(bhandle)
             bond_data: gc.BondData = gcdict[bhandle.id]
-            potential: tf.Potential = bhandle.potential
             r0: float = bond_data["r0"]
             # print(f"r0 = {r0}")
-            r: float = tfu.bond_distance(bhandle)
+            r: float = p1.distance(p2)
             
             if random.random() < breaking_probability(bhandle, r0, r):
                 breaking_bonds.append(bhandle)
             else:
-                relax_bond(bhandle, r0, r, viscosity)
+                relax_bond(bhandle, r0, r, viscosity, p1, p2)
 
     print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
     for bhandle in breaking_bonds:
@@ -110,4 +135,4 @@ def maintain_bonds() -> None:
             total += make_bonds(p, verbose=True)
     print(f"Created {total} bonds.")
 
-    _break_or_relax(saturation_factor=3, max_prob=0.001, viscosity=0)
+    _break_or_relax(saturation_factor=3, max_prob=0.001, viscosity=0.001)

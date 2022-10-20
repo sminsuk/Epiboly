@@ -2,7 +2,7 @@
 
 In progress: bond breaking & remaking
 
-Second experiment with bond maintenance once they've been created.
+Third experiment with bond maintenance: now, with stress relaxation.
 
 Break bonds with a probability proportional to tension. Probability a linear function of energy (between r0 and
 a multiple of r0).
@@ -156,6 +156,8 @@ def initialize_interior(leading_edge_phi):
     print("instantiating takes:", finished - scaled_time, "seconds")
 
 def add_interior_bonds():
+    # Remove the type-based potential, and let bonds handle everything from here on out.
+    replace_all_small_small_potentials(small_small_repulsion_removed)
     print("Bonding interior particles.")
     for particle in Little.items():
         bonds.make_bonds(particle)
@@ -272,7 +274,7 @@ def replace_all_small_small_potentials(new_potential):
 #
 # Large-small: LJ, originally max = equilibrium distance = sum of radii (for only repulsion), but then
 # expanded max to include attraction for the purposes of bringing particles down to the surface during
-# setup. Setup at first with this attraction so all particles go to the right place. Then once the
+# setup. Setup at first with this attraction so all particles go to the right place. Then, once the
 # biology starts, can remove that from interior particles, because they should not remain attached.
 # Should eventually switch this to Morse (or maybe harmonic) for ease of use (and consistency),
 # if I ever need to change it again.
@@ -280,7 +282,7 @@ def replace_all_small_small_potentials(new_potential):
 # Small-small (both types, to themselves and to each other): 
 # During setup: harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
 # applied only inside the equilibrium distance). 
-# Then: a second, attractive, potential will be added via bonds.
+# Then: this will be replaced by a new potential added via bonds, handling both attraction and repulsion.
 
 # Big-small equilibrium distance = 3.15
 # Note, with LJ, to adjust well-depth with minimal change to equilibrium distance, keep A/B constant.
@@ -301,13 +303,10 @@ small_small_repulsion = tf.Potential.harmonic(r0=r0,
                                               max=r0
                                               )
 
-# Attractive potential to be used in a subsequent step. For now, same as repulsion except for the range.
-# (Probably won't be doing anything like this on the type level anymore)
-small_small_attraction_by_type = tf.Potential.harmonic(r0=r0,
-                                                       k=0.1,
-                                                       min=r0,
-                                                       max=r0 + 1
-                                                       )
+# No-op potential (k=0) to be used later, to remove the one used during equilibration.
+small_small_repulsion_removed = tf.Potential.harmonic(r0=r0,
+                                                      k=0,
+                                                      )
 
 replace_all_small_small_potentials(new_potential=small_small_repulsion)
 
@@ -328,7 +327,7 @@ def plots():
     # combo.plot(potential=True, force=True, ymin=-1e1, ymax=1e1)
 
 def reset_camera():
-    # tf.system.camera_view_front()
+    tf.system.camera_view_front()
     tf.system.camera_zoom_to(-12)
 
 def equilibrate_to_leading_edge(steps: int = 1):
@@ -342,14 +341,20 @@ print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(300)
 add_interior_bonds()
 
-toggle_visibility()
-toggle_visibility()
+# toggle_visibility()
+# toggle_visibility()
 dyn.execute_repeatedly(tasks=[
         {"invoke": mt.update_tangent_forces,
          "args": {"magnitude": 5}
          },
         {"invoke": bonds.maintain_bonds},
         ])
+
+tf.show()
+dyn.execute_repeatedly(tasks=[
+        {"invoke": bonds.maintain_bonds},
+        ])
+mt.remove_tangent_forces()
 
 # tf.step()
 # while not xt.is_equilibrated(epsilon=0.01):
