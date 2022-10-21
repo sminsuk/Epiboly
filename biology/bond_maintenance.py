@@ -36,7 +36,8 @@ def make_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
         _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
 
-def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float) -> None:
+def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
+                    relaxation_saturation_factor: float, viscosity: float) -> None:
     """Decide which bonds will be broken, then break them. Relax those that survive.
     
     saturation_factor: multiple of r0 at which probability of breaking = max_prob
@@ -49,7 +50,7 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
         """Probability of breaking bond"""
         nonlocal alert_once
         potential: tf.Potential = bhandle.potential
-        saturation_distance: float = saturation_factor * r0
+        saturation_distance: float = breaking_saturation_factor * r0
         saturation_energy: float = potential(saturation_distance)
         
         # Note, in extreme cases, i.e. after alert_once has been tripped, this assert will fail, but is meaningless.
@@ -93,7 +94,16 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
         # Because existing bonds can't be modified, we destroy it and replace it with a new one, with new properties
         gc.break_bond(bhandle)
 
-        new_r0: float = r0 + viscosity * (r - r0)
+        delta_r0: float
+        saturation_distance: float = relaxation_saturation_factor * Little.radius
+        if r > r0 + saturation_distance:
+            delta_r0 = viscosity * saturation_distance
+        elif r < r0 - saturation_distance:
+            delta_r0 = viscosity * -saturation_distance
+        else:
+            delta_r0 = viscosity * (r - r0)
+        new_r0: float = r0 + delta_r0
+        
         potential: tf.Potential = tf.Potential.harmonic(r0=new_r0,
                                                         k=7.0,
                                                         max=6
@@ -102,6 +112,8 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
 
     assert 0 <= max_prob <= 1, "max_prob out of bounds"
     assert 0 <= viscosity <= 1, "viscosity out of bounds"
+    assert breaking_saturation_factor > 0, "breaking_saturation_factor out of bounds"
+    assert relaxation_saturation_factor > 0, "relaxation_saturation_factor out of bounds"
 
     breaking_bonds: list[tf.BondHandle] = []
     bhandle: tf.BondHandle
@@ -131,10 +143,11 @@ def _break_or_relax(saturation_factor: float, max_prob: float, viscosity: float)
         gc.break_bond(bhandle)
     
 def maintain_bonds() -> None:
-    total: int = 0
-    for ptype in [Little, LeadingEdge]:
-        for p in ptype.items():
-            total += make_bonds(p, verbose=True)
-    print(f"Created {total} bonds.")
+    # total: int = 0
+    # for ptype in [Little, LeadingEdge]:
+    #     for p in ptype.items():
+    #         total += make_bonds(p, verbose=True)
+    # print(f"Created {total} bonds.")
 
-    _break_or_relax(saturation_factor=3, max_prob=0.001, viscosity=0.001)
+    _break_or_relax(breaking_saturation_factor=3, max_prob=0,
+                    relaxation_saturation_factor=2, viscosity=0.001)
