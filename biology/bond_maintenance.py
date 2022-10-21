@@ -142,12 +142,14 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
     for bhandle in breaking_bonds:
         gc.break_bond(bhandle)
     
-def maintain_bonds() -> None:
-    # total: int = 0
-    # for ptype in [Little, LeadingEdge]:
-    #     for p in ptype.items():
-    #         total += make_bonds(p, verbose=True)
-    # print(f"Created {total} bonds.")
+def maintain_bonds(making: bool = False, breaking_saturation_factor: float = 3, max_prob: float = 0,
+                   relaxation_saturation_factor: float = 2, viscosity: float = 0.001) -> None:
+    if making:
+        total: int = 0
+        for ptype in [Little, LeadingEdge]:
+            for p in ptype.items():
+                total += make_bonds(p, verbose=True)
+        print(f"Created {total} bonds.")
 
-    _break_or_relax(breaking_saturation_factor=3, max_prob=0,
-                    relaxation_saturation_factor=2, viscosity=0.001)
+    _break_or_relax(breaking_saturation_factor, max_prob,
+                    relaxation_saturation_factor, viscosity)

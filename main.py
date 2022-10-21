@@ -354,9 +354,20 @@ dyn.execute_repeatedly(tasks=[
 
 tf.show()
 dyn.execute_repeatedly(tasks=[
-        {"invoke": bonds.maintain_bonds},
+        {"invoke": mt.update_tangent_forces,
+         "args": {"magnitude": 5}
+         },
+        {"invoke": bonds.maintain_bonds,
+         "args": {
+                  # "making": False,
+                  "breaking_saturation_factor": 3,
+                  "max_prob": 0.01,
+                  # "relaxation_saturation_factor": 2,
+                  # "viscosity": 0.001
+                  }
+         },
         ])
-mt.remove_tangent_forces()
+# mt.remove_tangent_forces()
 
 # tf.step()
 # while not xt.is_equilibrated(epsilon=0.01):
