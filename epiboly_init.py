@@ -47,12 +47,12 @@ LeadingEdge: tf.ParticleType = LeadingEdgeType.get()
 # set the location we *want* the leading edge, and get the right number of particles
 # in there.
 # LeadingEdge.frozen_z = True
-epiboly_initial_percentage = 43     # real value for the misnomer "30% epiboly")
+epiboly_initial_percentage: int = 43     # real value for the misnomer "30% epiboly")
 
 # See comments in function initialize_interior() in main for explanation
-num_leading_edge_points = 60
-num_spherical_positions = 2000  # 2050
-edge_margin_interior_points = 0.15
+num_leading_edge_points: int = 60
+num_spherical_positions: int = 2000  # 2050
+edge_margin_interior_points: float = 0.15
 
 # harmonic potential:
 harmonic_spring_constant: float = 7.0

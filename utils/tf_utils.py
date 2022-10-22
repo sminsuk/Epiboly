@@ -57,7 +57,7 @@ def spherical_degs_from_cartesian(cartesian_vec):
     r, theta, phi = spherical_from_cartesian(cartesian_vec)
     return tf.fVector3([r, math.degrees(theta), math.degrees(phi)])
 
-def random_nd_spherical(npoints, dim):
+def random_nd_spherical(npoints: int, dim: int) -> list[list[float]]:
     """Generate uniform distributed points on n-dimensional sphere
 
     npoints: number of points to generate
