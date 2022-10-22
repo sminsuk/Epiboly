@@ -14,6 +14,7 @@ import math
 import time
 
 from epiboly_init import *  # Tissue Forge initialization and global ParticleType class/instance creation
+import config as cfg
 
 from biology import bond_maintenance as bonds,\
     microtubules as mt
@@ -77,15 +78,15 @@ def initialize_interior(leading_edge_phi):
     if True:
         # new method:
         # (gets list of plain python list[3])
-        vectors = tfu.random_nd_spherical(npoints=num_spherical_positions, dim=3)
-        edge_margin = edge_margin_interior_points
+        vectors = tfu.random_nd_spherical(npoints=cfg.num_spherical_positions, dim=3)
+        edge_margin = cfg.edge_margin_interior_points
     else:
         # or alternatively, old method using tf built-in (and transform to match the output type of
         # the new method, so I can test either way): 
         # noinspection PyTypeChecker
-        vectors = tf.random_points(tf.PointsType.Sphere.value, num_spherical_positions)
+        vectors = tf.random_points(tf.PointsType.Sphere.value, cfg.num_spherical_positions)
         vectors = [vector.as_list() for vector in vectors]
-        edge_margin = edge_margin_interior_points
+        edge_margin = cfg.edge_margin_interior_points
     
     random_points_time = time.perf_counter()
     
@@ -190,7 +191,7 @@ def initialize_bonded_edge():
         print("Generating leading edge particles.")
         
         # Where the edge should go
-        leading_edge_phi = phi_for_epiboly(epiboly_percentage=epiboly_initial_percentage)
+        leading_edge_phi = phi_for_epiboly(epiboly_percentage=cfg.epiboly_initial_percentage)
         #         print("leading edge: phi =", math.degrees(leading_edge_phi))
         
         # some basic needed quantities
@@ -199,7 +200,7 @@ def initialize_bonded_edge():
         
         # (gets list of plain python list[2] - unit vectors)
         # (note, unit circle, i.e., size of the unit sphere *equator*, not the size of that latitude circle)
-        unit_circle_vectors = tfu.random_nd_spherical(npoints=num_leading_edge_points, dim=2)
+        unit_circle_vectors = tfu.random_nd_spherical(npoints=cfg.num_leading_edge_points, dim=2)
         
         # make 3D and scaled
         z_latitude = math.cos(leading_edge_phi) * scale
@@ -236,7 +237,7 @@ def initialize_bonded_edge():
         # Use for each of the bonds we'll create here
         r0 = LeadingEdge.radius * 2
         small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
-                                                              k=harmonic_spring_constant,
+                                                              k=cfg.harmonic_spring_constant,
                                                               min=r0,
                                                               max=6
                                                               )

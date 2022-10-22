@@ -2,6 +2,7 @@
 import random
 
 from epiboly_init import *
+import config as cfg
 from utils import tf_utils as tfu,\
     global_catalogs as gc
 
@@ -19,7 +20,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     """
     r0: float = p1.distance(p2)
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
-                                                    k=harmonic_spring_constant,
+                                                    k=cfg.harmonic_spring_constant,
                                                     max=6
                                                     )
     handle: tf.BondHandle = gc.make_bond(potential, p1, p2, r0)
@@ -105,7 +106,7 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
         new_r0: float = r0 + delta_r0
         
         potential: tf.Potential = tf.Potential.harmonic(r0=new_r0,
-                                                        k=harmonic_spring_constant,
+                                                        k=cfg.harmonic_spring_constant,
                                                         max=6
                                                         )
         gc.make_bond(potential, p1, p2, new_r0)
