@@ -34,6 +34,8 @@ Little: tf.ParticleType = LittleType.get()
 Big: tf.ParticleType = BigType.get()
 LeadingEdge: tf.ParticleType = LeadingEdgeType.get()
 
+# Global config:
+
 # Just while determining empirically, the right number of interior particles to use.
 # If there are too many, with frozen LeadingEdge, they'll pop past. If too few,
 # they'll never fill the space no matter how long they equilibrate. Once the right
@@ -51,3 +53,6 @@ epiboly_initial_percentage = 43     # real value for the misnomer "30% epiboly")
 num_leading_edge_points = 60
 num_spherical_positions = 2000  # 2050
 edge_margin_interior_points = 0.15
+
+# harmonic potential:
+harmonic_spring_constant: float = 7.0
