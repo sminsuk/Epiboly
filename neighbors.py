@@ -58,7 +58,7 @@ def _unshadowed_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[
         # accept the nearest of the candidates as a neighbor
         neighbors.append(candidates.pop())
         
-        # discard any remainding candidates that are in the shadow of an accepted neighbor
+        # discard any remaining candidates that are in the shadow of an accepted neighbor
         surviving_candidates = []
         for candidate in candidates:
             shadowed = False
@@ -73,26 +73,30 @@ def _unshadowed_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[
     # We now have the neighbors of particle p. These are ordered by increasing distance from p.
     return neighbors
 
-def _native_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[tf.ParticleHandle]:
+def _native_neighbors(p: tf.ParticleHandle, distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
     """Native method of Tissue Forge for finding neighbors of particle p
     
     p: particle_handle
     distance_factor: when multiplied by the particle radius, gives the distance to search.
+    sort: if True, return results ordered by increasing distance from p.
     returns: neighbors of p in a plain python list, ordered by increasing distance from p
     """
     # Get all the particles within the threshold distance of p.
     neighbors = p.neighbors(distance_factor * p.radius, [].extend([Little, LeadingEdge]))
-    neighbors = sorted(neighbors, key=lambda neighbor: neighbor.distance(p))
+    if sort:
+        neighbors = sorted(neighbors, key=lambda neighbor: neighbor.distance(p))
     return neighbors
 
 # noinspection PyUnreachableCode
-def find_neighbors(p: tf.ParticleHandle, distance_factor: float = 1.5) -> list[tf.ParticleHandle]:
+def find_neighbors(p: tf.ParticleHandle, distance_factor: float = 1.5, sort: bool = False) -> list[tf.ParticleHandle]:
     """A central place to keep the decision of which neighbor algorithm to use, consistently throughout the program.
     
     p: particle_handle
     distance_factor: when multiplied by the particle radius, gives the distance to search.
         Default value works as basic threshold for making bonds while minimizing crossings.
-    returns: neighbors of p in a plain python list, ordered by increasing distance from p
+    sort: if True, return results ordered by increasing distance from p. Applies only to _native_neighbors(),
+        since sorting is non-optional in _unshadowed_neighbors().
+    returns: neighbors of p in a plain python list. If sort == True, list is ordered by increasing distance from p
     """
     neighbors: list[tf.ParticleHandle]
     
@@ -100,13 +104,16 @@ def find_neighbors(p: tf.ParticleHandle, distance_factor: float = 1.5) -> list[t
     if False:
         neighbors = _unshadowed_neighbors(p, distance_factor)
     else:
-        neighbors = _native_neighbors(p, distance_factor)
+        neighbors = _native_neighbors(p, distance_factor, sort)
     return neighbors
 
-def get_non_bonded_neighbors(phandle: tf.ParticleHandle, distance_factor: float = 1.5) -> list[tf.ParticleHandle]:
+def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
+                             distance_factor: float = 1.5, sort: bool = False) -> list[tf.ParticleHandle]:
     """Not quite the inverse of particleHandle.getBondedNeighbors()
     
     phandle: particleHandle
+    distance_factor: when multiplied by the particle radius, gives the distance to search.
+    sort: if True, return results ordered by increasing distance from p.
     returns: list of neighbors, using one of the neighbor algorithms in this module, but excluding any that
         the particle is already bonded to.
     """
@@ -118,7 +125,7 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle, distance_factor: float 
     my_bonded_neighbor_ids = [neighbor.id for neighbor in phandle.getBondedNeighbors()]
     
     # Who are all my neighbors? (bonded or not)
-    neighbors = find_neighbors(phandle, distance_factor)
+    neighbors = find_neighbors(phandle, distance_factor, sort)
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor.id not in my_bonded_neighbor_ids]
     return non_bonded_neighbors

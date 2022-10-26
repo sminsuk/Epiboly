@@ -46,7 +46,8 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
 def _attempt_closest_bond(phandle: tf.ParticleHandle, making_search_distance: float,
                           making_prob_dropoff: float, verbose=False) -> int:
     # Get all neighbors not already bonded to, within a certain fairly permissive radius. Bond to at most one.
-    neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(phandle, distance_factor=making_search_distance)
+    neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(phandle, distance_factor=making_search_distance,
+                                                                       sort=True)
     # Two ways to do this, neither is really giving me what I want...
     random_neighbor: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
     closest_neighbor: tf.ParticleHandle = None if not neighbors else neighbors[0]
