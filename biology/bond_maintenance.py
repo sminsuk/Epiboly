@@ -47,10 +47,15 @@ def _attempt_closest_bond(phandle: tf.ParticleHandle, making_search_distance: fl
                           making_prob_dropoff: float, verbose=False) -> int:
     # Get all neighbors not already bonded to, within a certain fairly permissive radius. Bond to at most one.
     neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(phandle, distance_factor=making_search_distance,
-                                                                       sort=True)
-    # Two ways to do this, neither is really giving me what I want...
-    random_neighbor: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
-    closest_neighbor: tf.ParticleHandle = None if not neighbors else neighbors[0]
+                                                                       sort=False)
+    # Three ways to do this, none really really giving me what I want...
+    # Note that the one that needs sorting is slow, which is why I tried the other two, but they are all equally
+    # slow. Turns out that's not the problem. I traced the slowdown to the call to get_non_bonded_neighbors(); it
+    # slows down greatly when you call it with a wider area search. With the default search area of 1.5, this
+    # is all essentially as fast as make_all_bonds().
+    # random_neighbor: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
+    # closest_neighbor: tf.ParticleHandle = None if not neighbors else neighbors[0]     # For this, set sort=True!
+    closest_neighbor: tf.ParticleHandle = min(neighbors, key=lambda neighbor: phandle.distance(neighbor), default=None)
     neighbor = closest_neighbor
     bonded = False
     if neighbor:
