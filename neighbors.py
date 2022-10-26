@@ -103,7 +103,7 @@ def find_neighbors(p: tf.ParticleHandle, distance_factor: float = 1.5) -> list[t
         neighbors = _native_neighbors(p, distance_factor)
     return neighbors
 
-def get_non_bonded_neighbors(phandle: tf.ParticleHandle) -> list[tf.ParticleHandle]:
+def get_non_bonded_neighbors(phandle: tf.ParticleHandle, distance_factor: float = 1.5) -> list[tf.ParticleHandle]:
     """Not quite the inverse of particleHandle.getBondedNeighbors()
     
     phandle: particleHandle
@@ -118,7 +118,7 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle) -> list[tf.ParticleHand
     my_bonded_neighbor_ids = [neighbor.id for neighbor in phandle.getBondedNeighbors()]
     
     # Who are all my neighbors? (bonded or not)
-    neighbors = find_neighbors(phandle)
+    neighbors = find_neighbors(phandle, distance_factor)
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor.id not in my_bonded_neighbor_ids]
     return non_bonded_neighbors

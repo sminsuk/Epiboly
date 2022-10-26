@@ -161,7 +161,7 @@ def add_interior_bonds():
     replace_all_small_small_potentials(small_small_repulsion_removed)
     print("Bonding interior particles.")
     for particle in Little.items():
-        bonds.make_bonds(particle)
+        bonds.make_all_bonds(particle)
     
     print(f"Created {len(tf.BondHandle.items())} bonds.")
 
@@ -360,9 +360,10 @@ dyn.execute_repeatedly(tasks=[
          },
         {"invoke": bonds.maintain_bonds,
          "args": {
-                  # "making": False,
-                  "breaking_saturation_factor": 3,
-                  "max_prob": 0.01,
+                  # "making_search_distance": 5,
+                  # "making_prob_dropoff": 0.02,
+                  # "breaking_saturation_factor": 3,
+                  # "max_prob": 0.01,
                   # "relaxation_saturation_factor": 2,
                   # "viscosity": 0.001
                   }

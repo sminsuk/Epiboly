@@ -1,5 +1,8 @@
 """Handle the remodeling of the bond network as the tissue changes shape"""
+import math
 import random
+
+import tissue_forge
 
 from epiboly_init import *
 import config as cfg
@@ -18,7 +21,8 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     particles are well equilibrated before making the initial bonds, and unlikely for bonds created later,
     since particles should bond before getting that close.
     """
-    r0: float = p1.distance(p2)
+    # r0: float = p1.distance(p2)
+    r0: float = 2 * Little.radius
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=cfg.harmonic_spring_constant,
                                                     max=6
@@ -26,16 +30,39 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     handle: tf.BondHandle = gc.make_bond(potential, p1, p2, r0)
 
     if verbose:
-        print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id}")
+        distance: float = p1.distance(p2)
+        print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id},",
+              f"distance = (radius * {distance/Little.radius})")
         p1.style.setColor("lightgray")  # testing
         p2.style.setColor("white")  # testing
 
-def make_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
+def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
     # Bond to all neighbors not already bonded to
     neighbors = nbrs.get_non_bonded_neighbors(phandle)
     for neighbor in neighbors:
         _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
+
+def _attempt_closest_bond(phandle: tf.ParticleHandle, making_search_distance: float,
+                          making_prob_dropoff: float, verbose=False) -> int:
+    # Get all neighbors not already bonded to, within a certain fairly permissive radius. Bond to at most one.
+    neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(phandle, distance_factor=making_search_distance)
+    # Two ways to do this, neither is really giving me what I want...
+    random_neighbor: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
+    closest_neighbor: tf.ParticleHandle = None if not neighbors else neighbors[0]
+    neighbor = closest_neighbor
+    bonded = False
+    if neighbor:
+        # probability falls off with distance
+        r0: float = 2 * Little.radius
+        distance: float = phandle.distance(neighbor)
+        bonding_probability: float = math.exp(-(distance - r0)/making_prob_dropoff)
+        if random.random() < bonding_probability:
+            if verbose:
+                print(f"distance = {distance}, probability of making a bond = {bonding_probability}")
+            _make_bond(neighbor, phandle, verbose)
+            bonded = True
+    return 1 if bonded else 0
 
 def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
                     relaxation_saturation_factor: float, viscosity: float) -> None:
@@ -143,14 +170,14 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
     for bhandle in breaking_bonds:
         gc.break_bond(bhandle)
     
-def maintain_bonds(making: bool = False, breaking_saturation_factor: float = 3, max_prob: float = 0,
-                   relaxation_saturation_factor: float = 2, viscosity: float = 0.001) -> None:
-    if making:
-        total: int = 0
-        for ptype in [Little, LeadingEdge]:
-            for p in ptype.items():
-                total += make_bonds(p, verbose=True)
-        print(f"Created {total} bonds.")
+def maintain_bonds(making_search_distance: float = 5, making_prob_dropoff: float = 0.01,
+                   breaking_saturation_factor: float = 3, max_prob: float = 0.001,
+                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
+    total: int = 0
+    for ptype in [Little, LeadingEdge]:
+        for p in ptype.items():
+            total += _attempt_closest_bond(p, making_search_distance, making_prob_dropoff, verbose=True)
+    print(f"Created {total} bonds.")
 
     _break_or_relax(breaking_saturation_factor, max_prob,
                     relaxation_saturation_factor, viscosity)
