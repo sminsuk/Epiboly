@@ -44,7 +44,8 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
     return len(neighbors)
 
 def _attempt_closest_bond(phandle: tf.ParticleHandle, making_search_distance: float,
-                          making_prob_dropoff: float, verbose=False) -> int:
+                          making_prob_dropoff: float, max_prob: float, verbose=False) -> int:
+    """making_search_distance is for the exponential algorithm; max_prob is for the linear algorithm"""
     # Get all neighbors not already bonded to, within a certain fairly permissive radius. Bond to at most one.
     neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(phandle, distance_factor=making_search_distance,
                                                                        sort=False)
@@ -62,10 +63,20 @@ def _attempt_closest_bond(phandle: tf.ParticleHandle, making_search_distance: fl
         # probability falls off with distance
         r0: float = 2 * Little.radius
         distance: float = phandle.distance(neighbor)
-        bonding_probability: float = math.exp(-(distance - r0)/making_prob_dropoff)
+        # bonding_probability: float = math.exp(-(distance - r0)/making_prob_dropoff)
+        
+        # alternative way: linear
+        # at distance = r0, probability = 1; at distance = (making_search_distance +1) * r0, probability = 0. So:
+        m: float = -max_prob / ((making_search_distance - 1) * Little.radius)
+        b: float = max_prob * (making_search_distance + 1) / (making_search_distance - 1)
+        bonding_probability = m * distance + b
+        assert 0 <= bonding_probability <= b,\
+            f"Bonding probability calculation isn't right." \
+            f" m, b, distance, probability = {(m, b, distance, bonding_probability)}"
+        
         if random.random() < bonding_probability:
             if verbose:
-                print(f"distance = {distance}, probability of making a bond = {bonding_probability}")
+                print(f"distance = {distance}, probability = {bonding_probability}, max_prob = {max_prob}")
             _make_bond(neighbor, phandle, verbose)
             bonded = True
     return 1 if bonded else 0
@@ -176,13 +187,14 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
     for bhandle in breaking_bonds:
         gc.break_bond(bhandle)
     
-def maintain_bonds(making_search_distance: float = 5, making_prob_dropoff: float = 0.01,
+def maintain_bonds(making_search_distance: float = 5, making_prob_dropoff: float = 0.01, making_max_prob: float = 1e-4,
                    breaking_saturation_factor: float = 3, max_prob: float = 0.001,
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
     total: int = 0
     for ptype in [Little, LeadingEdge]:
         for p in ptype.items():
-            total += _attempt_closest_bond(p, making_search_distance, making_prob_dropoff, verbose=True)
+            total += _attempt_closest_bond(p, making_search_distance, making_prob_dropoff, making_max_prob,
+                                           verbose=True)
     print(f"Created {total} bonds.")
 
     _break_or_relax(breaking_saturation_factor, max_prob,
