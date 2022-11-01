@@ -144,6 +144,8 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
         if r > r0 + saturation_distance:
             delta_r0 = viscosity * saturation_distance
         elif r < r0 - saturation_distance:
+            # ToDo: this case is completely wrong; it needs its own, different saturation_distance.
+            # Minor issue but should fix this.
             delta_r0 = viscosity * -saturation_distance
         else:
             delta_r0 = viscosity * (r - r0)
