@@ -81,13 +81,11 @@ def _attempt_closest_bond(phandle: tf.ParticleHandle, making_search_distance: fl
             bonded = True
     return 1 if bonded else 0
 
-def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
-                    relaxation_saturation_factor: float, viscosity: float) -> None:
-    """Decide which bonds will be broken, then break them. Relax those that survive.
+def _break(breaking_saturation_factor: float, max_prob: float) -> None:
+    """Decide which bonds will be broken, then break them.
     
     saturation_factor: multiple of r0 at which probability of breaking = max_prob
     max_prob: the max value that probability of breaking ever reaches. In range [0, 1].
-    viscosity: how much relaxation per timestep. In range [0, 1].
     """
     alert_once = True
     
@@ -122,12 +120,42 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
             
         return p
     
+    assert 0 <= max_prob <= 1, "max_prob out of bounds"
+    assert breaking_saturation_factor > 0, "breaking_saturation_factor out of bounds"
+
+    breaking_bonds: list[tf.BondHandle] = []
+    bhandle: tf.BondHandle
+    gcdict: dict[int, gc.BondData] = gc.bonds_by_id
+
+    print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to maybe break")
+    for bhandle in tf.BondHandle.items():
+        # future: checking .active is not supposed to be needed; those are supposed to be filtered out before you
+        # see them. Possibly the flag may not even be accessible in future versions.
+        if bhandle.active:
+            assert bhandle.id in gcdict, "Bond data missing from global catalog!"
+            p1: tf.ParticleHandle
+            p2: tf.ParticleHandle
+            p1, p2 = tfu.bond_parts(bhandle)
+            bond_data: gc.BondData = gcdict[bhandle.id]
+            r0: float = bond_data["r0"]
+            # print(f"r0 = {r0}")
+            r: float = p1.distance(p2)
+            
+            if random.random() < breaking_probability(bhandle, r0, r):
+                breaking_bonds.append(bhandle)
+
+    print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
+    for bhandle in breaking_bonds:
+        gc.break_bond(bhandle)
+    
+def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
     def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float,
-                   p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
+                   p1: tf.ParticleHandle, p2: tf.ParticleHandle
+                   ) -> None:
         """Relaxing a bond means to partially reduce the energy (hence the generated force) by changing
         the r0 toward the current r.
 
-        viscosity: a value in the range [0, 1].
+        viscosity: how much relaxation per timestep. In range [0, 1].
             v = 0 is completely elastic (no change to r0, ever; so if a force is applied that stretches the bond, and
                 then released, the bond will recoil and tend to shrink back to its original length)
             v = 1 is completely plastic (r0 instantaneously takes the value of r; so if a force is applied that
@@ -138,7 +166,7 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
         """
         # Because existing bonds can't be modified, we destroy it and replace it with a new one, with new properties
         gc.break_bond(bhandle)
-
+        
         delta_r0: float
         saturation_distance: float = relaxation_saturation_factor * Little.radius
         if r > r0 + saturation_distance:
@@ -156,20 +184,16 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
                                                         max=6
                                                         )
         gc.make_bond(potential, p1, p2, new_r0)
-
-    assert 0 <= max_prob <= 1, "max_prob out of bounds"
+    
     assert 0 <= viscosity <= 1, "viscosity out of bounds"
-    assert breaking_saturation_factor > 0, "breaking_saturation_factor out of bounds"
     assert relaxation_saturation_factor > 0, "relaxation_saturation_factor out of bounds"
-
-    breaking_bonds: list[tf.BondHandle] = []
     bhandle: tf.BondHandle
     gcdict: dict[int, gc.BondData] = gc.bonds_by_id
 
-    print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to either break, or relax")
+    print(f"Relaxing all {len(tf.BondHandle.items())} bonds")
     for bhandle in tf.BondHandle.items():
-        # future: checking .active is not supposed be needed; those are supposed to be filtered out before you see them.
-        # Possibly the flag may not even be accessible in future versions.
+        # future: checking .active is not supposed to be needed; those are supposed to be filtered out before you
+        # see them. Possibly the flag may not even be accessible in future versions.
         if bhandle.active:
             assert bhandle.id in gcdict, "Bond data missing from global catalog!"
             p1: tf.ParticleHandle
@@ -180,15 +204,8 @@ def _break_or_relax(breaking_saturation_factor: float, max_prob: float,
             # print(f"r0 = {r0}")
             r: float = p1.distance(p2)
             
-            if random.random() < breaking_probability(bhandle, r0, r):
-                breaking_bonds.append(bhandle)
-            else:
-                relax_bond(bhandle, r0, r, viscosity, p1, p2)
+            relax_bond(bhandle, r0, r, viscosity, p1, p2)
 
-    print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
-    for bhandle in breaking_bonds:
-        gc.break_bond(bhandle)
-    
 def maintain_bonds(making_search_distance: float = 5, making_prob_dropoff: float = 0.01, making_max_prob: float = 1e-4,
                    breaking_saturation_factor: float = 3, max_prob: float = 0.001,
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
@@ -199,5 +216,6 @@ def maintain_bonds(making_search_distance: float = 5, making_prob_dropoff: float
                                            verbose=True)
     print(f"Created {total} bonds.")
 
-    _break_or_relax(breaking_saturation_factor, max_prob,
-                    relaxation_saturation_factor, viscosity)
+    _break(breaking_saturation_factor, max_prob)
+    
+    _relax(relaxation_saturation_factor, viscosity)
