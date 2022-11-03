@@ -1,6 +1,7 @@
 """Handle the remodeling of the bond network as the tissue changes shape"""
 import math
 import random
+import time
 
 import tissue_forge
 
@@ -237,6 +238,7 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         
         returns: number of bonds created
         """
+        start: float = time.perf_counter()
         # Get all neighbors not already bonded to, within the given radius. (There may be none.)
         neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(p, distance_factor=search_distance)
         if p.type_id == LeadingEdge.id:
@@ -248,6 +250,8 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         # other_p: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
         
         other_p: tf.ParticleHandle = min(neighbors, key=lambda neighbor: p.distance(neighbor), default=None)
+        print(f"Neighbor-finding time = {time.perf_counter() - start}")
+        
         if not other_p:
             if verbose:
                 print("Can't make bond: No particles available")
