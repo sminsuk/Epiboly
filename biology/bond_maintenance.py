@@ -12,10 +12,15 @@ from utils import tf_utils as tfu,\
 import neighbors as nbrs
 
 def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
-    """Return a potential tailored to these 2 particles: generates no force because r0 = their current distance.
+    """Return a potential tailored to these 2 particles
     
-    Accepts the TF default min (half of r0). After initial equilibration, type-based repulsive potential
-    between small particles is removed, and these bonds take over full responsibility for that interaction.
+    [generates no force because r0 = their current distance.]
+    ^^^ (This is not true anymore, but I may change my mind on it yet again)
+    
+    Accepts the TF default min (half of r0). Note that repulsion due to the bond, and repulsion due to
+    type-based repulsive potential, may either overlap (both be active at certain distances) or have a gap
+    (neither be active at certain intermediate distances), depending on how r0 of the bond has changed over
+    the course of the simulation.
     
     Also note that this allows overlap if particles happen to be very close, but that should be minimal if
     particles are well equilibrated before making the initial bonds, and unlikely for bonds created later,

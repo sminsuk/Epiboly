@@ -157,8 +157,6 @@ def initialize_interior(leading_edge_phi):
     print("instantiating takes:", finished - scaled_time, "seconds")
 
 def add_interior_bonds():
-    # Remove the type-based potential, and let bonds handle everything from here on out.
-    replace_all_small_small_potentials(small_small_repulsion_removed)
     print("Bonding interior particles.")
     for particle in Little.items():
         bonds.make_all_bonds(particle)
@@ -303,11 +301,6 @@ small_small_repulsion = tf.Potential.harmonic(r0=r0,
                                               k=5.0,
                                               max=r0
                                               )
-
-# No-op potential (k=0) to be used later, to remove the one used during equilibration.
-small_small_repulsion_removed = tf.Potential.harmonic(r0=r0,
-                                                      k=0,
-                                                      )
 
 replace_all_small_small_potentials(new_potential=small_small_repulsion)
 
