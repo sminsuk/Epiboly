@@ -152,6 +152,156 @@ def _break(breaking_saturation_factor: float, max_prob: float) -> None:
     print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
     for bhandle in breaking_bonds:
         gc.break_bond(bhandle)
+        
+def _make_break_or_become(search_distance: float, k: float, verbose: bool = False) -> None:
+    """
+    search_distance: the maximum distance within which to make new bonds
+    k: lambda of the neighbor-count constraint, like lambda of the Potts model volume constraint, but "lambda" is
+        python reserved, so call it k by analogy with k of the harmonic potential, which is basically the same formula.
+    verbose: controls the printing of rejected operations only. printing of accepted operations always goes.
+    """
+
+    def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool) -> bool:
+        """Decide whether the bond between these two particles may be made/broken
+        
+        breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
+        """
+        bonded_neighbor_ids: list[int] = [phandle.id for phandle in p2.getBondedNeighbors()]
+        if breaking:
+            assert p1.id in bonded_neighbor_ids,\
+                f"Attempting to break bond between non-bonded particles: {p1.id}, {p2.id}"
+        else:
+            assert p1.id not in bonded_neighbor_ids,\
+                f"Attempting to make bond between already bonded particles: {p1.id}, {p2.id}"
+            
+        p1current_count: int = len(p1.bonds)
+        p2current_count: int = len(p2.bonds)
+        delta_count: int = -1 if breaking else 1
+        p1final_count: int = p1current_count + delta_count
+        p2final_count: int = p2current_count + delta_count
+
+        # Neither particle may go below the minimum threshold for number of bonds
+        if p1final_count < 3 or p2final_count < 3:
+            if verbose:
+                print(f"Rejecting break because particles have {p1current_count} and {p2current_count} bonds")
+            return False
+
+        # Simple for now, but this will probably get more complex later. I think LeadingEdge target count
+        # needs to gradually increase as edge approaches vegetal pole, because of the geometry (hence float).
+        p1target_count: float = (6 if p1.type_id == Little.id else 4)
+        p2target_count: float = (6 if p2.type_id == Little.id else 4)
+    
+        p1current_energy: float = (p1current_count - p1target_count) ** 2
+        p2current_energy: float = (p2current_count - p2target_count) ** 2
+        
+        p1final_energy: float = (p1final_count - p1target_count) ** 2
+        p2final_energy: float = (p2final_count - p2target_count) ** 2
+
+        delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
+    
+        if delta_energy <= 0:
+            return True
+        else:
+            probability: float = math.exp(-k * delta_energy)
+            if random.random() < probability:
+                return True
+            else:
+                if verbose:
+                    print(f"Rejecting {'break' if breaking else 'make'} because unfavorable; particles have"
+                          f" {p1current_count} and {p2current_count} bonds")
+                return False
+
+    def attempt_break_bond(p: tf.ParticleHandle) -> int:
+        """For internal, break any bond; for leading edge, break any bond to an internal particle
+        
+        returns: number of bonds broken
+        """
+        bhandle: tf.BondHandle
+        breakable_bonds: list[tf.BondHandle] = p.bonds
+        if p.type_id == LeadingEdge.id:
+            # Don't break bond between two LeadingEdge particles
+            breakable_bonds = [bhandle for bhandle in breakable_bonds
+                               if tfu.other_particle(p, bhandle).type_id == Little.id]
+        # select one at random to break:
+        bhandle = random.choice(breakable_bonds)
+        other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
+        if accept(p, other_p, breaking=True):
+            print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
+            gc.break_bond(bhandle)
+            return 1
+        return 0
+    
+    def attempt_make_bond(p: tf.ParticleHandle) -> int:
+        """For internal, bond to the closest unbonded neighbor (either type); for leading edge, bond to
+        the closest unbonded *internal* neighbor only.
+        
+        returns: number of bonds created
+        """
+        # Get all neighbors not already bonded to, within the given radius. (There may be none.)
+        neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(p, distance_factor=search_distance)
+        if p.type_id == LeadingEdge.id:
+            # Don't make a bond between two LeadingEdge particles
+            neighbors = [neighbor for neighbor in neighbors
+                         if neighbor.type_id == Little.id]
+            
+        # Alternative algorithm: get random neighbor instead of closest. Crazy result, not good!
+        # other_p: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
+        
+        other_p: tf.ParticleHandle = min(neighbors, key=lambda neighbor: p.distance(neighbor), default=None)
+        if not other_p:
+            if verbose:
+                print("Can't make bond: No particles available")
+            return 0
+        if accept(p, other_p, breaking=False):
+            _make_bond(p, other_p, verbose=True)
+            return 1
+        return 0
+    
+    def attempt_become_internal(p: tf.ParticleHandle) -> int:
+        """For LeadingEdge particles only. Become internal, and let its two bonded leading edge neighbors
+        bond to one another.
+        
+        This MAKES a bond.
+        returns: number of bonds created
+        """
+        # Temporary, until this is implemented
+        return attempt_make_bond(p)
+    
+    def attempt_recruit_from_internal(p: tf.ParticleHandle) -> int:
+        """For LeadingEdge particles only. Break the bond with one bonded leading edge neighbor, but only
+        if there is an internal particle bonded to both of them. That internal particle becomes leading edge.
+        If there are more than one such particle, pick the one with the shortest combined path.
+        
+        This BREAKS a bond.
+        returns: number of bonds broken
+        """
+        # Temporary, until this is implemented
+        return attempt_break_bond(p)
+    
+    assert k > 0 and search_distance > 0, f"Both args must be positive; k = {k}, search_distance = {search_distance}"
+    total_bonded: int = 0
+    total_broken: int = 0
+    p: tf.ParticleHandle
+    
+    for p in Little.items():
+        if random.random() < 0.5:
+            total_bonded += attempt_make_bond(p)
+        else:
+            total_broken += attempt_break_bond(p)
+        
+    for p in LeadingEdge.items():
+        ran: float = random.random()
+        if ran < 0.25:
+            total_bonded += attempt_make_bond(p)
+        elif ran < 0.5:
+            total_broken += attempt_break_bond(p)
+        elif ran < 0.75:
+            total_bonded += attempt_become_internal(p)
+        else:
+            total_broken += attempt_recruit_from_internal(p)
+            
+    print(f"Created {total_bonded} bonds and broke {total_broken} bonds.")
+    
     
 def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
     def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float,
@@ -192,6 +342,10 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
     
     assert 0 <= viscosity <= 1, "viscosity out of bounds"
     assert relaxation_saturation_factor > 0, "relaxation_saturation_factor out of bounds"
+    if viscosity == 0:
+        # 0 is the off-switch. No relaxation. (Calculations work, but are just an expensive no-op.)
+        return
+    
     bhandle: tf.BondHandle
     gcdict: dict[int, gc.BondData] = gc.bonds_by_id
 
@@ -211,9 +365,10 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
             
             relax_bond(bhandle, r0, r, viscosity, p1, p2)
 
-def maintain_bonds(making_search_distance: float = 5, making_prob_dropoff: float = 0.01, making_max_prob: float = 1e-4,
-                   breaking_saturation_factor: float = 3, max_prob: float = 0.001,
-                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
+def maintain_bonds_deprecated(
+        making_search_distance: float = 5, making_prob_dropoff: float = 0.01, making_max_prob: float = 1e-4,
+        breaking_saturation_factor: float = 3, max_prob: float = 0.001,
+        relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
     total: int = 0
     for ptype in [Little, LeadingEdge]:
         for p in ptype.items():
@@ -223,4 +378,9 @@ def maintain_bonds(making_search_distance: float = 5, making_prob_dropoff: float
 
     _break(breaking_saturation_factor, max_prob)
     
+    _relax(relaxation_saturation_factor, viscosity)
+    
+def maintain_bonds(search_distance: float = 5, k: float = 1,
+                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
+    _make_break_or_become(search_distance, k, verbose=True)
     _relax(relaxation_saturation_factor, viscosity)

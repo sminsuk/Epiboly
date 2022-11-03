@@ -227,6 +227,16 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
 
     return p1, p2
 
+def other_particle(p: tf.ParticleHandle, b: tf.BondHandle) -> tf.ParticleHandle:
+    """Given a particle and one of its bonds, get the particle bonded to"""
+    assert p.id in b.parts, f"Bond {b.id} does not belong to particle {p.id}"
+    id1, id2 = b.parts
+    gcdict = gc.particles_by_id
+    if id1 == p.id:
+        return gcdict[id2]["handle"]
+    else:
+        return gcdict[id1]["handle"]
+    
 def bond_distance(b: tf.BondHandle) -> float:
     """"Get the distance between the two particles of a bond, i.e. the "length" of the bond
 
