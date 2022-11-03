@@ -31,7 +31,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     r0: float = 2 * Little.radius
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=cfg.harmonic_spring_constant,
-                                                    max=6
+                                                    max=cfg.max_potential_cutoff
                                                     )
     handle: tf.BondHandle = gc.make_bond(potential, p1, p2, r0)
 
@@ -239,20 +239,33 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         returns: number of bonds created
         """
         start: float = time.perf_counter()
-        # Get all neighbors not already bonded to, within the given radius. (There may be none.)
-        neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(p, distance_factor=search_distance)
-        if p.type_id == LeadingEdge.id:
-            # Don't make a bond between two LeadingEdge particles
-            neighbors = [neighbor for neighbor in neighbors
-                         if neighbor.type_id == Little.id]
+        
+        neighbors: list[tf.ParticleHandle] = []
+        distance_factor: float = 1
+        while not neighbors and distance_factor < cfg.max_distance_factor:
+            # Get all neighbors not already bonded to, within the given radius. (There may be none.)
+            neighbors = nbrs.get_non_bonded_neighbors(p, distance_factor)
+            if p.type_id == LeadingEdge.id:
+                # Don't make a bond between two LeadingEdge particles
+                neighbors = [neighbor for neighbor in neighbors
+                             if neighbor.type_id == Little.id]
+            distance_factor += 1
             
-        # Alternative algorithm: get random neighbor instead of closest. Crazy result, not good!
-        # other_p: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
+        # Note on performance-tuning of this neighbor-finding algorithm, by modifying the increment on distance_factor
+        # at the end of the while loop: either extreme caused significantly worse results: With increment of 19, big
+        # slow-down, because searching very far, even though particles are found in either the first or second
+        # iteration. With increment of 0.05, also big slow-down, because lots of iterations needed to find particles,
+        # even though the distance of the search is kept to a minimum. But, difference between using 1 and 0.5
+        # was not large enough to distinguish from noise, and was a definite speed-up over using a single search
+        # (no loop) with a distance_factor of 5. Probably there is an optimum that could be discovered with more
+        # careful peformance profiling.
         
         other_p: tf.ParticleHandle = min(neighbors, key=lambda neighbor: p.distance(neighbor), default=None)
-        print(f"Neighbor-finding time = {time.perf_counter() - start}")
+        elapsed: float = time.perf_counter() - start
+        # print(f"Neighbor-finding time = {elapsed}, final distance_factor = {distance_factor}")
         
         if not other_p:
+            # With the iterative approach to distance_factor, it seems this never happens
             if verbose:
                 print("Can't make bond: No particles available")
             return 0
