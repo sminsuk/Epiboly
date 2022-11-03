@@ -229,6 +229,9 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         if accept(p, other_p, breaking=True):
             print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
             gc.break_bond(bhandle)
+            gcdict: dict[int, gc.ParticleData] = gc.particles_by_id
+            gcdict[p.id]["blacklisted_ids"].append(other_p.id)
+            gcdict[other_p.id]["blacklisted_ids"].append(p.id)
             return 1
         return 0
     
@@ -242,13 +245,16 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         
         neighbors: list[tf.ParticleHandle] = []
         distance_factor: float = 1
+        gcdict: dict[int, gc.ParticleData] = gc.particles_by_id
+        blacklisted_ids: list[int] = gcdict[p.id]["blacklisted_ids"]
         while not neighbors and distance_factor < cfg.max_distance_factor:
             # Get all neighbors not already bonded to, within the given radius. (There may be none.)
+            # Don't bond to a neighbor you were previously bonded to, but then broke the bond.
+            # Don't make a bond between two LeadingEdge particles
             neighbors = nbrs.get_non_bonded_neighbors(p, distance_factor)
-            if p.type_id == LeadingEdge.id:
-                # Don't make a bond between two LeadingEdge particles
-                neighbors = [neighbor for neighbor in neighbors
-                             if neighbor.type_id == Little.id]
+            neighbors = [neighbor for neighbor in neighbors
+                         if neighbor.id not in blacklisted_ids
+                         if p.type_id == Little.id or neighbor.type_id == Little.id]
             distance_factor += 1
             
         # Note on performance-tuning of this neighbor-finding algorithm, by modifying the increment on distance_factor

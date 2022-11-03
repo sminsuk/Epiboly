@@ -24,6 +24,7 @@ class BondData(TypedDict):
 
 class ParticleData(TypedDict):
     handle: tf.ParticleHandle
+    blacklisted_ids: list[int]
 
 bonds_by_id: dict[int, BondData] = {}
 particles_by_id: dict[int, ParticleData] = {}
