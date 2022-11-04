@@ -218,21 +218,25 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         returns: number of bonds broken
         """
         bhandle: tf.BondHandle
+        gcdict: dict[int, gc.BondData] = gc.bonds_by_id
         breakable_bonds: list[tf.BondHandle] = p.bonds
-        if p.type_id == LeadingEdge.id:
-            # Don't break bond between two LeadingEdge particles
-            breakable_bonds = [bhandle for bhandle in breakable_bonds
-                               if tfu.other_particle(p, bhandle).type_id == Little.id]
+        now: float = tf.Universe.time
+        
+        # Don't break bond between two LeadingEdge particles
+        # Don't break a bond until it's old enough
+        breakable_bonds = [bhandle for bhandle in breakable_bonds
+                           if (p.type_id == Little.id
+                               or tfu.other_particle(p, bhandle).type_id == Little.id)
+                           if gcdict[bhandle.id]["expiration"] < now]
+        if not breakable_bonds:
+            return 0
+        
         # select one at random to break:
         bhandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
         if accept(p, other_p, breaking=True):
             print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
             gc.break_bond(bhandle)
-            expiration: float = tf.Universe.time + cfg.bonding_ban_duration * tissue_forge.Universe.dt
-            gcdict: dict[int, gc.ParticleData] = gc.particles_by_id
-            gcdict[p.id]["blacklisted_ids"][other_p.id] = expiration
-            gcdict[other_p.id]["blacklisted_ids"][p.id] = expiration
             return 1
         return 0
     
@@ -247,16 +251,12 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         neighbors: list[tf.ParticleHandle] = []
         distance_factor: float = 1
         gcdict: dict[int, gc.ParticleData] = gc.particles_by_id
-        blacklisted_ids: dict[int, float] = gcdict[p.id]["blacklisted_ids"]
         while not neighbors and distance_factor < cfg.max_distance_factor:
             # Get all neighbors not already bonded to, within the given radius. (There may be none.)
-            # Don't bond to a neighbor you broke a bond with, unless its banning has expired.
             # Don't make a bond between two LeadingEdge particles
             neighbors = nbrs.get_non_bonded_neighbors(p, distance_factor)
             neighbors = [neighbor for neighbor in neighbors
-                         if p.type_id == Little.id or neighbor.type_id == Little.id
-                         if (neighbor.id not in blacklisted_ids
-                             or blacklisted_ids[neighbor.id] < tissue_forge.Universe.time)]
+                         if p.type_id == Little.id or neighbor.type_id == Little.id]
             distance_factor += 1
             
         # Note on performance-tuning of this neighbor-finding algorithm, by modifying the increment on distance_factor

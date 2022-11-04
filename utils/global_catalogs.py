@@ -17,21 +17,22 @@ Currently you can only do that if you also have the particle.type_id. Should be 
 """
 from typing import TypedDict
 
+import config as cfg
 import tissue_forge as tf
 
 class BondData(TypedDict):
     r0: float
+    expiration: float
 
 class ParticleData(TypedDict):
     handle: tf.ParticleHandle
-    blacklisted_ids: dict[int, float]   # [other id: expiration]
 
 bonds_by_id: dict[int, BondData] = {}
 particles_by_id: dict[int, ParticleData] = {}
 
 def make_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHandle, r0: float) -> tf.BondHandle:
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
-    bond_values: BondData = {"r0": r0}
+    bond_values: BondData = {"r0": r0, "expiration": tf.Universe.time + cfg.bond_min_lifetime * tf.Universe.dt}
     bonds_by_id[handle.id] = bond_values
     return handle
 

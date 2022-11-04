@@ -146,8 +146,7 @@ def initialize_interior(leading_edge_phi):
         phandle.style = tf.rendering.Style()
         phandle.style.setColor("cornflowerblue")
         phandle.style.visible = True
-        particle_values: gc.ParticleData = {"handle": phandle,
-                                            "blacklisted_ids": {}}
+        particle_values: gc.ParticleData = {"handle": phandle}
         gc.particles_by_id[phandle.id] = particle_values
     
     finished = time.perf_counter()
@@ -220,8 +219,7 @@ def initialize_bonded_edge():
             phandle.style = tf.rendering.Style()
             phandle.style.setColor("gold")
             phandle.style.visible = True
-            particle_values: gc.ParticleData = {"handle": phandle,
-                                                "blacklisted_ids": {}}
+            particle_values: gc.ParticleData = {"handle": phandle}
             gc.particles_by_id[phandle.id] = particle_values
 
         return leading_edge_phi
