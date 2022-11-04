@@ -29,6 +29,7 @@ bonds_by_id: dict[int, BondData] = {}
 particles_by_id: dict[int, ParticleData] = {}
 
 def make_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHandle, r0: float) -> tf.BondHandle:
+    assert p1.id != p2.id, f"Bonding particle {p1.id} to itself!"
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
     bond_values: BondData = {"r0": r0}
     bonds_by_id[handle.id] = bond_values
