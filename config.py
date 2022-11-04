@@ -33,3 +33,6 @@ max_potential_cutoff: float = 6
 # Just insurance against a weird infinite loop.
 # this value used as distance_factor will result in an absolute search distance = max_potential_cutoff
 max_distance_factor: float = max_potential_cutoff / Little.radius
+
+# Timeout before two particles can be re-bonded after being broken (as multiple of dt).
+bonding_ban_duration: float = 4.5
