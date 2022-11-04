@@ -353,7 +353,7 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
         
         potential: tf.Potential = tf.Potential.harmonic(r0=new_r0,
                                                         k=cfg.harmonic_spring_constant,
-                                                        max=6
+                                                        max=cfg.max_potential_cutoff
                                                         )
         gc.make_bond(potential, p1, p2, new_r0)
     
