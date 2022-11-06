@@ -348,9 +348,9 @@ dyn.execute_repeatedly(tasks=[
 
 tf.show()
 dyn.execute_repeatedly(tasks=[
-        {"invoke": mt.update_tangent_forces,
-         "args": {"magnitude": 5}
-         },
+        # {"invoke": mt.update_tangent_forces,
+        #  "args": {"magnitude": 5}
+        #  },
         {"invoke": bonds.maintain_bonds,
          "args": {
                   #     ###For deprecated making/breaking algorithm:
@@ -368,7 +368,9 @@ dyn.execute_repeatedly(tasks=[
                   }
          },
         ])
-# mt.remove_tangent_forces()
+toggle_visibility()
+toggle_visibility()
+mt.remove_tangent_forces()
 
 # tf.step()
 # while not xt.is_equilibrated(epsilon=0.01):

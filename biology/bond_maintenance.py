@@ -27,8 +27,8 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     particles are well equilibrated before making the initial bonds, and unlikely for bonds created later,
     since particles should bond before getting that close.
     """
-    # r0: float = p1.distance(p2)
-    r0: float = 2 * Little.radius
+    r0: float = p1.distance(p2)
+    # r0: float = 2 * Little.radius
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=cfg.harmonic_spring_constant,
                                                     max=cfg.max_potential_cutoff
@@ -322,7 +322,8 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
     
 def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
     def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float,
-                   p1: tf.ParticleHandle, p2: tf.ParticleHandle
+                   p1: tf.ParticleHandle, p2: tf.ParticleHandle,
+                   mean_bond_length: float
                    ) -> None:
         """Relaxing a bond means to partially reduce the energy (hence the generated force) by changing
         the r0 toward the current r.
@@ -349,13 +350,16 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
             delta_r0 = viscosity * -saturation_distance
         else:
             delta_r0 = viscosity * (r - r0)
-        new_r0: float = r0 + delta_r0
-        
+        # new_r0: float = r0 + delta_r0
+        new_r0: float = mean_bond_length
+
         potential: tf.Potential = tf.Potential.harmonic(r0=new_r0,
                                                         k=cfg.harmonic_spring_constant,
                                                         max=cfg.max_potential_cutoff
                                                         )
         gc.make_bond(potential, p1, p2, new_r0)
+    
+    total_bond_length: float = 0
     
     assert 0 <= viscosity <= 1, "viscosity out of bounds"
     assert relaxation_saturation_factor > 0, "relaxation_saturation_factor out of bounds"
@@ -379,8 +383,23 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
             r0: float = bond_data["r0"]
             # print(f"r0 = {r0}")
             r: float = p1.distance(p2)
+            total_bond_length += r
             
-            relax_bond(bhandle, r0, r, viscosity, p1, p2)
+            # relax_bond(bhandle, r0, r, viscosity, p1, p2)
+            
+    mean_bond_length: float = total_bond_length / len(tf.BondHandle.items())
+    print(f"Mean bond length = {mean_bond_length}")
+    for bhandle in tf.BondHandle.items():
+        if bhandle.active:
+            assert bhandle.id in gcdict, "Bond data missing from global catalog!"
+            p1: tf.ParticleHandle
+            p2: tf.ParticleHandle
+            p1, p2 = tfu.bond_parts(bhandle)
+            bond_data: gc.BondData = gcdict[bhandle.id]
+            r0: float = bond_data["r0"]
+            # print(f"r0 = {r0}")
+            r: float = p1.distance(p2)
+            relax_bond(bhandle, r0, r, viscosity, p1, p2, mean_bond_length)
 
 def maintain_bonds_deprecated(
         making_search_distance: float = 5, making_prob_dropoff: float = 0.01, making_max_prob: float = 1e-4,
@@ -398,6 +417,6 @@ def maintain_bonds_deprecated(
     _relax(relaxation_saturation_factor, viscosity)
     
 def maintain_bonds(search_distance: float = 5, k: float = 1,
-                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
-    _make_break_or_become(search_distance, k, verbose=True)
+                   relaxation_saturation_factor: float = 2, viscosity: float = 0.001) -> None:
+    # _make_break_or_become(search_distance, k, verbose=True)
     _relax(relaxation_saturation_factor, viscosity)

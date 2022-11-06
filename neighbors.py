@@ -108,7 +108,7 @@ def find_neighbors(p: tf.ParticleHandle, distance_factor: float = 1.5, sort: boo
     return neighbors
 
 def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
-                             distance_factor: float = 1.5, sort: bool = False) -> list[tf.ParticleHandle]:
+                             distance_factor: float = 2, sort: bool = False) -> list[tf.ParticleHandle]:
     """Not quite the inverse of particleHandle.getBondedNeighbors()
     
     phandle: particleHandle
