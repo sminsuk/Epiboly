@@ -13,7 +13,8 @@ Make new bonds whenever particles approach close enough to qualify as "nearby", 
 import math
 import time
 
-from epiboly_init import *  # Tissue Forge initialization and global ParticleType class/instance creation
+import tissue_forge as tf
+from epiboly_init import Little, Big, LeadingEdge   # Tissue Forge initialization and global ParticleType creation
 import config as cfg
 
 from biology import bond_maintenance as bonds,\
@@ -27,8 +28,10 @@ from utils import tf_utils as tfu,\
 from control_flow.interactive import is_interactive, toggle_visibility
 if is_interactive():
     # Importing this at the global level causes PyCharm to keep deleting my epiboly_init import,
+    # (ToDo: see if this is still true, now that I got rid of "import *".)
     # I guess because it thinks it's redundant; something about the "import *".
     # Doing it here prevents that. And this is only needed in interactive sessions.
+    # (ToDo: also, turns out is_interactive() functionality is now provided in tf, I can probably lose mine.)
     from control_flow.interactive import *
     print("Interactive module imported!")
 
@@ -70,7 +73,7 @@ def initialize_interior(leading_edge_phi):
     # number of particles, but with different initial distribution and equilibration dynamics.
     # For awhile had different numbers of point and edge_margins for the two, but ultimately came around
     # to the same values for each (2050 and 0.15), so I guess those must be the "right" values.
-    # (Note: moved the definition of these constants to the global epiboly_init module, and tweaked it further.)
+    # (Note: moved the definition of these constants to the config module, and tweaked it further.)
     # Could conceivably even have different spring constants on the potentials in the two cases; I have
     # tweaked that to be best for equilibration; when ready to "start the biology running", can easily
     # change them at that time.

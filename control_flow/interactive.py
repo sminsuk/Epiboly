@@ -1,7 +1,7 @@
 """Functions available to be called while script is running, from jupyter cells, ipython cmd line, etc."""
 from IPython import get_ipython
 
-from epiboly_init import *
+from epiboly_init import Little, LeadingEdge
 
 # Sometimes I still run from Jupyter and not from ipython, so set these to False.
 # They prevent these functions from executing when you Kernel > Restart & Run All in Jupyter, without having

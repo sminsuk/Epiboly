@@ -2,7 +2,8 @@
 
 import math
 
-from epiboly_init import *
+import tissue_forge as tf
+from epiboly_init import Little, LeadingEdge
 
 def _unshadowed_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[tf.ParticleHandle]:
     """Not nearest neighbors, but best neighbors.

@@ -4,7 +4,7 @@ I may yet need parts of it.
 from collections.abc import Callable
 from typing import Optional, TypedDict
 
-from epiboly_init import *
+import tissue_forge as tf
 from utils import tf_utils as tfu
 
 class Task(TypedDict, total=False):

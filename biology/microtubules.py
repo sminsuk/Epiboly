@@ -1,7 +1,8 @@
 """Simulate the towing of the margin toward the vegetal pole by microtubule arrays in the yolk cells"""
 import math
 
-from epiboly_init import *
+import tissue_forge as tf
+from epiboly_init import Big, LeadingEdge
 from utils import tf_utils as tfu
 
 def update_tangent_forces(magnitude: int) -> None:

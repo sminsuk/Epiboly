@@ -1,4 +1,5 @@
-from epiboly_init import *
+import tissue_forge as tf
+from epiboly_init import LeadingEdge
 import neighbors as nbrs
 from utils import tf_utils as tfu
 

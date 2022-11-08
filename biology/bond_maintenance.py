@@ -3,9 +3,8 @@ import math
 import random
 import time
 
-import tissue_forge
-
-from epiboly_init import *
+import tissue_forge as tf
+from epiboly_init import Little, LeadingEdge
 import config as cfg
 from utils import tf_utils as tfu,\
     global_catalogs as gc
