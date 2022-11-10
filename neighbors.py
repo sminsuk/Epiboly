@@ -3,7 +3,7 @@
 import math
 
 import tissue_forge as tf
-from epiboly_init import Little, LeadingEdge
+from epiboly_init import Little, LeadingEdge, Big
 
 def _unshadowed_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[tf.ParticleHandle]:
     """Not nearest neighbors, but best neighbors.
@@ -130,6 +130,159 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor.id not in my_bonded_neighbor_ids]
     return non_bonded_neighbors
+
+def get_ordered_bonded_neighbors(p: tf.ParticleHandle) -> list[tf.ParticleHandle]:
+    """Get bonded neighbors, ordered according to their relative angles, so that iterating over the result
+    would trace a simple closed polygon around particle p"""
+    
+    def cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
+        return tf.fVector3([v1.y() * v2.z() - v1.z() * v2.y(),
+                            v1.z() * v2.x() - v1.x() * v2.z(),
+                            v1.x() * v2.y() - v1.y() * v2.x()])
+
+    def truncate(dotprod: float) -> float:
+        """Restrict dot product to the range [-1, 1]
+        
+        Dot products can be anything; but in this case (dot product of two unit vectors), result should never
+        be outside this range, and the angle should be retrievable by taking acos(dot_product).
+        If dot product is outside that range, acos() will throw an exception.
+        
+        This issue arises in particular when taking the dot product of a unit vector with itself, or when the two
+        unit vectors are exactly 180 deg apart. These should come out to exactly +/- 1.0. But in these cases,
+        tf.fVector3.dot() produces an imprecise result that can be too large, and this will crash acos().
+        """
+        if dotprod > 1.0:
+            return 1.0
+        elif dotprod < -1.0:
+            return -1.0
+        else:
+            return dotprod
+            
+    def deprecated_disambiguate(original_angles: list[float],
+                                neighbor_unit_vectors: list[tf.fVector3],
+                                reference_vector: tf.fVector3) -> list[float]:
+        """Use cross products to determine which angles are on which side of the polygon.
+        
+        Original angles are in the range [0, π], so there's ambiguity over which side of the polygon
+        they are on. Simply ordering by that angle would therefore trace both sides of the polygon in
+        parallel, meeting up at the opposite side. We need to instead trace down one side of the polygon
+        and back up the other side, to the point where we started."""
+        def normalized_cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
+            """Cross product (order matters!), normalized to a unit vector (when possible)
+
+            returns: a unit vector in the correct direction, or, when cross product is 0, just that 0 vector
+
+            Note: for angles close to (but not exactly) 180 deg, this seems to perform poorly, resulting in
+            a vector that's off on some unexpected angle. However, close to 180 deg this may not matter that much.
+            (See corrected_angle().)
+            """
+            result: tf.fVector3 = cross(v1, v2)
+            if result.length() > 0:
+                result = result.normalized()
+            return result
+    
+        def corrected_angle(theta: float, reference_cross: tf.fVector3, cross: tf.fVector3) -> float:
+            """Angle in range [0, π), corrected to range [0, 2π), depending which side of the reference vector it is on
+
+            theta: angle between a given vector, and the reference vector. (In the range [0, π).)
+            reference_cross: (normalized) cross product of arbitrarily selected neighbor vector, with the reference
+                vector. (Possible magnitudes: 1 and 0. Possible direction: toward or away from the yolk center, roughly.)
+            cross: (normalized) cross product of the reference vector with the given vector
+            """
+            vector_sum: tf.fVector3 = reference_cross + cross
+            if vector_sum.length() > 0.5:
+                # Either it's roughly 2 (the two cross products are pointing in the same direction);
+                # or it's roughly 1 (the 2nd cross product is either reference_cross, or it's exactly 180 deg from it)
+                # Note, for angles near (but not exactly) 180 deg, the cross product seems to be inaccurate,
+                # but hopefully this doesn't matter that much, because at that angle, the difference between theta,
+                # and (2π - theta), isn't that big.
+                return theta
+            else:
+                # it's roughly 0, the two cross products are pointing in opposite directions
+                return 2 * math.pi - theta
+    
+        crossprods: list[tf.fVector3] = [normalized_cross(reference_vector, uvec) for uvec in neighbor_unit_vectors]
+        # item [0] is reference vector X itself and will be zero vector. All other items (unless exactly at 180 deg
+        # from reference vector) will have magnitude of 1, and point either roughly away from, or roughly toward,
+        # the center of the yolk. We select one for comparison, arbitrarily (as long as it's not at 0 or 180 deg
+        # from the reference vector, i.e. as long as the cross is not the zero vec), and decide which side of the
+        # circle each point is on, by deciding whether the cross product is pointing roughly the same direction
+        # os this item, or the opposite direction.
+        
+        reference_cross: tf.fVector3
+        for crossprod in crossprods:
+            if crossprod.length() > 0:
+                reference_cross = crossprod
+                break
+    
+        # noinspection PyUnboundLocalVariable
+        corrected_angles: list[float] = [corrected_angle(theta, reference_cross, crossprods[i])
+                                         for i, theta in enumerate(original_angles)]
+        return corrected_angles
+    
+    def disambiguate(original_angles: list[float],
+                     neighbor_unit_vectors: list[tf.fVector3],
+                     reference_vector: tf.fVector3,
+                     p: tf.ParticleHandle) -> list[float]:
+        """Use a cross product to generate assymetry, followed by dot products to determine which angles
+        are on which side of the polygon.
+
+        Original angles are in the range [0, π], so there's ambiguity over which side of the polygon
+        they are on. Simply ordering by that angle would therefore trace both sides of the polygon in
+        parallel, meeting up at the opposite side. We need to instead trace down one side of the polygon
+        and back up the other side, to the point where we started."""
+        def corrected_angle(theta: float, neighbor_vec: tf.fVector3, reference_cross: tf.fVector3) -> float:
+            """Angle in range [0, π], corrected to range [0, 2π), depending which side of the reference vector it is on
+
+            neighbor_vec: points from the particle to one of its neighbors
+            theta: angle between the given vector, and the reference vector. (In the range [0, π].)
+            reference_cross: a vector pointing to one side of the polygon, perpendicular to the reference vector.
+            """
+            projection: tf.fVector3 = neighbor_vec.projected(reference_cross)
+            dotprod: float = projection.dot(reference_cross)
+            if dotprod >= 0:
+                # > 0: the projection is pointing the same direction as the reference; particle on the same side;
+                # == 0: the projection is the zero vector; either neighbor_vec is the reference_vector,
+                #       or it's pointing exactly 180 deg from it.
+                return theta
+            else:
+                # < 0: the projection is pointing the opposite direction from the reference;
+                # particle on the opposite side,
+                return 2 * math.pi - theta
+    
+        big_particle: tf.ParticleHandle = Big.items()[0]
+        normal_vector: tf.fVector3 = p.position - big_particle.position
+        reference_cross: tf.fVector3 = cross(reference_vector, normal_vector)
+        corrected_angles: list[float] = [corrected_angle(theta, neighbor_unit_vectors[i], reference_cross)
+                                         for i, theta in enumerate(original_angles)]
+        return corrected_angles
+
+    neighbors: tf.ParticleList = p.getBondedNeighbors()
+    if len(neighbors) < 4:
+        # It does not matter what order you traverse these. The existing order is fine.
+        return list(neighbors)
+
+    neighbor_coords: tuple[tf.fVector3] = neighbors.positions
+    neighbor_vectors: list[tf.fVector3] = [coord - p.position for coord in neighbor_coords]
+    neighbor_unit_vectors: list[tf.fVector3] = [vector.normalized() for vector in neighbor_vectors]
+    reference_vector: tf.fVector3 = neighbor_unit_vectors[0]
+    dotprods: list[float] = [uvec.dot(reference_vector) for uvec in neighbor_unit_vectors]
+    angles_to_reference: list[float] = [math.acos(truncate(dotprod)) for dotprod in dotprods]
+
+    # deprecated_corrected_angles: list[float] = deprecated_disambiguate(angles_to_reference,
+    #                                                                    neighbor_unit_vectors,
+    #                                                                    reference_vector)
+    
+    corrected_angles: list[float] = disambiguate(angles_to_reference,
+                                                 neighbor_unit_vectors,
+                                                 reference_vector,
+                                                 p)
+    
+    # To do the final sort, must package up the particleHandle and the angle and sort them together
+    neighbors_and_angles_to_reference: list[tuple[tf.ParticleHandle, float]] = list(zip(neighbors, corrected_angles))
+    sorted_tuples: list[tuple[tf.ParticleHandle, float]] = sorted(neighbors_and_angles_to_reference,
+                                                                  key=lambda tup: tup[1])
+    return [tup[0] for tup in sorted_tuples]
 
 def paint_neighbors():
     """Test of neighbors() functionality by painting neighbors different colors"""
