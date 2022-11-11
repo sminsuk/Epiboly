@@ -153,9 +153,8 @@ def _break(breaking_saturation_factor: float, max_prob: float) -> None:
     for bhandle in breaking_bonds:
         gc.break_bond(bhandle)
         
-def _make_break_or_become(search_distance: float, k: float, verbose: bool = False) -> None:
+def _make_break_or_become(k: float, verbose: bool = False) -> None:
     """
-    search_distance: the maximum distance within which to make new bonds
     k: lambda of the neighbor-count constraint, like lambda of the Potts model volume constraint, but "lambda" is
         python reserved, so call it k by analogy with k of the harmonic potential, which is basically the same formula.
     verbose: controls the printing of rejected operations only. printing of accepted operations always goes.
@@ -294,7 +293,7 @@ def _make_break_or_become(search_distance: float, k: float, verbose: bool = Fals
         # Temporary, until this is implemented
         return attempt_break_bond(p)
     
-    assert k > 0 and search_distance > 0, f"Both args must be positive; k = {k}, search_distance = {search_distance}"
+    assert k > 0, f"k must be positive; k = {k}"
     total_bonded: int = 0
     total_broken: int = 0
     p: tf.ParticleHandle
@@ -396,7 +395,6 @@ def maintain_bonds_deprecated(
     
     _relax(relaxation_saturation_factor, viscosity)
     
-def maintain_bonds(search_distance: float = 5, k: float = 1,
-                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
-    _make_break_or_become(search_distance, k, verbose=True)
+def maintain_bonds(k: float = 1, relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
+    _make_break_or_become(k, verbose=True)
     _relax(relaxation_saturation_factor, viscosity)
