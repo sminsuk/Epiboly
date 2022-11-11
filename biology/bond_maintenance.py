@@ -165,6 +165,30 @@ def _make_break_or_become(k: float, verbose: bool = False) -> None:
         
         breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
         """
+        def delta_energy_neighbor_count(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+            p1current_count: int = len(p1.bonds)
+            p2current_count: int = len(p2.bonds)
+            delta_count: int = -1 if breaking else 1
+            p1final_count: int = p1current_count + delta_count
+            p2final_count: int = p2current_count + delta_count
+    
+            # Simple for now, but this will probably get more complex later. I think LeadingEdge target count
+            # needs to gradually increase as edge approaches vegetal pole, because of the geometry (hence float).
+            p1target_count: float = (6 if p1.type_id == Little.id else 4)
+            p2target_count: float = (6 if p2.type_id == Little.id else 4)
+    
+            p1current_energy: float = (p1current_count - p1target_count) ** 2
+            p2current_energy: float = (p2current_count - p2target_count) ** 2
+    
+            p1final_energy: float = (p1final_count - p1target_count) ** 2
+            p2final_energy: float = (p2final_count - p2target_count) ** 2
+    
+            delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
+            return delta_energy
+        
+        def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+            return 0
+
         bonded_neighbor_ids: list[int] = [phandle.id for phandle in p2.getBondedNeighbors()]
         if breaking:
             assert p1.id in bonded_neighbor_ids,\
@@ -173,30 +197,16 @@ def _make_break_or_become(k: float, verbose: bool = False) -> None:
             assert p1.id not in bonded_neighbor_ids,\
                 f"Attempting to make bond between already bonded particles: {p1.id}, {p2.id}"
             
+        # Neither particle may go below the minimum threshold for number of bonds
         p1current_count: int = len(p1.bonds)
         p2current_count: int = len(p2.bonds)
-        delta_count: int = -1 if breaking else 1
-        p1final_count: int = p1current_count + delta_count
-        p2final_count: int = p2current_count + delta_count
-
-        # Neither particle may go below the minimum threshold for number of bonds
-        if p1final_count < 3 or p2final_count < 3:
+        if breaking and (p1current_count < 4 or p2current_count < 4):
             if verbose:
                 print(f"Rejecting break because particles have {p1current_count} and {p2current_count} bonds")
             return False
 
-        # Simple for now, but this will probably get more complex later. I think LeadingEdge target count
-        # needs to gradually increase as edge approaches vegetal pole, because of the geometry (hence float).
-        p1target_count: float = (6 if p1.type_id == Little.id else 4)
-        p2target_count: float = (6 if p2.type_id == Little.id else 4)
-    
-        p1current_energy: float = (p1current_count - p1target_count) ** 2
-        p2current_energy: float = (p2current_count - p2target_count) ** 2
-        
-        p1final_energy: float = (p1final_count - p1target_count) ** 2
-        p2final_energy: float = (p2final_count - p2target_count) ** 2
-
-        delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
+        delta_energy: float = (delta_energy_neighbor_count(p1, p2)
+                               + delta_energy_angle(p1, p2))
     
         if delta_energy <= 0:
             return True
