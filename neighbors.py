@@ -5,6 +5,7 @@ import time
 from typing import Optional
 
 import tissue_forge as tf
+from utils import tf_utils as tfu
 import config as cfg
 from epiboly_init import Little, LeadingEdge, Big
 
@@ -188,29 +189,6 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
         can get its order relative to the existing bonds.
     """
     
-    def cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
-        return tf.fVector3([v1.y() * v2.z() - v1.z() * v2.y(),
-                            v1.z() * v2.x() - v1.x() * v2.z(),
-                            v1.x() * v2.y() - v1.y() * v2.x()])
-
-    def truncate(dotprod: float) -> float:
-        """Restrict dot product to the range [-1, 1]
-        
-        Dot products can be anything; but in this case (dot product of two unit vectors), result should never
-        be outside this range, and the angle should be retrievable by taking acos(dot_product).
-        If dot product is outside that range, acos() will throw an exception.
-        
-        This issue arises in particular when taking the dot product of a unit vector with itself, or when the two
-        unit vectors are exactly 180 deg apart. These should come out to exactly +/- 1.0. But in these cases,
-        tf.fVector3.dot() produces an imprecise result that can be too large, and this will crash acos().
-        """
-        if dotprod > 1.0:
-            return 1.0
-        elif dotprod < -1.0:
-            return -1.0
-        else:
-            return dotprod
-            
     def deprecated_disambiguate(original_angles: list[float],
                                 neighbor_unit_vectors: list[tf.fVector3],
                                 reference_vector: tf.fVector3) -> list[float]:
@@ -229,7 +207,7 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
             a vector that's off on some unexpected angle. However, close to 180 deg this may not matter that much.
             (See corrected_angle().)
             """
-            result: tf.fVector3 = cross(v1, v2)
+            result: tf.fVector3 = tfu.cross(v1, v2)
             if result.length() > 0:
                 result = result.normalized()
             return result
@@ -305,7 +283,7 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
     
         big_particle: tf.ParticleHandle = Big.items()[0]
         normal_vector: tf.fVector3 = p.position - big_particle.position
-        reference_cross: tf.fVector3 = cross(reference_vector, normal_vector)
+        reference_cross: tf.fVector3 = tfu.cross(reference_vector, normal_vector)
         corrected_angles: list[float] = [corrected_angle(theta, neighbor_unit_vectors[i], reference_cross)
                                          for i, theta in enumerate(original_angles)]
         return corrected_angles
@@ -328,7 +306,7 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
     neighbor_unit_vectors: list[tf.fVector3] = [vector.normalized() for vector in neighbor_vectors]
     reference_vector: tf.fVector3 = neighbor_unit_vectors[0]
     dotprods: list[float] = [uvec.dot(reference_vector) for uvec in neighbor_unit_vectors]
-    angles_to_reference: list[float] = [math.acos(truncate(dotprod)) for dotprod in dotprods]
+    angles_to_reference: list[float] = [math.acos(tfu.truncate(dotprod)) for dotprod in dotprods]
 
     # deprecated_corrected_angles: list[float] = deprecated_disambiguate(angles_to_reference,
     #                                                                    neighbor_unit_vectors,

@@ -248,3 +248,28 @@ def bond_distance(b: tf.BondHandle) -> float:
     """
     p1, p2 = bond_parts(b)
     return p1.distance(p2)
+
+def cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
+    return tf.fVector3([v1.y() * v2.z() - v1.z() * v2.y(),
+                        v1.z() * v2.x() - v1.x() * v2.z(),
+                        v1.x() * v2.y() - v1.y() * v2.x()])
+
+def truncate(dotprod: float) -> float:
+    """Restrict dot product to the range [-1, 1]
+
+    Dot products can be anything; but in certain cases (dot product of two unit vectors), result should never
+    be outside this range, and the angle should be retrievable by taking acos(dot_product).
+    If dot product is outside that range, acos() will throw an exception.
+
+    This issue arises in particular when taking the dot product of a unit vector with itself, or when the two
+    unit vectors are exactly 180 deg apart. These should come out to exactly +/- 1.0. But in these cases,
+    tf.fVector3.dot() produces an imprecise result that can be too large, and this will crash acos().
+    """
+    if dotprod > 1.0:
+        return 1.0
+    elif dotprod < -1.0:
+        return -1.0
+    else:
+        return dotprod
+
+
