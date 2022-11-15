@@ -1,8 +1,11 @@
 """neighbors module (for now, this is based on operations within EVL)"""
 
 import math
+import time
+from typing import Optional
 
 import tissue_forge as tf
+import config as cfg
 from epiboly_init import Little, LeadingEdge, Big
 
 def _unshadowed_neighbors(p: tf.ParticleHandle, distance_factor: float) -> list[tf.ParticleHandle]:
@@ -130,6 +133,51 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor.id not in my_bonded_neighbor_ids]
     return non_bonded_neighbors
+
+def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
+                                    ptypes: list[tf.ParticleType] = None) -> Optional[tf.ParticleHandle]:
+    """Use an iterative approach to search over larger and larger distances until you find a non-bonded neighbor
+    
+    ptypes: list of allowed particle types to search for
+    
+    Can return None (hence "Optional" in typing of function return value), but
+    with this iterative approach to distance_factor, it seems this never happens.
+    You can always find a nearest non-bonded neighbor, long before hitting the max allowable distance.
+    """
+    ptype: tf.ParticleType
+    if ptypes is None:
+        ptypes = [LeadingEdge, Little]
+    type_ids: list[int] = [ptype.id for ptype in ptypes]
+
+    start: float = time.perf_counter()
+
+    neighbors: list[tf.ParticleHandle] = []
+    distance_factor: float = 1
+    while not neighbors and distance_factor < cfg.max_distance_factor:
+        # Get all neighbors not already bonded to, within the given radius. (There may be none.)
+        neighbors = get_non_bonded_neighbors(phandle, distance_factor)
+        
+        # Exclude unwanted neighbor types:
+        # (After next release, this might work without ids, just test for the type in ptypes)
+        neighbors = [neighbor for neighbor in neighbors
+                     if neighbor.type_id in type_ids]
+        
+        distance_factor += 1
+    
+    # Note on performance-tuning of this neighbor-finding algorithm, by modifying the increment on distance_factor
+    # at the end of the while loop: both extremes caused significantly worse results: With increment of 19, big
+    # slow-down, because searching very far, even though particles are found in either the first or second
+    # iteration. With increment of 0.05, also big slow-down, because lots of iterations needed to find particles,
+    # even though the distance of the search is kept to a minimum. But, difference between using 1 and 0.5
+    # was not large enough to distinguish from noise, and was a definite speed-up over using a single search
+    # (no loop) with a distance_factor of 5. Probably there is an optimum that could be discovered with more
+    # careful peformance profiling.
+    
+    nearest_neighbor: tf.ParticleHandle = min(neighbors, key=lambda neighbor: phandle.distance(neighbor), default=None)
+    elapsed: float = time.perf_counter() - start
+    # print(f"Neighbor-finding time = {elapsed}, final distance_factor = {distance_factor}")
+
+    return nearest_neighbor
 
 def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                  extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
