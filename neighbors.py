@@ -131,9 +131,14 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
                             if neighbor.id not in my_bonded_neighbor_ids]
     return non_bonded_neighbors
 
-def get_ordered_bonded_neighbors(p: tf.ParticleHandle) -> list[tf.ParticleHandle]:
+def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
+                                 extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
     """Get bonded neighbors, ordered according to their relative angles, so that iterating over the result
-    would trace a simple closed polygon around particle p"""
+    would trace a simple closed polygon around particle p
+    
+    extra_neighbor: a particle not currently bonded, but for which a bond might be created. So that we
+        can get its order relative to the existing bonds.
+    """
     
     def cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
         return tf.fVector3([v1.y() * v2.z() - v1.z() * v2.y(),
@@ -258,6 +263,14 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle) -> list[tf.ParticleHandle
         return corrected_angles
 
     neighbors: tf.ParticleList = p.getBondedNeighbors()
+    neighbors_id_list = [neighbor.id for neighbor in neighbors]   # #### Until next release lets me fix the following
+    if extra_neighbor:
+        # doesn't work (until next release?)
+        # assert extra_neighbor not in neighbors, f"Extra neighbor id={extra_neighbor.id} is already bonded"
+        # Try this instead:
+        assert extra_neighbor.id not in neighbors_id_list, f"Extra neighbor id={extra_neighbor.id} is already bonded"
+        neighbors.insert(extra_neighbor)
+        
     if len(neighbors) < 4:
         # It does not matter what order you traverse these. The existing order is fine.
         return list(neighbors)
