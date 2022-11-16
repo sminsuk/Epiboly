@@ -301,12 +301,11 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
         # It does not matter what order you traverse these. The existing order is fine.
         return list(neighbors)
 
-    neighbor_coords: tuple[tf.fVector3] = neighbors.positions
-    neighbor_vectors: list[tf.fVector3] = [coord - p.position for coord in neighbor_coords]
-    neighbor_unit_vectors: list[tf.fVector3] = [vector.normalized() for vector in neighbor_vectors]
+    neighbor_unit_vectors: list[tf.fVector3] = [(position - p.position).normalized()
+                                                for position in neighbors.positions]
     reference_vector: tf.fVector3 = neighbor_unit_vectors[0]
-    dotprods: list[float] = [uvec.dot(reference_vector) for uvec in neighbor_unit_vectors]
-    angles_to_reference: list[float] = [math.acos(tfu.truncate(dotprod)) for dotprod in dotprods]
+    angles_to_reference: list[float] = [tfu.angle_from_unit_vectors(uvec, reference_vector)
+                                        for uvec in neighbor_unit_vectors]
 
     # deprecated_corrected_angles: list[float] = deprecated_disambiguate(angles_to_reference,
     #                                                                    neighbor_unit_vectors,

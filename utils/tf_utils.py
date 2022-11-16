@@ -272,4 +272,12 @@ def truncate(dotprod: float) -> float:
     else:
         return dotprod
 
+def angle_from_unit_vectors(unit_vector1: tf.fVector3, unit_vector2: tf.fVector3) -> float:
+    return math.acos(truncate(unit_vector1.dot(unit_vector2)))
 
+def angle_from_particles(p1: tf.ParticleHandle, p_vertex: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+    vector1: tf.fVector3 = p1.position - p_vertex.position
+    vector2: tf.fVector3 = p2.position - p_vertex.position
+    uvec1: tf.fVector3 = vector1.normalized()
+    uvec2: tf.fVector3 = vector2.normalized()
+    return angle_from_unit_vectors(uvec1, uvec2)
