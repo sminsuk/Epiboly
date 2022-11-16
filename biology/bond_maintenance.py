@@ -1,6 +1,7 @@
 """Handle the remodeling of the bond network as the tissue changes shape"""
 import math
 import random
+from typing import Optional
 
 import tissue_forge as tf
 from epiboly_init import Little, LeadingEdge
@@ -37,8 +38,8 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
         distance: float = p1.distance(p2)
         print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id},",
               f"distance = (radius * {distance/Little.radius})")
-        p1.style.setColor("lightgray")  # testing
-        p2.style.setColor("white")  # testing
+        # p1.style.setColor("lightgray")  # testing
+        # p2.style.setColor("white")  # testing
 
 def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
     # Bond to all neighbors not already bonded to
@@ -152,11 +153,12 @@ def _break(breaking_saturation_factor: float, max_prob: float) -> None:
     for bhandle in breaking_bonds:
         gc.break_bond(bhandle)
         
-def _make_break_or_become(k: float, verbose: bool = False) -> None:
+def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool = False) -> None:
     """
-    k: lambda of the neighbor-count constraint, like lambda of the Potts model volume constraint, but "lambda" is
-        python reserved, so call it k by analogy with k of the harmonic potential, which is basically the same formula.
-    verbose: controls the printing of rejected operations only. printing of accepted operations always goes.
+    k_neighbor_count: coefficient of the neighbor-count constraint, like lambda of the Potts model volume constraint,
+        but "lambda" is python reserved word, so call it k by analogy with k of the harmonic potential, which is
+        basically the same formula.
+    k_angle: same, for the angle constraint.
     """
 
     def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool) -> bool:
@@ -183,11 +185,82 @@ def _make_break_or_become(k: float, verbose: bool = False) -> None:
             p2final_energy: float = (p2final_count - p2target_count) ** 2
     
             delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
-            return delta_energy
+            return k_neighbor_count * delta_energy
         
         def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
-            return 0
+            def get_component_angles(vertex_particle: tf.ParticleHandle,
+                                     ordered_neighbor_list: list[tf.ParticleHandle],
+                                     other_p: tf.ParticleHandle) -> tuple[float, float]:
+                """returns the angles that will change when a bond is made/broken
+                
+                I.e., the two angles (bonded_neighbor -> vertex_particle -> other_p) that will come into
+                existence if a bond to other_p is added, or that will fuse into a larger angle
+                (bonded_neighbor -> vertex_particle -> consecutive_bonded_neighbor) if an existing bond to
+                other_p is broken.
+                """
+                # Find the two angles before and after other_p. I.e., the angles between other_p and
+                # its two ordered neighbors, each with vertex_particle as the vertex
+                
+                # I don't trust doing this until the next release, because it's not
+                # entirely clear that .index() would recognize the one in the list is "equal" to other_p,
+                # even if it actually "is" other_p. For now, loop and compare the ids instead.
+                # other_p_index: int = ordered_neighbor_list.index(other_p)
+                # previous_neighbor_index: int = other_p_index - 1    # works even for 0, because of negative indexing
+                # next_neighbor_index: int = (other_p_index + 1) % len(ordered_neighbor_list)
+                # theta1: float = angle(ordered_neighbor_list[previous_neighbor_index],
+                #                       vertex_particle,
+                #                       other_p)
+                # theta2: float = angle(other_p,
+                #                       vertex_particle,
+                #                       ordered_neighbor_list[next_neighbor_index])
 
+                theta1: Optional[float] = None
+                theta2: Optional[float] = None
+                previous_neighbor: tf.ParticleHandle = ordered_neighbor_list[-1]
+                for p in ordered_neighbor_list:
+                    if p.id == other_p.id:
+                        theta1 = tfu.angle_from_particles(previous_neighbor, vertex_particle, p)
+                    elif previous_neighbor.id == other_p.id:
+                        theta2 = tfu.angle_from_particles(previous_neighbor, vertex_particle, p)
+                        
+                    if theta1 is not None and theta2 is not None:
+                        break
+                        
+                    previous_neighbor = p
+                    
+                return theta1, theta2
+            
+            p1_extra: tf.ParticleHandle = None if breaking else p2
+            p2_extra: tf.ParticleHandle = None if breaking else p1
+            p1_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p1, extra_neighbor=p1_extra)
+            p2_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p2, extra_neighbor=p2_extra)
+            
+            p1_angles: tuple[float, float] = get_component_angles(vertex_particle=p1,
+                                                                  ordered_neighbor_list=p1_neighbors,
+                                                                  other_p=p2)
+            p2_angles: tuple[float, float] = get_component_angles(vertex_particle=p2,
+                                                                  ordered_neighbor_list=p2_neighbors,
+                                                                  other_p=p1)
+            
+            target_angle: float = cfg.target_neighbor_angle
+            p1_component_energy: float = ((p1_angles[0] - target_angle) ** 2 +
+                                          (p1_angles[1] - target_angle) ** 2)
+            p2_component_energy: float = ((p2_angles[0] - target_angle) ** 2 +
+                                          (p2_angles[1] - target_angle) ** 2)
+            p1_fused: float = p1_angles[0] + p1_angles[1]
+            p2_fused: float = p2_angles[0] + p2_angles[1]
+            p1_fused_energy: float = (p1_fused - target_angle) ** 2
+            p2_fused_energy: float = (p2_fused - target_angle) ** 2
+            
+            delta_energy_making: float = ((p1_component_energy + p2_component_energy) -
+                                          (p1_fused_energy + p2_fused_energy))
+            delta_energy_breaking: float = -delta_energy_making
+            
+            if breaking:
+                return k_angle * delta_energy_breaking
+            else:
+                return k_angle * delta_energy_making
+            
         bonded_neighbor_ids: list[int] = [phandle.id for phandle in p2.getBondedNeighbors()]
         if breaking:
             assert p1.id in bonded_neighbor_ids,\
@@ -210,7 +283,7 @@ def _make_break_or_become(k: float, verbose: bool = False) -> None:
         if delta_energy <= 0:
             return True
         else:
-            probability: float = math.exp(-k * delta_energy)
+            probability: float = math.exp(-delta_energy)
             if random.random() < probability:
                 return True
             else:
@@ -234,7 +307,8 @@ def _make_break_or_become(k: float, verbose: bool = False) -> None:
         bhandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
         if accept(p, other_p, breaking=True):
-            print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
+            if verbose:
+                print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
             gc.break_bond(bhandle)
             return 1
         return 0
@@ -259,7 +333,7 @@ def _make_break_or_become(k: float, verbose: bool = False) -> None:
                 print("Can't make bond: No particles available")
             return 0
         if accept(p, other_p, breaking=False):
-            _make_bond(p, other_p, verbose=True)
+            _make_bond(p, other_p, verbose=verbose)
             return 1
         return 0
     
@@ -284,7 +358,8 @@ def _make_break_or_become(k: float, verbose: bool = False) -> None:
         # Temporary, until this is implemented
         return attempt_break_bond(p)
     
-    assert k > 0, f"k must be positive; k = {k}"
+    assert k_neighbor_count >= 0 and k_angle >= 0, f"k values must be non-negative; " \
+                                                   f"k_neighbor_count = {k_neighbor_count}, k_angle = {k_angle}"
     total_bonded: int = 0
     total_broken: int = 0
     p: tf.ParticleHandle
@@ -386,6 +461,7 @@ def maintain_bonds_deprecated(
     
     _relax(relaxation_saturation_factor, viscosity)
     
-def maintain_bonds(k: float = 1, relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
-    _make_break_or_become(k, verbose=True)
+def maintain_bonds(k_neighbor_count: float = 1, k_angle: float = 1,
+                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
+    _make_break_or_become(k_neighbor_count, k_angle, verbose=False)
     _relax(relaxation_saturation_factor, viscosity)

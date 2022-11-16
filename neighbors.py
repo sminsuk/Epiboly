@@ -279,7 +279,7 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
             else:
                 # < 0: the projection is pointing the opposite direction from the reference;
                 # particle on the opposite side,
-                return 2 * math.pi - theta
+                return cfg.two_pi - theta
     
         big_particle: tf.ParticleHandle = Big.items()[0]
         normal_vector: tf.fVector3 = p.position - big_particle.position

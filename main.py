@@ -363,7 +363,8 @@ dyn.execute_repeatedly(tasks=[
                   # "breaking_saturation_factor": 3,
                   # "max_prob": 0.01,
                   #     ###For new making/breaking algorithm:
-                  # "k": 0.5,
+                  # "k_neighbor_count": 1.0,
+                  # "k_angle": 1.0,
                   #     ###For relaxation:
                   # "relaxation_saturation_factor": 2,
                   # "viscosity": 0.001

@@ -2,6 +2,8 @@
 
 Magic numbers, especially ones used in more than one place.
 """
+import math
+
 from epiboly_init import Little
 
 # Just while determining empirically, the right number of interior particles to use.
@@ -33,3 +35,9 @@ max_potential_cutoff: float = 6
 # Just insurance against a weird infinite loop.
 # this value used as distance_factor will result in an absolute search distance = max_potential_cutoff
 max_distance_factor: float = max_potential_cutoff / Little.radius
+
+# For neighbor angle energy calculations. Not only to avoid magic numbers,
+# but also because these would otherwise be calculated millions of times,
+# which is wasteful, even for an inexpensive operation.
+target_neighbor_angle: float = math.pi / 3
+two_pi: float = math.pi * 2
