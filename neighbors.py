@@ -189,68 +189,6 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
         can get its order relative to the existing bonds.
     """
     
-    def deprecated_disambiguate(original_angles: list[float],
-                                neighbor_unit_vectors: list[tf.fVector3],
-                                reference_vector: tf.fVector3) -> list[float]:
-        """Use cross products to determine which angles are on which side of the polygon.
-        
-        Original angles are in the range [0, π], so there's ambiguity over which side of the polygon
-        they are on. Simply ordering by that angle would therefore trace both sides of the polygon in
-        parallel, meeting up at the opposite side. We need to instead trace down one side of the polygon
-        and back up the other side, to the point where we started."""
-        def normalized_cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
-            """Cross product (order matters!), normalized to a unit vector (when possible)
-
-            returns: a unit vector in the correct direction, or, when cross product is 0, just that 0 vector
-
-            Note: for angles close to (but not exactly) 180 deg, this seems to perform poorly, resulting in
-            a vector that's off on some unexpected angle. However, close to 180 deg this may not matter that much.
-            (See corrected_angle().)
-            """
-            result: tf.fVector3 = tfu.cross(v1, v2)
-            if result.length() > 0:
-                result = result.normalized()
-            return result
-    
-        def corrected_angle(theta: float, reference_cross: tf.fVector3, cross: tf.fVector3) -> float:
-            """Angle in range [0, π), corrected to range [0, 2π), depending which side of the reference vector it is on
-
-            theta: angle between a given vector, and the reference vector. (In the range [0, π).)
-            reference_cross: (normalized) cross product of arbitrarily selected neighbor vector, with the reference
-                vector. (Possible magnitudes: 1 and 0. Possible direction: toward or away from the yolk center, roughly.)
-            cross: (normalized) cross product of the reference vector with the given vector
-            """
-            vector_sum: tf.fVector3 = reference_cross + cross
-            if vector_sum.length() > 0.5:
-                # Either it's roughly 2 (the two cross products are pointing in the same direction);
-                # or it's roughly 1 (the 2nd cross product is either reference_cross, or it's exactly 180 deg from it)
-                # Note, for angles near (but not exactly) 180 deg, the cross product seems to be inaccurate,
-                # but hopefully this doesn't matter that much, because at that angle, the difference between theta,
-                # and (2π - theta), isn't that big.
-                return theta
-            else:
-                # it's roughly 0, the two cross products are pointing in opposite directions
-                return 2 * math.pi - theta
-    
-        crossprods: list[tf.fVector3] = [normalized_cross(reference_vector, uvec) for uvec in neighbor_unit_vectors]
-        # item [0] is reference vector X itself and will be zero vector. All other items (unless exactly at 180 deg
-        # from reference vector) will have magnitude of 1, and point either roughly away from, or roughly toward,
-        # the center of the yolk. We select one for comparison, arbitrarily (as long as it's not at 0 or 180 deg
-        # from the reference vector, i.e. as long as the cross is not the zero vec), and decide which side of the
-        # circle each point is on, by deciding whether the cross product is pointing roughly the same direction
-        # os this item, or the opposite direction.
-        
-        reference_cross: tf.fVector3
-        for crossprod in crossprods:
-            if crossprod.length() > 0:
-                reference_cross = crossprod
-                break
-    
-        # noinspection PyUnboundLocalVariable
-        corrected_angles: list[float] = [corrected_angle(theta, reference_cross, crossprods[i])
-                                         for i, theta in enumerate(original_angles)]
-        return corrected_angles
-    
     def disambiguate(original_angles: list[float],
                      neighbor_unit_vectors: list[tf.fVector3],
                      reference_vector: tf.fVector3,
@@ -307,10 +245,6 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
     angles_to_reference: list[float] = [tfu.angle_from_unit_vectors(uvec, reference_vector)
                                         for uvec in neighbor_unit_vectors]
 
-    # deprecated_corrected_angles: list[float] = deprecated_disambiguate(angles_to_reference,
-    #                                                                    neighbor_unit_vectors,
-    #                                                                    reference_vector)
-    
     corrected_angles: list[float] = disambiguate(angles_to_reference,
                                                  neighbor_unit_vectors,
                                                  reference_vector,
