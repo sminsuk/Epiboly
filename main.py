@@ -153,11 +153,11 @@ def initialize_interior(leading_edge_phi):
         gc.particles_by_id[phandle.id] = particle_values
     
     finished = time.perf_counter()
-    print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
-    print("filtering takes:", filtered_time - random_points_time, "seconds")
-    print("scaling (and converting to list) takes:", scaled_time - filtered_time, "seconds")
-    print("filtering/scaling/converting all together take:", scaled_time - random_points_time, "seconds")
-    print("instantiating takes:", finished - scaled_time, "seconds")
+    # print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
+    # print("filtering takes:", filtered_time - random_points_time, "seconds")
+    # print("scaling (and converting to list) takes:", scaled_time - filtered_time, "seconds")
+    # print("filtering/scaling/converting all together take:", scaled_time - random_points_time, "seconds")
+    # print("instantiating takes:", finished - scaled_time, "seconds")
 
 def add_interior_bonds():
     print("Bonding interior particles.")

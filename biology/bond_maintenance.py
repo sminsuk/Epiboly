@@ -1,6 +1,7 @@
 """Handle the remodeling of the bond network as the tissue changes shape"""
 import math
 import random
+import time
 from typing import Optional
 
 import tissue_forge as tf
@@ -364,6 +365,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
     total_broken: int = 0
     p: tf.ParticleHandle
     
+    start = time.perf_counter()
     for p in Little.items():
         if random.random() < 0.5:
             total_bonded += attempt_make_bond(p)
@@ -380,8 +382,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
             total_bonded += attempt_become_internal(p)
         else:
             total_broken += attempt_recruit_from_internal(p)
-            
-    print(f"Created {total_bonded} bonds and broke {total_broken} bonds.")
+    end = time.perf_counter()
+
+    print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {end - start} sec.")
     
     
 def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
