@@ -244,6 +244,11 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
     neighbor_unit_vectors: list[tf.fVector3] = [(position - p.position).normalized()
                                                 for position in neighbors.positions]
     reference_vector: tf.fVector3 = neighbor_unit_vectors[0]
+    # Note: speed-ups I tried, all skipping the function call and doing the work right here instead:
+    # 1) control: do it here with a single list comprehension (just no func call overhead);
+    # 2) just get the dotprods in a list comprehension, then pass the list to numpy.arccos;
+    # 3) same, but use math.acos() here; i.e. 2 separate list comprehensions
+    # None of these had any appreciable effect, so sticking with the function call; math.acos() inside.
     angles_to_reference: list[float] = [tfu.angle_from_unit_vectors(uvec, reference_vector)
                                         for uvec in neighbor_unit_vectors]
 
