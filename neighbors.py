@@ -207,16 +207,18 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
             theta: angle between the given vector, and the reference vector. (In the range [0, π].)
             reference_cross: a vector pointing to one side of the polygon, perpendicular to the reference vector.
             """
-            projection: tf.fVector3 = neighbor_vec.projected(reference_cross)
-            dotprod: float = projection.dot(reference_cross)
+            # It appears that doing the projection is not actually needed, and getting rid of it gives maybe
+            # a 10% speed-up. Delete this once I'm sure it works (no weirdness at angles close to pi/2).
+            # projection: tf.fVector3 = neighbor_vec.projected(reference_cross)
+            # dotprod: float = projection.dot(reference_cross)
+            dotprod: float = neighbor_vec.dot(reference_cross)
             if dotprod >= 0:
-                # > 0: the projection is pointing the same direction as the reference; particle on the same side;
-                # == 0: the projection is the zero vector; either neighbor_vec is the reference_vector,
-                #       or it's pointing exactly 180 deg from it.
+                # > 0: vector angle < pi/2; particle on the same side as reference_cross;
+                # == 0: vector angle == pi/2 (neighbor_vec perpendicular to reference_cross);
+                #       either neighbor_vec is the reference_vector, or it's pointing exactly 180 deg from it.
                 return theta
             else:
-                # < 0: the projection is pointing the opposite direction from the reference;
-                # particle on the opposite side,
+                # < 0: vector angle > pi/2; particle on the opposite side from reference_cross;
                 return cfg.two_pi - theta
     
         big_particle: tf.ParticleHandle = Big.items()[0]
