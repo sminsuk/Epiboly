@@ -276,8 +276,8 @@ def paint_neighbors():
     littles_step = round(len(littles) / 7)  # pick about 8 interior particles
     edge_step = round(len(edge_lords) / 5)  # pick about 6 edge particles
     
-    found_color = "white"
-    neighbor_color = "lightgray"
+    found_color = tfu.white
+    neighbor_color = tfu.gray
     found_particles = []
     # Iterate over each list with a step, to pick a small subset of particles
     for i in range(0, len(littles), littles_step):
@@ -290,13 +290,11 @@ def paint_neighbors():
     for p in found_particles:
         
         # Set color on particle
-        p.style = tf.rendering.Style()
-        p.style.setColor(found_color)
+        p.style.color = found_color
         
         # Find the neighbors of this particle
         neighbors = find_neighbors(p)
         
         for neighbor in neighbors:
             if neighbor not in found_particles:
-                neighbor.style = tf.rendering.Style()
-                neighbor.style.setColor(neighbor_color)
+                neighbor.style.color = neighbor_color

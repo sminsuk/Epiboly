@@ -95,6 +95,12 @@ redcolor = "\033[91m"
 bluecolor = "\033[94m"
 endcolor = "\033[0m"
 
+# rgb colors for Style objects:
+cornflower_blue = tf.fVector3([0.12743769586086273, 0.3005438446998596, 0.8468732833862305])
+gold = tf.fVector3([1.0, 0.6795425415039062, 0.0])
+white = tf.fVector3([1.0, 1.0, 1.0])
+gray = tf.fVector3([0.5, 0.5, 0.5])
+
 def exception_handler():
     """General exception handler to be used inside TF events.
 

@@ -147,8 +147,7 @@ def initialize_interior(leading_edge_phi):
     phandle: tf.ParticleHandle
     for phandle in Little.items():
         phandle.style = tf.rendering.Style()
-        phandle.style.setColor("cornflowerblue")
-        phandle.style.visible = True
+        phandle.style.color = Little.style.color
         particle_values: gc.ParticleData = {"handle": phandle}
         gc.particles_by_id[phandle.id] = particle_values
     
@@ -220,8 +219,7 @@ def initialize_bonded_edge():
         phandle: tf.ParticleHandle
         for phandle in LeadingEdge.items():
             phandle.style = tf.rendering.Style()
-            phandle.style.setColor("gold")
-            phandle.style.visible = True
+            phandle.style.color = LeadingEdge.style.color
             particle_values: gc.ParticleData = {"handle": phandle}
             gc.particles_by_id[phandle.id] = particle_values
 

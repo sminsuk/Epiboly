@@ -4,6 +4,7 @@ Everything that *should* be in the global namespace, should be here, and that sh
 Everything else should be local to a function, or in a module.
 """
 import tissue_forge as tf
+from utils import tf_utils as tfu
 
 class LittleType(tf.ParticleTypeSpec):
     mass = 15
@@ -33,3 +34,6 @@ tf.init(dim=_dim)  # , cutoff = 2)
 Little: tf.ParticleType = LittleType.get()
 Big: tf.ParticleType = BigType.get()
 LeadingEdge: tf.ParticleType = LeadingEdgeType.get()
+
+Little.style.color = tfu.cornflower_blue
+LeadingEdge.style.color = tfu.gold

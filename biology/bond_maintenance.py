@@ -39,8 +39,8 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
         distance: float = p1.distance(p2)
         print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id},",
               f"distance = (radius * {distance/Little.radius})")
-        # p1.style.setColor("lightgray")  # testing
-        # p2.style.setColor("white")  # testing
+        # p1.style.color = tfu.gray   # testing
+        # p2.style.color = tfu.white  # testing
 
 def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
     # Bond to all neighbors not already bonded to
