@@ -304,6 +304,10 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
             # Don't break bond between two LeadingEdge particles
             breakable_bonds = [bhandle for bhandle in breakable_bonds
                                if tfu.other_particle(p, bhandle).type_id == Little.id]
+        if not breakable_bonds:
+            # can be empty if p is a LeadingEdge particle and is *only* bonded to other LeadingEdge particles
+            return 0
+        
         # select one at random to break:
         bhandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
