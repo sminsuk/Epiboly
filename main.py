@@ -270,6 +270,9 @@ def replace_all_small_small_potentials(new_potential):
 
 # ######################### main ##########################
 
+print(f"tissue-forge version = {tf.version.version}")
+print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
+
 # Potentials, bound at the level of types:
 #
 # Large-small: LJ, originally max = equilibrium distance = sum of radii (for only repulsion), but then
