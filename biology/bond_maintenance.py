@@ -154,18 +154,21 @@ def _break(breaking_saturation_factor: float, max_prob: float) -> None:
     for bhandle in breaking_bonds:
         gc.break_bond(bhandle)
         
-def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool = False) -> None:
+def _make_break_or_become(k_neighbor_count: float, k_angle: float,
+                          k_edge_neighbor_count: float, k_edge_angle: float, verbose: bool = False) -> None:
     """
     k_neighbor_count: coefficient of the neighbor-count constraint, like lambda of the Potts model volume constraint,
         but "lambda" is python reserved word, so call it k by analogy with k of the harmonic potential, which is
         basically the same formula.
     k_angle: same, for the angle constraint.
+    k_edge_neighbor_count, k_edge_angle: same, for the leading-edge transformations, so they can be tuned separately.
     """
 
-    def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool) -> bool:
+    def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool, becoming: bool = False) -> bool:
         """Decide whether the bond between these two particles may be made/broken
         
         breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
+        becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
         """
         def delta_energy_neighbor_count(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
             p1current_count: int = len(p1.bonds)
@@ -186,18 +189,29 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
             p2final_energy: float = (p2final_count - p2target_count) ** 2
     
             delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
-            return k_neighbor_count * delta_energy
+            is_edge: bool = p1.type_id == LeadingEdge.id and p2.type_id == LeadingEdge.id
+            k: float = k_edge_neighbor_count if is_edge else k_neighbor_count
+            return k * delta_energy
         
         def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
             def get_component_angles(vertex_particle: tf.ParticleHandle,
                                      ordered_neighbor_list: list[tf.ParticleHandle],
-                                     other_p: tf.ParticleHandle) -> tuple[float, float]:
-                """returns the angles that will change when a bond is made/broken
+                                     other_p: tf.ParticleHandle) -> tuple[tuple[float, float],
+                                                                          tuple[float, float],
+                                                                          float]:
+                """returns the angles that will change when a bond is made/broken:
                 
+                first sub-tuple: the two component angles
+                second sub-tuple: the target angle for each respective component angle,
+                    which will differ depending on whether it represents the leading edge.
+                    
                 I.e., the two angles (bonded_neighbor -> vertex_particle -> other_p) that will come into
                 existence if a bond to other_p is added, or that will fuse into a larger angle
                 (bonded_neighbor -> vertex_particle -> consecutive_bonded_neighbor) if an existing bond to
                 other_p is broken.
+                
+                final element of tuple: the target angle for the fused angle (i.e. if the bond in
+                    question gets broken, or doesn't get made)
                 """
                 # Find the two angles before and after other_p. I.e., the angles between other_p and
                 # its two ordered neighbors, each with vertex_particle as the vertex
@@ -221,6 +235,14 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
                 for p in ordered_neighbor_list:
                     if p.id == other_p.id:
                         theta1 = tfu.angle_from_particles(previous_neighbor, vertex_particle, p)
+                        # Previously tried here, and might come back to it again: if p and previous_neighbor
+                        # are both LeadingEdge, then set edge target angle based on that. But, it works
+                        # for breaking a bond and turning a Little into a LeadingEdge; it does not work
+                        # for making a bond and turning a LeadingEdge into a Little, because all the particles
+                        # are LeadingEdge and you can't tell the cases apart. Hence, created the "becoming"
+                        # parameter and handled it separately below, instead. And either way, I never got
+                        # the accept/reject criterion really working for edge transformations. (Hence the
+                        # addition of the ad hoc criterion, leading_edge_baseline, in recruit_from_internal().)
                     elif previous_neighbor.id == other_p.id:
                         theta2 = tfu.angle_from_particles(previous_neighbor, vertex_particle, p)
                         
@@ -229,38 +251,61 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
                         
                     previous_neighbor = p
                     
-                return theta1, theta2
+                target1: float
+                target2: float
+                fused_target: float
+                target1 = target2 = fused_target = cfg.target_neighbor_angle
+                if becoming:
+                    # Assume(?) that the two component angles are very different sizes; and that the
+                    # larger one is the leading edge, so should have a bigger target.
+                    # (Note: probably a WRONG assumption, because I'm getting very bad behaviors.)
+                    if theta1 > theta2:
+                        target1 = cfg.target_edge_angle
+                    else:
+                        target2 = cfg.target_edge_angle
+                    
+                    # And if the bond gets broken / does not get made, then the fused angle will be the leading edge
+                    fused_target = cfg.target_edge_angle
+
+                return (theta1, theta2), (target1, target2), fused_target
             
             p1_extra: tf.ParticleHandle = None if breaking else p2
             p2_extra: tf.ParticleHandle = None if breaking else p1
             p1_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p1, extra_neighbor=p1_extra)
             p2_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p2, extra_neighbor=p2_extra)
             
-            p1_angles: tuple[float, float] = get_component_angles(vertex_particle=p1,
-                                                                  ordered_neighbor_list=p1_neighbors,
-                                                                  other_p=p2)
-            p2_angles: tuple[float, float] = get_component_angles(vertex_particle=p2,
-                                                                  ordered_neighbor_list=p2_neighbors,
-                                                                  other_p=p1)
+            p1_angles: tuple[float, float]
+            p1_targets: tuple[float, float]
+            p2_angles: tuple[float, float]
+            p2_targets: tuple[float, float]
+            p1_fused_target: float
+            p2_fused_target: float
+
+            p1_angles, p1_targets, p1_fused_target = get_component_angles(vertex_particle=p1,
+                                                                          ordered_neighbor_list=p1_neighbors,
+                                                                          other_p=p2)
+            p2_angles, p2_targets, p2_fused_target = get_component_angles(vertex_particle=p2,
+                                                                          ordered_neighbor_list=p2_neighbors,
+                                                                          other_p=p1)
             
-            target_angle: float = cfg.target_neighbor_angle
-            p1_component_energy: float = ((p1_angles[0] - target_angle) ** 2 +
-                                          (p1_angles[1] - target_angle) ** 2)
-            p2_component_energy: float = ((p2_angles[0] - target_angle) ** 2 +
-                                          (p2_angles[1] - target_angle) ** 2)
+            p1_component_energy: float = ((p1_angles[0] - p1_targets[0]) ** 2 +
+                                          (p1_angles[1] - p1_targets[1]) ** 2)
+            p2_component_energy: float = ((p2_angles[0] - p2_targets[0]) ** 2 +
+                                          (p2_angles[1] - p2_targets[1]) ** 2)
             p1_fused: float = p1_angles[0] + p1_angles[1]
             p2_fused: float = p2_angles[0] + p2_angles[1]
-            p1_fused_energy: float = (p1_fused - target_angle) ** 2
-            p2_fused_energy: float = (p2_fused - target_angle) ** 2
+            p1_fused_energy: float = (p1_fused - p1_fused_target) ** 2
+            p2_fused_energy: float = (p2_fused - p2_fused_target) ** 2
             
             delta_energy_making: float = ((p1_component_energy + p2_component_energy) -
                                           (p1_fused_energy + p2_fused_energy))
             delta_energy_breaking: float = -delta_energy_making
             
+            k: float = k_edge_angle if becoming else k_angle
             if breaking:
-                return k_angle * delta_energy_breaking
+                return k * delta_energy_breaking
             else:
-                return k_angle * delta_energy_making
+                return k * delta_energy_making
             
         bonded_neighbor_ids: list[int] = [phandle.id for phandle in p2.getBondedNeighbors()]
         if breaking:
@@ -274,7 +319,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
         p1current_count: int = len(p1.bonds)
         p2current_count: int = len(p2.bonds)
         if breaking and (p1current_count < 4 or p2current_count < 4):
-            if verbose:
+            if verbose:     # and p1.type_id == LeadingEdge.id and p2.type_id == LeadingEdge.id:
                 print(f"Rejecting break because particles have {p1current_count} and {p2current_count} bonds")
             return False
 
@@ -288,7 +333,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
             if random.random() < probability:
                 return True
             else:
-                if verbose:
+                if verbose:     # and p1.type_id == LeadingEdge.id and p2.type_id == LeadingEdge.id:
                     print(f"Rejecting {'break' if breaking else 'make'} because unfavorable; particles have"
                           f" {p1current_count} and {p2current_count} bonds")
                 return False
@@ -342,6 +387,19 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
             return 1
         return 0
     
+    def test_ring_is_fucked_up():
+        """For debugging. Stop at the breakpoint and examine these values."""
+        particles: list[tf.ParticleHandle] = [p for p in LeadingEdge.items()]
+        neighbor_lists: list[list[tf.ParticleHandle]] = [p.getBondedNeighbors() for p in particles]
+        leading_edge_neighbor_lists: list[list[tf.ParticleHandle]] = (
+                [[n for n in neighbor_list if n.type_id == LeadingEdge.id]
+                 for neighbor_list in neighbor_lists])
+        leading_edge_counts: list[int] = [len(neighbor_list) for neighbor_list in leading_edge_neighbor_lists]
+        fuckedness: list[bool] = [length != 2 for length in leading_edge_counts]
+        if any(fuckedness):
+            break_point = 0
+        return
+        
     def attempt_become_internal(p: tf.ParticleHandle) -> int:
         """For LeadingEdge particles only. Become internal, and let its two bonded leading edge neighbors
         bond to one another.
@@ -349,8 +407,38 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
         This MAKES a bond.
         returns: number of bonds created
         """
-        # Temporary, until this is implemented
-        return attempt_make_bond(p)
+        # #### Bypass:
+        # return attempt_make_bond(p)
+        
+        # #### Actual implementation:
+        phandle: tf.ParticleHandle
+        neighbor1: tf.ParticleHandle
+        neighbor2: tf.ParticleHandle
+        
+        bonded_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
+                                                     if phandle.type_id == LeadingEdge.id]
+        assert len(bonded_neighbors) == 2, f"Leading edge particle {p.id} has {len(bonded_neighbors)}" \
+                                           f" leading edge neighbors??? Should always be exactly 2!"
+        
+        neighbor1, neighbor2 = bonded_neighbors
+        pz: float = p.position.z()
+        if pz <= neighbor1.position.z() or pz <= neighbor2.position.z():
+            # Overly strict test for validity of doing this operation on this particle. We only want to do it
+            # if the edge of the EVL is concave here. If z of the particle is greater than z of the other two
+            # particles, it's definitely concave. If it's less than the other two, it's definitely convex and
+            # we reject the operation. If it's between the other two, then it may be either convex or concave,
+            # but I don't know how to detect the difference without using slow trigonometry; so for now just reject
+            # the operation.
+            return 0
+        
+        if accept(neighbor1, neighbor2, breaking=False, becoming=True):
+            _make_bond(neighbor1, neighbor2, verbose=verbose)
+            p.become(Little)
+            p.style.color = Little.style.color
+            p.force_init = [0, 0, 0]
+            # test_ring_is_fucked_up()
+            return 1
+        return 0
     
     def attempt_recruit_from_internal(p: tf.ParticleHandle) -> int:
         """For LeadingEdge particles only. Break the bond with one bonded leading edge neighbor, but only
@@ -360,11 +448,63 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float, verbose: bool
         This BREAKS a bond.
         returns: number of bonds broken
         """
-        # Temporary, until this is implemented
-        return attempt_break_bond(p)
-    
+        # #### Bypass:
+        # return attempt_break_bond(p)
+        
+        # #### Actual implementation:
+        leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
+                                                           if phandle.type_id == LeadingEdge.id]
+        assert len(leading_edge_neighbors) == 2, f"Leading edge particle {p.id} has {len(leading_edge_neighbors)}" \
+                                                 f" leading edge neighbors??? Should always be exactly 2!"
+        
+        # Select one neighbor at random; if it doesn't work with that one, try the other one.
+        # By doing it this way, I can simply try them in list order without introducing a bias.
+        if random.random() < 0.5:
+            leading_edge_neighbors.reverse()
+            
+        other_leading_edge_p: Optional[tf.ParticleHandle] = None
+        shared_internal_bonded_neighbors: list[tf.ParticleHandle] = []
+        for other_leading_edge_p in leading_edge_neighbors:
+            shared_internal_bonded_neighbors = nbrs.get_shared_bonded_neighbors(p, other_leading_edge_p)
+            if shared_internal_bonded_neighbors:
+                break
+                
+        # If there was more than one shared neighbor, we'll use the one with least z
+        # If there were none, we'll do nothing
+        recruit: tf.ParticleHandle = min(shared_internal_bonded_neighbors, key=lambda p: p.position.z(), default=None)
+        
+        if not recruit:
+            return 0
+        
+        pos: tf.fVector3
+        leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
+        if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
+            # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
+            # but at the moment I need it to get this working
+            return 0
+
+        if accept(p, other_leading_edge_p, breaking=True, becoming=True):
+            # In case recruit was bonded to any additional *other* LeadingEdge particles, need to break those bonds.
+            bhandle: tf.BondHandle
+            extraneous_bonds: list[tf.BondHandle] = [bhandle for bhandle in recruit.bonds
+                                                     if (p.id not in bhandle.parts
+                                                         and other_leading_edge_p.id not in bhandle.parts)
+                                                     if tfu.other_particle(recruit, bhandle).type_id == LeadingEdge.id]
+            for bhandle in extraneous_bonds:
+                gc.break_bond(bhandle)
+            
+            gc.break_bond(tfu.bond_between(p, other_leading_edge_p))
+            recruit.become(LeadingEdge)
+            recruit.style.color = LeadingEdge.style.color
+            # test_ring_is_fucked_up()
+            return 1 + len(extraneous_bonds)
+        return 0
+
     assert k_neighbor_count >= 0 and k_angle >= 0, f"k values must be non-negative; " \
                                                    f"k_neighbor_count = {k_neighbor_count}, k_angle = {k_angle}"
+    assert k_edge_neighbor_count >= 0 and k_edge_angle >= 0, f"k values must be non-negative; " \
+                                                             f"k_edge_neighbor_count = {k_edge_neighbor_count}, " \
+                                                             f"k_edge_angle = {k_edge_angle}"
     total_bonded: int = 0
     total_broken: int = 0
     p: tf.ParticleHandle
@@ -468,7 +608,9 @@ def maintain_bonds_deprecated(
     
     _relax(relaxation_saturation_factor, viscosity)
     
-def maintain_bonds(k_neighbor_count: float = 1, k_angle: float = 1,
+def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
+                   k_edge_neighbor_count: float = 2, k_edge_angle: float = 6,
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
-    _make_break_or_become(k_neighbor_count, k_angle, verbose=False)
+    _make_break_or_become(k_neighbor_count, k_angle,
+                          k_edge_neighbor_count, k_edge_angle, verbose=False)
     _relax(relaxation_saturation_factor, viscosity)

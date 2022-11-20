@@ -180,6 +180,14 @@ def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
 
     return nearest_neighbor
 
+def get_shared_bonded_neighbors(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.ParticleHandle]:
+    """"""
+    phandle: tf.ParticleHandle
+    p1_ids: list[int] = [phandle.id for phandle in p1.getBondedNeighbors()]
+    shared_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p2.getBondedNeighbors()
+                                                 if phandle.id in p1_ids]
+    return shared_neighbors
+
 def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                  extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
     """Get bonded neighbors, ordered according to their relative angles, so that iterating over the result

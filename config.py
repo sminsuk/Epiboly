@@ -4,7 +4,7 @@ Magic numbers, especially ones used in more than one place.
 """
 import math
 
-from epiboly_init import Little
+from epiboly_init import Little, LeadingEdge
 
 # Just while determining empirically, the right number of interior particles to use.
 # If there are too many, with frozen LeadingEdge, they'll pop past. If too few,
@@ -40,4 +40,6 @@ max_distance_factor: float = max_potential_cutoff / Little.radius
 # but also because these would otherwise be calculated millions of times,
 # which is wasteful, even for an inexpensive operation.
 target_neighbor_angle: float = math.pi / 3
+target_edge_angle: float = math.pi
+leading_edge_recruitment_limit: float = 2 * LeadingEdge.radius
 two_pi: float = math.pi * 2
