@@ -287,3 +287,17 @@ def angle_from_particles(p1: tf.ParticleHandle, p_vertex: tf.ParticleHandle, p2:
     uvec1: tf.fVector3 = vector1.normalized()
     uvec2: tf.fVector3 = vector2.normalized()
     return angle_from_unit_vectors(uvec1, uvec2)
+
+def angle_proxy_from_unit_vectors(unit_vector1: tf.fVector3, unit_vector2: tf.fVector3) -> float:
+    """Faster way to do angles
+    
+    Defining an "angle proxy", which is like an angle, except that it's actually just a modified dot product,
+    which is to say it's the cosine of the angle in question. However, rather than return a value in the range
+    [1, -1], I want to map the angles [0, π] to a range that similarly increases from zero. Hence subtract the
+    cosing from 1, resulting in a return value in the range [0, 2]
+    
+    This allows the ordering of angle proxies intuitively by sorting them. Furthermore, angles in the range [π, 2π]
+    can now be represented by angle proxies in the range [2, 4]. (Subtract the proxy from 4, just like, to do it
+    with angles, you subtract the angle from 2π.)
+    """
+    return 1 - truncate(unit_vector1.dot(unit_vector2))

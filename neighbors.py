@@ -197,22 +197,24 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
         can get its order relative to the existing bonds.
     """
     
-    def disambiguate(original_angles: list[float],
+    def disambiguate(original_proxies: list[float],
                      neighbor_unit_vectors: list[tf.fVector3],
                      reference_vector: tf.fVector3,
                      p: tf.ParticleHandle) -> list[float]:
         """Use a cross product to generate assymetry, followed by dot products to determine which angles
         are on which side of the polygon.
 
-        Original angles are in the range [0, π], so there's ambiguity over which side of the polygon
-        they are on. Simply ordering by that angle would therefore trace both sides of the polygon in
+        Original angle proxies are in the range [0, 2], so there's ambiguity over which side of the polygon
+        they are on. Simply ordering by that value would therefore trace both sides of the polygon in
         parallel, meeting up at the opposite side. We need to instead trace down one side of the polygon
         and back up the other side, to the point where we started."""
-        def corrected_angle(theta: float, neighbor_vec: tf.fVector3, reference_cross: tf.fVector3) -> float:
-            """Angle in range [0, π], corrected to range [0, 2π), depending which side of the reference vector it is on
+        def corrected_angle_proxy(proxy: float, neighbor_vec: tf.fVector3, reference_cross: tf.fVector3) -> float:
+            """Proxy in range [0, 2], corrected to range [0, 4), depending which side of the reference vector it is on
+            
+            Corresponds to angles [0, π], corrected to range [0, 2π)
 
             neighbor_vec: points from the particle to one of its neighbors
-            theta: angle between the given vector, and the reference vector. (In the range [0, π].)
+            proxy: angle (expressed in the form of a proxy) between the given vector, and the reference vector.
             reference_cross: a vector pointing to one side of the polygon, perpendicular to the reference vector.
             """
             # It appears that doing the projection is not actually needed, and getting rid of it gives maybe
@@ -224,17 +226,17 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                 # > 0: vector angle < pi/2; particle on the same side as reference_cross;
                 # == 0: vector angle == pi/2 (neighbor_vec perpendicular to reference_cross);
                 #       either neighbor_vec is the reference_vector, or it's pointing exactly 180 deg from it.
-                return theta
+                return proxy
             else:
                 # < 0: vector angle > pi/2; particle on the opposite side from reference_cross;
-                return cfg.two_pi - theta
+                return 4 - proxy
     
         big_particle: tf.ParticleHandle = Big.items()[0]
         normal_vector: tf.fVector3 = p.position - big_particle.position
         reference_cross: tf.fVector3 = tfu.cross(reference_vector, normal_vector)
-        corrected_angles: list[float] = [corrected_angle(theta, neighbor_unit_vectors[i], reference_cross)
-                                         for i, theta in enumerate(original_angles)]
-        return corrected_angles
+        corrected_proxies: list[float] = [corrected_angle_proxy(proxy, neighbor_unit_vectors[i], reference_cross)
+                                          for i, proxy in enumerate(original_proxies)]
+        return corrected_proxies
 
     neighbors: tf.ParticleList = p.getBondedNeighbors()
     neighbors_id_list = [neighbor.id for neighbor in neighbors]   # #### Until next release lets me fix the following
@@ -256,18 +258,20 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
     # 1) control: do it here with a single list comprehension (just no func call overhead);
     # 2) just get the dotprods in a list comprehension, then pass the list to numpy.arccos;
     # 3) same, but use math.acos() here; i.e. 2 separate list comprehensions
-    # None of these had any appreciable effect, so sticking with the function call; math.acos() inside.
-    angles_to_reference: list[float] = [tfu.angle_from_unit_vectors(uvec, reference_vector)
-                                        for uvec in neighbor_unit_vectors]
+    # None of these had any appreciable effect.
+    # 4) Using angle proxies here in this function, instead of the actual angles, avoiding the use of acos().
+    #       Surprisingly, no apparent speed-up at all! Next, try it
+    angle_proxies_to_reference: list[float] = [tfu.angle_proxy_from_unit_vectors(uvec, reference_vector)
+                                               for uvec in neighbor_unit_vectors]
 
-    corrected_angles: list[float] = disambiguate(angles_to_reference,
-                                                 neighbor_unit_vectors,
-                                                 reference_vector,
-                                                 p)
+    corrected_proxies: list[float] = disambiguate(angle_proxies_to_reference,
+                                                  neighbor_unit_vectors,
+                                                  reference_vector,
+                                                  p)
     
-    # To do the final sort, must package up the particleHandle and the angle and sort them together
-    neighbors_and_angles_to_reference: list[tuple[tf.ParticleHandle, float]] = list(zip(neighbors, corrected_angles))
-    sorted_tuples: list[tuple[tf.ParticleHandle, float]] = sorted(neighbors_and_angles_to_reference,
+    # To do the final sort, must package up the particleHandle and the proxy and sort them together
+    neighbors_and_proxies_to_reference: list[tuple[tf.ParticleHandle, float]] = list(zip(neighbors, corrected_proxies))
+    sorted_tuples: list[tuple[tf.ParticleHandle, float]] = sorted(neighbors_and_proxies_to_reference,
                                                                   key=lambda tup: tup[1])
     return [tup[0] for tup in sorted_tuples]
 
