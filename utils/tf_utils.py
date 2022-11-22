@@ -279,7 +279,13 @@ def truncate(dotprod: float) -> float:
         return dotprod
 
 def angle_from_unit_vectors(unit_vector1: tf.fVector3, unit_vector2: tf.fVector3) -> float:
-    return math.acos(truncate(unit_vector1.dot(unit_vector2)))
+    cosine: float = truncate(unit_vector1.dot(unit_vector2))
+    radians: float = math.acos(cosine)
+
+    # alternative, using function from this module, based on table look-up. Faster? Apparently not!
+    # radians: float = arccos(cosine)
+    
+    return radians
 
 def angle_from_particles(p1: tf.ParticleHandle, p_vertex: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
     vector1: tf.fVector3 = p1.position - p_vertex.position
@@ -287,3 +293,41 @@ def angle_from_particles(p1: tf.ParticleHandle, p_vertex: tf.ParticleHandle, p2:
     uvec1: tf.fVector3 = vector1.normalized()
     uvec2: tf.fVector3 = vector2.normalized()
     return angle_from_unit_vectors(uvec1, uvec2)
+
+def _setup_cos_table() -> None:
+    global _cos_table_by_millis
+    
+    # Test: in debugger, just examine the non-linear relationship between angle and cosine
+    cos_to_angle_map_by_degrees: dict[float: tuple[int, float]] = {}
+    degrees: int
+    for degrees in range(181):
+        radians: float = math.radians(degrees)
+        cosine: float = math.cos(radians)
+        cos_to_angle_map_by_degrees[cosine] = (degrees, radians)
+    
+    # Now set up the values to use to make sure we get at least 1-degree resolution almost everywhere
+    cos_to_angle_map_by_millis: dict[int: tuple[float, float]] = {}
+    millis: int
+    for millis in range(1000, -1001, -1):
+        cosine: float = millis / 1000
+        radians: float = math.acos(cosine)
+        degrees: float = round(math.degrees(radians), 2)
+        cos_to_angle_map_by_millis[millis] = (degrees, radians)
+    
+    _cos_table_by_millis = cos_to_angle_map_by_millis
+
+def arccos(cosine: float) -> float:
+    """Given a value in the range [-1, 1] (a cosine), return the approximate angle, in range [0, π]"""
+    millis: float = round(cosine * 1000)
+    degrees, radians = _cos_table_by_millis[millis]
+    return radians
+
+def _test_arccos() -> None:
+    for millis in range(1000, -1001, -100):
+        cosine: float = millis / 1000
+        print(f"arccos({cosine}) = {arccos(cosine)}, or {math.degrees(arccos(cosine))} degrees")
+    
+# Run once at load time
+_cos_table_by_millis: dict[int: tuple[float, float]] = {}
+_setup_cos_table()
+# _test_arccos()

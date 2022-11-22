@@ -256,6 +256,9 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
     # 1) control: do it here with a single list comprehension (just no func call overhead);
     # 2) just get the dotprods in a list comprehension, then pass the list to numpy.arccos;
     # 3) same, but use math.acos() here; i.e. 2 separate list comprehensions
+    # 4) Using angle proxies here in this function, instead of the actual angles, avoiding the use of acos().
+    #       Surprisingly, no apparent speed-up at all!
+    # 5) Substituted a table look-up for calling math.acos() (how the hell is this not faster?)
     # None of these had any appreciable effect, so sticking with the function call; math.acos() inside.
     angles_to_reference: list[float] = [tfu.angle_from_unit_vectors(uvec, reference_vector)
                                         for uvec in neighbor_unit_vectors]
