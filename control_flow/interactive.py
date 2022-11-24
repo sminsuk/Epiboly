@@ -2,6 +2,7 @@
 from IPython import get_ipython
 
 from epiboly_init import Little, LeadingEdge
+from utils import global_catalogs as gc
 
 # Sometimes I still run from Jupyter and not from ipython, so set these to False.
 # They prevent these functions from executing when you Kernel > Restart & Run All in Jupyter, without having
@@ -16,8 +17,9 @@ def toggle_visibility():
     """Depends on the fact that all Little particles were assigned a Style instance when they were created."""
     global vis_toggle_allowed
     if vis_toggle_allowed:
+        gc.visibility_state = not gc.visibility_state
         for p in Little.items():
-            p.style.visible = not p.style.visible
+            p.style.visible = gc.visibility_state
     else:
         print("First invoke, outside Jupyter call twice")
         vis_toggle_allowed = True

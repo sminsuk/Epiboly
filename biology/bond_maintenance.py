@@ -435,6 +435,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             _make_bond(neighbor1, neighbor2, verbose=verbose)
             p.become(Little)
             p.style.color = Little.style.color
+            p.style.visible = gc.visibility_state
             p.force_init = [0, 0, 0]
             # test_ring_is_fucked_up()
             return 1
@@ -496,6 +497,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             gc.break_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(LeadingEdge)
             recruit.style.color = LeadingEdge.style.color
+            recruit.style.visible = True
             # test_ring_is_fucked_up()
             return 1 + len(extraneous_bonds)
         return 0

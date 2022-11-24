@@ -1,5 +1,7 @@
 """ Global particle and bond data. For storing stuff that is irretrievable once created
 
+But, more generally, storing system state. So storing visibility here as well.
+
 Maybe put this in a class?
 Usage:
     For particles: leaving this up to the caller, since it only happens in a couple of places, and is more convenient.
@@ -8,6 +10,10 @@ Usage:
     Whenever deleting a particle / bond, delete it from those dicts
     BondData allows to retrieve the r0 from the potential attached to a given bond
     ParticleData allows to retrieve ParticleHandle from an id.
+    
+    Whenever a particle .becomes(LeadingEdge), set its visibility to True;
+    Whenever a particle .becomes(Little) (interior particle), set its visibility according to the state flag here.
+        (For now, change of state of the flag itself happens in module "interactive".)
     
 future: storing r0 is not supposed to be necessary, because it should be retrievable from potential object.
 Currently broken in harmonic, maybe others. May be able to do without this in future release.
@@ -38,3 +44,5 @@ def make_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHan
 def break_bond(bhandle: tf.BondHandle) -> None:
     del bonds_by_id[bhandle.id]
     bhandle.destroy()
+    
+visibility_state: bool = True
