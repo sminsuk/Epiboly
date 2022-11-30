@@ -408,7 +408,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         returns: number of bonds created
         """
         # #### Bypass:
-        # return attempt_make_bond(p)
+        return attempt_make_bond(p)
         
         # #### Actual implementation:
         phandle: tf.ParticleHandle
@@ -450,7 +450,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         returns: number of bonds broken
         """
         # #### Bypass:
-        # return attempt_break_bond(p)
+        return attempt_break_bond(p)
         
         # #### Actual implementation:
         leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
@@ -477,12 +477,13 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if not recruit:
             return 0
         
-        pos: tf.fVector3
-        leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
-        if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
-            # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
-            # but at the moment I need it to get this working
-            return 0
+        # Commenting out in hopes that algorithm improvements make this unnecessary
+        # pos: tf.fVector3
+        # leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
+        # if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
+        #     # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
+        #     # but at the moment I need it to get this working
+        #     return 0
 
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
             # In case recruit was bonded to any additional *other* LeadingEdge particles, need to break those bonds.

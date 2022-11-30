@@ -257,6 +257,42 @@ def initialize_bonded_edge():
     create_bonds()
     return leading_edge_phi
 
+def initialize_leading_edge_bending_resistance() -> None:
+    """Add Angles to the leading edge, to keep it straight
+    
+    The normal Bonds were added to the leading edge before allowing all the particles to equilibrate.
+    Adding the Angles would be convenient to do in the same loop, but can't do that, because they need to be
+    done only AFTER the interior particles have equilibrated and been given their own bonds. So do a similar
+    loop here and only call it after equilibration and all bond initialization is finished.
+    """
+    print("Adding Angles to ring particles.")
+
+    def spherical_coordinates_theta(particle: tf.ParticleHandle) -> float:
+        # theta relative to the animal/vegetal axis
+        r, theta, phi = particle.sphericalPosition(origin=big_particle.position)
+        return theta
+
+    # edge_equilibrium_angle might look like π from within the plane of the leading edge, but the actual angle is
+    # different. And, it changes if the number of leading edge particles changes. Hopefully it won't need to be
+    # dynamically updated to be that precise. If the number of particles changes, they'll "try" to reach a target angle
+    # that is not quite right, but will be opposed by the same force acting on the neighbor particles, so hopefully
+    # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
+    edge_equilibrium_angle: float = math.pi - (cfg.two_pi / len(LeadingEdge.items()))
+    edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=10, theta0=edge_equilibrium_angle)
+
+    # Sort all the leading edge particles on spherical coordinate theta, into a new list (copy, not live).
+    # This is just like when we made the bonds. Now that we have the bonds, we COULD follow the links from
+    # particle to particle, but it's easier to just sort the list of particles by theta again.
+    sorted_particles = sorted(LeadingEdge.items(), key=spherical_coordinates_theta)
+
+    # Now they can just be processed in the order in which they are in the list
+    previous_particle = sorted_particles[-1]  # last one
+    before_previous_particle = sorted_particles[-2]  # 2nd-to-last
+    for particle in sorted_particles:
+        tf.Angle.create(edge_angle_potential, before_previous_particle, previous_particle, particle)
+        before_previous_particle = previous_particle
+        previous_particle = particle
+
 def initialize_particles() -> None:
     """In two steps. First create simple ring of bonded LeadingEdge, then fill in the interior particles."""
     leading_edge_phi = initialize_bonded_edge()
@@ -340,6 +376,7 @@ reset_camera()
 print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(300)
 add_interior_bonds()
+initialize_leading_edge_bending_resistance()
 
 # toggle_visibility()
 # toggle_visibility()
