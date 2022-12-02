@@ -12,6 +12,9 @@ from utils import tf_utils as tfu,\
 
 import neighbors as nbrs
 
+def is_edge_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> bool:
+    return p1.type_id == p2.type_id == LeadingEdge.id
+
 def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
     """Return a potential tailored to these 2 particles
     
@@ -27,10 +30,12 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     particles are well equilibrated before making the initial bonds, and unlikely for bonds created later,
     since particles should bond before getting that close.
     """
+    k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
+    
     # r0: float = p1.distance(p2)
     r0: float = 2 * Little.radius
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
-                                                    k=cfg.harmonic_spring_constant,
+                                                    k=k,
                                                     max=cfg.max_potential_cutoff
                                                     )
     handle: tf.BondHandle = gc.make_bond(potential, p1, p2, r0)
@@ -84,8 +89,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             p2final_energy: float = (p2final_count - p2target_count) ** 2
     
             delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
-            is_edge: bool = p1.type_id == LeadingEdge.id and p2.type_id == LeadingEdge.id
-            k: float = k_edge_neighbor_count if is_edge else k_neighbor_count
+            k: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
             return k * delta_energy
         
         def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
@@ -532,9 +536,10 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
         else:
             delta_r0 = viscosity * (r - r0)
         new_r0: float = r0 + delta_r0
-        
+
+        k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
         potential: tf.Potential = tf.Potential.harmonic(r0=new_r0,
-                                                        k=cfg.harmonic_spring_constant,
+                                                        k=k,
                                                         max=cfg.max_potential_cutoff
                                                         )
         gc.make_bond(potential, p1, p2, new_r0)

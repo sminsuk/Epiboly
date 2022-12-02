@@ -236,7 +236,7 @@ def initialize_bonded_edge():
         # Use for each of the bonds we'll create here
         r0 = LeadingEdge.radius * 2
         small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
-                                                              k=cfg.harmonic_spring_constant,
+                                                              k=cfg.harmonic_edge_spring_constant,
                                                               min=r0,
                                                               max=6
                                                               )

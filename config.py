@@ -27,7 +27,8 @@ edge_margin_interior_points: float = 0.15
 # Some items for bond-making:
 # harmonic potential:
 harmonic_spring_constant: float = 7.0
-harmonic_angle_spring_constant: float = 1.0
+harmonic_edge_spring_constant: float = 7.0  # (for the Bonds)
+harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
 
 def harmonic_angle_equilibrium_value() -> float:
     """A function because it depends on the number of particles in the ring"""
