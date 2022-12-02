@@ -27,6 +27,16 @@ edge_margin_interior_points: float = 0.15
 # Some items for bond-making:
 # harmonic potential:
 harmonic_spring_constant: float = 7.0
+harmonic_angle_spring_constant: float = 1.0
+
+def harmonic_angle_equilibrium_value() -> float:
+    """A function because it depends on the number of particles in the ring"""
+    # Equilibrium angle might look like π from within the plane of the leading edge, but the actual angle is
+    # different. And, it changes if the number of leading edge particles changes. Hopefully it won't need to be
+    # dynamically updated to be that precise. If the number of particles changes, they'll "try" to reach a target angle
+    # that is not quite right, but will be opposed by the same force acting on the neighbor particles, so hopefully
+    # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
+    return math.pi - (two_pi / len(LeadingEdge.items()))
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6

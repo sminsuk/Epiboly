@@ -272,13 +272,8 @@ def initialize_leading_edge_bending_resistance() -> None:
         r, theta, phi = particle.sphericalPosition(origin=big_particle.position)
         return theta
 
-    # edge_equilibrium_angle might look like π from within the plane of the leading edge, but the actual angle is
-    # different. And, it changes if the number of leading edge particles changes. Hopefully it won't need to be
-    # dynamically updated to be that precise. If the number of particles changes, they'll "try" to reach a target angle
-    # that is not quite right, but will be opposed by the same force acting on the neighbor particles, so hopefully
-    # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
-    edge_equilibrium_angle: float = math.pi - (cfg.two_pi / len(LeadingEdge.items()))
-    edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=10, theta0=edge_equilibrium_angle)
+    edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=cfg.harmonic_angle_spring_constant,
+                                                                     theta0=cfg.harmonic_angle_equilibrium_value())
 
     # Sort all the leading edge particles on spherical coordinate theta, into a new list (copy, not live).
     # This is just like when we made the bonds. Now that we have the bonds, we COULD follow the links from

@@ -399,7 +399,74 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if any(fuckedness):
             break_point = 0
         return
+    
+    def remodel_angles(p1: tf.ParticleHandle, p2: tf.ParticleHandle, p_becoming: tf.ParticleHandle, add: bool) -> None:
+        """Handle the transformation of the Angle bonds accompanying the transformation of a leading edge particle
         
+        p1 and p2 flank p_becoming, which is either entering (add == True) or leaving (add == False) the leading edge.
+        """
+        def get_pivot_angle(p: tf.ParticleHandle) -> Optional[tf.AngleHandle]:
+            """Return the particle's pivot Angle (the Angle that has this particle as the CENTER particle) - if any"""
+            angle: tf.AngleHandle
+            angles: list[tf.AngleHandle] = [angle for angle in p.angles
+                                            if p.id == angle.parts[1]]
+            assert len(angles) < 2, f"Found 2 or more pivot Angles on particle {p.id}"
+            return None if not angles else angles[0]
+        
+        def exchange_particles(angle: tf.AngleHandle, bonded_p: tf.ParticleHandle, new_p: tf.ParticleHandle,
+                               potential: tf.Potential) -> None:
+            """Make this angle connect to the new particle instead of to the previously bonded neighbor.
+            
+            Conceptually, delete the old outer particle and replace it with the new one. But AngleHandle.parts is
+            not writeable, so actually create a new Angle with the proper connection, then delete the old Angle.
+            """
+            outer_p1id: int
+            outer_p2id: int
+            center_pid: int
+            old_outer_p1: tf.ParticleHandle
+            new_outer_p1: tf.ParticleHandle
+            center_p: tf.ParticleHandle
+            old_outer_p2: tf.ParticleHandle
+            new_outer_p2: tf.ParticleHandle
+
+            outer_p1id, center_pid, outer_p2id = angle.parts
+            center_p = gc.particles_by_id[center_pid]["handle"]
+            old_outer_p1 = gc.particles_by_id[outer_p1id]["handle"]
+            old_outer_p2 = gc.particles_by_id[outer_p2id]["handle"]
+            assert bonded_p.id in (outer_p1id, outer_p2id), f"bonded_p (id = {bonded_p.id}) is not part of this Angle!"
+            if bonded_p.id == outer_p1id:
+                new_outer_p1 = new_p
+                new_outer_p2 = old_outer_p2
+            else:
+                new_outer_p1 = old_outer_p1
+                new_outer_p2 = new_p
+
+            tf.Angle.create(potential, new_outer_p1, center_p, new_outer_p2)
+            angle.destroy()
+
+        assert len(p1.angles) == 3 and len(p2.angles) == 3,\
+            f"Particles {p1.id}, {p2.id} have {len(p1.angles)}, {len(p2.angles)} Angles, respectively"
+        a1: tf.AngleHandle = get_pivot_angle(p1)
+        a2: tf.AngleHandle = get_pivot_angle(p2)
+        assert a1, f"Particle {p1.id} has no pivot Angle!"
+        assert a2, f"Particle {p2.id} has no pivot Angle!"
+
+        edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=cfg.harmonic_angle_spring_constant,
+                                                                         theta0=cfg.harmonic_angle_equilibrium_value())
+
+        if add:
+            assert len(p_becoming.angles) == 0, f"Particle {p_becoming.id} already is part of leading edge!"
+            exchange_particles(a1, bonded_p=p2, new_p=p_becoming, potential=edge_angle_potential)
+            exchange_particles(a2, bonded_p=p1, new_p=p_becoming, potential=edge_angle_potential)
+            tf.Angle.create(edge_angle_potential, p1, p_becoming, p2)
+            assert len(p_becoming.angles) == 3, f"Particle {p_becoming.id} didn't end up with 3 Angle Bonds on it!"
+        else:
+            assert len(p_becoming.angles) == 3, f"Particle {p_becoming.id} is not a leading edge particle!"
+            exchange_particles(a1, bonded_p=p_becoming, new_p=p2, potential=edge_angle_potential)
+            exchange_particles(a2, bonded_p=p_becoming, new_p=p1, potential=edge_angle_potential)
+            p_becoming.angles[0].destroy()
+            assert len(p_becoming.angles) == 0, f"Particle {p_becoming.id} still has some Angle Bonds left on it!"
+
     def attempt_become_internal(p: tf.ParticleHandle) -> int:
         """For LeadingEdge particles only. Become internal, and let its two bonded leading edge neighbors
         bond to one another.
@@ -408,7 +475,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         returns: number of bonds created
         """
         # #### Bypass:
-        return attempt_make_bond(p)
+        # return attempt_make_bond(p)
         
         # #### Actual implementation:
         phandle: tf.ParticleHandle
@@ -437,6 +504,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             p.style.color = Little.style.color
             p.style.visible = gc.visibility_state
             p.force_init = [0, 0, 0]
+
+            remodel_angles(neighbor1, neighbor2, p_becoming=p, add=False)
+
             # test_ring_is_fucked_up()
             return 1
         return 0
@@ -450,7 +520,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         returns: number of bonds broken
         """
         # #### Bypass:
-        return attempt_break_bond(p)
+        # return attempt_break_bond(p)
         
         # #### Actual implementation:
         leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
@@ -499,6 +569,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             recruit.become(LeadingEdge)
             recruit.style.color = LeadingEdge.style.color
             recruit.style.visible = True
+            
+            remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
+            
             # test_ring_is_fucked_up()
             return 1 + len(extraneous_bonds)
         return 0
