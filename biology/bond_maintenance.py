@@ -49,111 +49,6 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
         _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
 
-def _attempt_closest_bond(phandle: tf.ParticleHandle, making_search_distance: float,
-                          making_prob_dropoff: float, max_prob: float, verbose=False) -> int:
-    """making_search_distance is for the exponential algorithm; max_prob is for the linear algorithm"""
-    # Get all neighbors not already bonded to, within a certain fairly permissive radius. Bond to at most one.
-    neighbors: list[tf.ParticleHandle] = nbrs.get_non_bonded_neighbors(phandle, distance_factor=making_search_distance,
-                                                                       sort=False)
-    # Three ways to do this, none really really giving me what I want...
-    # Note that the one that needs sorting is slow, which is why I tried the other two, but they are all equally
-    # slow. Turns out that's not the problem. I traced the slowdown to the call to get_non_bonded_neighbors(); it
-    # slows down greatly when you call it with a wider area search. With the default search area of 1.5, this
-    # is all essentially as fast as make_all_bonds().
-    # random_neighbor: tf.ParticleHandle = None if not neighbors else random.choice(neighbors)
-    # closest_neighbor: tf.ParticleHandle = None if not neighbors else neighbors[0]     # For this, set sort=True!
-    closest_neighbor: tf.ParticleHandle = min(neighbors, key=lambda neighbor: phandle.distance(neighbor), default=None)
-    neighbor = closest_neighbor
-    bonded = False
-    if neighbor:
-        # probability falls off with distance
-        r0: float = 2 * Little.radius
-        distance: float = phandle.distance(neighbor)
-        # bonding_probability: float = math.exp(-(distance - r0)/making_prob_dropoff)
-        
-        # alternative way: linear
-        # at distance = r0, probability = 1; at distance = (making_search_distance +1) * r0, probability = 0. So:
-        m: float = -max_prob / ((making_search_distance - 1) * Little.radius)
-        b: float = max_prob * (making_search_distance + 1) / (making_search_distance - 1)
-        bonding_probability = m * distance + b
-        assert 0 <= bonding_probability <= b,\
-            f"Bonding probability calculation isn't right." \
-            f" m, b, distance, probability = {(m, b, distance, bonding_probability)}"
-        
-        if random.random() < bonding_probability:
-            if verbose:
-                print(f"distance = {distance}, probability = {bonding_probability}, max_prob = {max_prob}")
-            _make_bond(neighbor, phandle, verbose)
-            bonded = True
-    return 1 if bonded else 0
-
-def _break(breaking_saturation_factor: float, max_prob: float) -> None:
-    """Decide which bonds will be broken, then break them.
-    
-    saturation_factor: multiple of r0 at which probability of breaking = max_prob
-    max_prob: the max value that probability of breaking ever reaches. In range [0, 1].
-    """
-    alert_once = True
-    
-    def breaking_probability(bhandle: tf.BondHandle, r0: float, r: float) -> float:
-        """Probability of breaking bond"""
-        nonlocal alert_once
-        potential: tf.Potential = bhandle.potential
-        saturation_distance: float = breaking_saturation_factor * r0
-        saturation_energy: float = potential(saturation_distance)
-        
-        # Note, in extreme cases, i.e. after alert_once has been tripped, this assert will fail, but is meaningless.
-        # potential(r) should match the bond's energy property, though it won't be exact:
-        assert abs(bhandle.energy - potential(r)) < 0.0001, \
-            f"unexpected bond energy: property = {bhandle.energy}, calculated = {potential(r)}"
-    
-        p: float
-        if r <= r0:
-            p = 0
-        elif r > saturation_distance:
-            p = max_prob
-        elif saturation_energy == 0:
-            # This is to trap the error that would otherwise occur in extreme cases; if this happens, most likely
-            # r0 has gotten so big that saturation_distance is well beyond potential.max, hence
-            # potential() evaluates to 0. Just go ahead and break the bond.
-            # "alert_once" means once per event invocation.
-            p = max_prob
-            if alert_once:
-                alert_once = False
-                print(tfu.bluecolor + "WARNING: potential.max exceeded" + tfu.endcolor)
-        else:
-            p = max_prob * bhandle.energy / saturation_energy
-            
-        return p
-    
-    assert 0 <= max_prob <= 1, "max_prob out of bounds"
-    assert breaking_saturation_factor > 0, "breaking_saturation_factor out of bounds"
-
-    breaking_bonds: list[tf.BondHandle] = []
-    bhandle: tf.BondHandle
-    gcdict: dict[int, gc.BondData] = gc.bonds_by_id
-
-    print(f"Evaluating all {len(tf.BondHandle.items())} bonds, to maybe break")
-    for bhandle in tf.BondHandle.items():
-        # future: checking .active is not supposed to be needed; those are supposed to be filtered out before you
-        # see them. Possibly the flag may not even be accessible in future versions.
-        if bhandle.active:
-            assert bhandle.id in gcdict, "Bond data missing from global catalog!"
-            p1: tf.ParticleHandle
-            p2: tf.ParticleHandle
-            p1, p2 = tfu.bond_parts(bhandle)
-            bond_data: gc.BondData = gcdict[bhandle.id]
-            r0: float = bond_data["r0"]
-            # print(f"r0 = {r0}")
-            r: float = p1.distance(p2)
-            
-            if random.random() < breaking_probability(bhandle, r0, r):
-                breaking_bonds.append(bhandle)
-
-    print(f"breaking {len(breaking_bonds)} bonds: {[bhandle.id for bhandle in breaking_bonds]}")
-    for bhandle in breaking_bonds:
-        gc.break_bond(bhandle)
-        
 def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                           k_edge_neighbor_count: float, k_edge_angle: float, verbose: bool = False) -> None:
     """
@@ -669,21 +564,6 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
             
             relax_bond(bhandle, r0, r, viscosity, p1, p2)
 
-def maintain_bonds_deprecated(
-        making_search_distance: float = 5, making_prob_dropoff: float = 0.01, making_max_prob: float = 1e-4,
-        breaking_saturation_factor: float = 3, max_prob: float = 0.001,
-        relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
-    total: int = 0
-    for ptype in [Little, LeadingEdge]:
-        for p in ptype.items():
-            total += _attempt_closest_bond(p, making_search_distance, making_prob_dropoff, making_max_prob,
-                                           verbose=True)
-    print(f"Created {total} bonds.")
-
-    _break(breaking_saturation_factor, max_prob)
-    
-    _relax(relaxation_saturation_factor, viscosity)
-    
 def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
                    k_edge_neighbor_count: float = 2, k_edge_angle: float = 6,
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:

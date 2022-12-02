@@ -389,13 +389,7 @@ dyn.execute_repeatedly(tasks=[
          },
         {"invoke": bonds.maintain_bonds,
          "args": {
-                  #     ###For deprecated making/breaking algorithm:
-                  # "making_search_distance": 5,
-                  # "making_prob_dropoff": 0.02,
-                  # "making_max_prob: 0.1,
-                  # "breaking_saturation_factor": 3,
-                  # "max_prob": 0.01,
-                  #     ###For new making/breaking algorithm:
+                  #     ###For making/breaking algorithm:
                   # "k_neighbor_count": 1.0,
                   # "k_angle": 1.0,
                   # "k_edge_neighbor_count": 1.0,
