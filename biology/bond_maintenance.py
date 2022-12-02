@@ -217,10 +217,23 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # Neither particle may go below the minimum threshold for number of bonds
         p1current_count: int = len(p1.bonds)
         p2current_count: int = len(p2.bonds)
-        if breaking and (p1current_count < 4 or p2current_count < 4):
+        if breaking and (p1current_count == cfg.min_neighbor_count or
+                         p2current_count == cfg.min_neighbor_count):
             if verbose:     # and p1.type_id == LeadingEdge.id and p2.type_id == LeadingEdge.id:
                 print(f"Rejecting break because particles have {p1current_count} and {p2current_count} bonds")
             return False
+        
+        # Internal particles may not acquire more than a maximum threshold of bonds to the leading edge
+        if p1.type_id != p2.type_id and not breaking:
+            phandle: tf.ParticleHandle
+            p_internal: tf.ParticleHandle = p1 if p1.type_id == Little.id else p2
+            edge_neighbor_count: int = len([phandle for phandle in p_internal.getBondedNeighbors()
+                                            if phandle.type_id == LeadingEdge.id])
+            if edge_neighbor_count == cfg.max_edge_neighbor_count:
+                if verbose:
+                    print(f"Rejecting new bond between internal and leading edge because internal particle"
+                          f" is already bonded to {edge_neighbor_count} LeadingEdge particles")
+                return False
 
         delta_energy: float = (delta_energy_neighbor_count(p1, p2)
                                + delta_energy_angle(p1, p2))

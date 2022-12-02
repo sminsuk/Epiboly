@@ -47,6 +47,11 @@ max_potential_cutoff: float = 6
 # this value used as distance_factor will result in an absolute search distance = max_potential_cutoff
 max_distance_factor: float = max_potential_cutoff / Little.radius
 
+# For neighbor count criterion. Pre-energy-calculation limits.
+# (If exceeded, don't bother calculating energy, just reject the change.)
+min_neighbor_count: int = 3
+max_edge_neighbor_count: int = 3
+
 # For neighbor angle energy calculations. Not only to avoid magic numbers,
 # but also because these would otherwise be calculated millions of times,
 # which is wasteful, even for an inexpensive operation.
