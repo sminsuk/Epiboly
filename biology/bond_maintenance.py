@@ -495,6 +495,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                              f"k_edge_angle = {k_edge_angle}"
     total_bonded: int = 0
     total_broken: int = 0
+    total_to_internal: int = 0
+    total_to_edge: int = 0
+    result: int
     p: tf.ParticleHandle
     
     start = time.perf_counter()
@@ -511,13 +514,17 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         elif ran < 0.5:
             total_broken += attempt_break_bond(p)
         elif ran < 0.75:
-            total_bonded += attempt_become_internal(p)
+            result = attempt_become_internal(p)
+            total_bonded += result
+            total_to_internal += result
         else:
-            total_broken += attempt_recruit_from_internal(p)
+            result = attempt_recruit_from_internal(p)
+            total_broken += result
+            total_to_edge += result
     end = time.perf_counter()
 
-    print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {end - start} sec.")
-    
+    print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {end - start} sec. "
+          f"{total_to_edge} became edge; {total_to_internal} became internal")
     
 def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
     def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float,
