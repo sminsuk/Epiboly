@@ -390,6 +390,7 @@ dyn.execute_repeatedly(tasks=[
         {"invoke": bonds.maintain_bonds,
          "args": {
                   #     ###For making/breaking algorithm:
+                  # "k_adhesion": 1.0,
                   # "k_neighbor_count": 1.0,
                   # "k_angle": 1.0,
                   # "k_edge_neighbor_count": 1.0,
