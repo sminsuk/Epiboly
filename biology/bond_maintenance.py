@@ -523,15 +523,23 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
         if recruit_angle < cfg.leading_edge_recruitment_min_angle:
             return 0
 
+        # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
+        # (instead of simply breaking those extra bonds, like before, which led to problems).
+        bhandle: tf.BondHandle
+        bonds_to_leading_edge: list[tf.BondHandle] = [bhandle for bhandle in recruit.bonds
+                                                      if tfu.other_particle(recruit, bhandle).type_id == LeadingEdge.id]
+        if len(bonds_to_leading_edge) > 2:
+            return 0
+
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
-            # In case recruit was bonded to any additional *other* LeadingEdge particles, need to break those bonds.
-            bhandle: tf.BondHandle
-            extraneous_bonds: list[tf.BondHandle] = [bhandle for bhandle in recruit.bonds
-                                                     if (p.id not in bhandle.parts
-                                                         and other_leading_edge_p.id not in bhandle.parts)
-                                                     if tfu.other_particle(recruit, bhandle).type_id == LeadingEdge.id]
-            for bhandle in extraneous_bonds:
-                gc.break_bond(bhandle)
+            # # In case recruit was bonded to any additional *other* LeadingEdge particles, need to break those bonds.
+            # bhandle: tf.BondHandle
+            # extraneous_bonds: list[tf.BondHandle] = [bhandle for bhandle in recruit.bonds
+            #                                          if (p.id not in bhandle.parts
+            #                                              and other_leading_edge_p.id not in bhandle.parts)
+            #                                          if tfu.other_particle(recruit, bhandle).type_id == LeadingEdge.id]
+            # for bhandle in extraneous_bonds:
+            #     gc.break_bond(bhandle)
             
             gc.break_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(LeadingEdge)
@@ -541,7 +549,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
             
             # test_ring_is_fucked_up()
-            return 1 + len(extraneous_bonds)
+            return 1    # + len(extraneous_bonds)
         return 0
 
     assert k_neighbor_count >= 0 and k_angle >= 0, f"k values must be non-negative; " \
