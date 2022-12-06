@@ -85,11 +85,16 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                 since adhesion energy is type-dependent (pending future change after refactor)
             """
             neighbor: tf.ParticleHandle
-            # Look at all neighbors except each other (we'll do that separately, later)
+            # First, look at all bonds with neighbors not involved in the change. (Can't just cancel these out;
+            # because need to include in the weighted average).
+            # (We'll calculate the other three bonds separately.)
+            exclude: list[int] = [p1.id, p2.id]
+            if p_becoming:
+                exclude.append(p_becoming.id)
             p1_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in p1.getBondedNeighbors()
-                                                     if neighbor.id != p2.id]
+                                                     if neighbor.id not in exclude]
             p2_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in p2.getBondedNeighbors()
-                                                     if neighbor.id != p1.id]
+                                                     if neighbor.id not in exclude]
             # Weight the effect of each neighbor according to its distance
             p1_weighted_count: list[float] = [1 / p1.distance(neighbor)
                                               for neighbor in p1_neighbors]
@@ -102,6 +107,8 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             p1p2_weight: float = 1 / p1.distance(p2)
             p1p2_energy: float = cfg.adhesion_energy[p1.type_id][p2.type_id] * p1p2_weight
             
+            # Values with the bond present, and without it present
+            # (for all bonds, excluding the ones to the particle changing its type)
             p1_energy_sum: float = functools.reduce(addition, p1_energies)
             p2_energy_sum: float = functools.reduce(addition, p2_energies)
             energy_sum_without: float = p1_energy_sum + p2_energy_sum
@@ -110,10 +117,35 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                                              + functools.reduce(addition, p2_weighted_count))
             particle_total_with: float = particle_total_without + p1p2_weight
             
-            mean_energy_without: float = energy_sum_without / particle_total_without
-            mean_energy_with: float = energy_sum_with / particle_total_with
-            mean_energy_before: float = mean_energy_with if breaking else mean_energy_without
-            mean_energy_after: float = mean_energy_without if breaking else mean_energy_with
+            # Values before the bond is made/broken, and after it is made/broken
+            particle_total_before: float = particle_total_with if breaking else particle_total_without
+            particle_total_after: float = particle_total_without if breaking else particle_total_with
+            energy_sum_before: float = energy_sum_with if breaking else energy_sum_without
+            energy_sum_after: float = energy_sum_without if breaking else energy_sum_with
+            
+            if p_becoming:
+                # before and after values, for those two bonds
+                p1_pbecoming_weight: float = 1 / p1.distance(p_becoming)
+                p2_pbecoming_weight: float = 1 / p2.distance(p_becoming)
+                pbecoming_type_id_after: int = LeadingEdge.id if p_becoming.type_id == Little.id else Little.id
+                p1_pbecoming_energy_before: float = (cfg.adhesion_energy[p1.type_id][p_becoming.type_id]
+                                                     * p1_pbecoming_weight)
+                p2_pbecoming_energy_before: float = (cfg.adhesion_energy[p2.type_id][p_becoming.type_id]
+                                                     * p2_pbecoming_weight)
+                p1_pbecoming_energy_after: float = (cfg.adhesion_energy[p1.type_id][pbecoming_type_id_after]
+                                                    * p1_pbecoming_weight)
+                p2_pbecoming_energy_after: float = (cfg.adhesion_energy[p2.type_id][pbecoming_type_id_after]
+                                                    * p2_pbecoming_weight)
+                
+                # adjusted totals
+                pbecoming_weight: float = p1_pbecoming_weight + p2_pbecoming_weight
+                particle_total_before += pbecoming_weight
+                particle_total_after += pbecoming_weight
+                energy_sum_before += p1_pbecoming_energy_before + p2_pbecoming_energy_before
+                energy_sum_after += p1_pbecoming_energy_after + p2_pbecoming_energy_after
+
+            mean_energy_before: float = energy_sum_before / particle_total_before
+            mean_energy_after: float = energy_sum_after / particle_total_after
             
             delta_energy: float = mean_energy_after - mean_energy_before
             return k_adhesion * delta_energy
