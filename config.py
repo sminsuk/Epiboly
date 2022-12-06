@@ -66,5 +66,6 @@ adhesion_energy = {Little.id: {Little.id: energy_little_little,
 # which is wasteful, even for an inexpensive operation.
 target_neighbor_angle: float = math.pi / 3
 target_edge_angle: float = math.pi
-leading_edge_recruitment_limit: float = 2 * LeadingEdge.radius
+# leading_edge_recruitment_limit: float = 2 * LeadingEdge.radius  # deprecated for now
+leading_edge_recruitment_min_angle: float = math.pi / 3.5   # empirically determined
 two_pi: float = math.pi * 2

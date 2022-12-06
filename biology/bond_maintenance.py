@@ -509,12 +509,19 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             return 0
         
         # Commenting out in hopes that algorithm improvements make this unnecessary
+        # (Sadly, so far this remained necessary. But maybe new criterion below works better. Deprecate this for now.)
         # pos: tf.fVector3
         # leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
         # if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
         #     # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
         #     # but at the moment I need it to get this working
         #     return 0
+        
+        # Try this instead. More natural criterion for preventing runaway edge recruitment.
+        # Still not perfect. Would be better to make this unnecessary, too.
+        recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
+        if recruit_angle < cfg.leading_edge_recruitment_min_angle:
+            return 0
 
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
             # In case recruit was bonded to any additional *other* LeadingEdge particles, need to break those bonds.
