@@ -74,6 +74,14 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             return x + y
         
         def delta_energy_adhesion(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+            # An option: limit this to only internal bond remodeling, not edge remodeling:
+            # if becoming:
+            #     # Don't apply this criterion to leading edge transformations
+            #     return 0
+            
+            if k_adhesion == 0:
+                return 0
+            
             neighbor: tf.ParticleHandle
             # Look at all neighbors except each other (we'll do that separately, later)
             p1_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in p1.getBondedNeighbors()
