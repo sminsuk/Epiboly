@@ -499,9 +499,11 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             if shared_internal_bonded_neighbors:
                 break
                 
-        # If there was more than one shared neighbor, we'll use the one with least z
+        # If there was more than one shared neighbor, we'll use the one closest to these 2 edge particles
         # If there were none, we'll do nothing
-        recruit: tf.ParticleHandle = min(shared_internal_bonded_neighbors, key=lambda p: p.position.z(), default=None)
+        recruit: tf.ParticleHandle = min(shared_internal_bonded_neighbors,
+                                         key=lambda n: nbrs.distance(n, p, other_leading_edge_p),
+                                         default=None)
         
         if not recruit:
             return 0

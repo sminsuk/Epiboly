@@ -194,6 +194,10 @@ def get_shared_bonded_neighbors(p1: tf.ParticleHandle, p2: tf.ParticleHandle) ->
                                                  if phandle.id in p1_ids]
     return shared_neighbors
 
+def distance(p: tf.ParticleHandle, neighbor1: tf.ParticleHandle, neighbor2: tf.ParticleHandle) -> float:
+    """Get total distance of p from its two neighbors"""
+    return p.distance(neighbor1) + p.distance(neighbor2)
+
 def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                  extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
     """Get bonded neighbors, ordered according to their relative angles, so that iterating over the result
