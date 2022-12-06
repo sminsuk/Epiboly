@@ -63,17 +63,27 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
     k_edge_neighbor_count, k_edge_angle: same, for the leading-edge transformations, so they can be tuned separately.
     """
 
-    def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool, becoming: bool = False) -> bool:
+    def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool,
+               p_becoming: tf.ParticleHandle = None) -> bool:
         """Decide whether the bond between these two particles may be made/broken
         
         breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
-        becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
+        p_becoming; if not null, then one of the leading edge transformations is taking place, flagging
+            some special case behavior, and p_becoming is the particle that will be changing its type.
+            Only delta_energy_adhesion() needs the actual particle; the other terms of the energy
+            equation use it as a flag just to indicate that it's happening. (is_edge_bond() could also
+            be used in those cases, they should be equivalent, but we have the flag already so no need
+            to bother calculating it.)
         """
         def addition(x: float, y: float) -> float:
             """Just to avoid lambda repetition, for use with reduce(), in delta_energy_adhesion() below"""
             return x + y
         
-        def delta_energy_adhesion(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+        def delta_energy_adhesion(p1: tf.ParticleHandle, p2: tf.ParticleHandle,
+                                  p_becoming: tf.ParticleHandle) -> float:
+            """Change in adhesion energy for particles that are changing neighbors, *or* changing type,
+                since adhesion energy is type-dependent (pending future change after refactor)
+            """
             neighbor: tf.ParticleHandle
             # Look at all neighbors except each other (we'll do that separately, later)
             p1_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in p1.getBondedNeighbors()
@@ -108,7 +118,9 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             delta_energy: float = mean_energy_after - mean_energy_before
             return k_adhesion * delta_energy
         
-        def delta_energy_neighbor_count(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+        def delta_energy_neighbor_count(p1: tf.ParticleHandle, p2: tf.ParticleHandle,
+                                        p_becoming: tf.ParticleHandle) -> float:
+            """p_becoming is a particle, but here its existence is just used as a flag"""
             p1current_count: int = len(p1.bonds)
             p2current_count: int = len(p2.bonds)
             delta_count: int = -1 if breaking else 1
@@ -127,10 +139,12 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             p2final_energy: float = (p2final_count - p2target_count) ** 2
     
             delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
-            k: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
+            k: float = k_edge_neighbor_count if p_becoming else k_neighbor_count
             return k * delta_energy
         
-        def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+        def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle,
+                               p_becoming: tf.ParticleHandle) -> float:
+            """p_becoming is a particle, but here its existence is just used as a flag"""
             def get_component_angles(vertex_particle: tf.ParticleHandle,
                                      ordered_neighbor_list: list[tf.ParticleHandle],
                                      other_p: tf.ParticleHandle) -> tuple[tuple[float, float],
@@ -176,7 +190,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                         # are both LeadingEdge, then set edge target angle based on that. But, it works
                         # for breaking a bond and turning a Little into a LeadingEdge; it does not work
                         # for making a bond and turning a LeadingEdge into a Little, because all the particles
-                        # are LeadingEdge and you can't tell the cases apart. Hence, created the "becoming"
+                        # are LeadingEdge and you can't tell the cases apart. Hence, created the "p_becoming"
                         # parameter and handled it separately below, instead. And either way, I never got
                         # the accept/reject criterion really working for edge transformations. (Hence the
                         # addition of the ad hoc criterion, leading_edge_baseline, in recruit_from_internal().)
@@ -192,7 +206,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                 target2: float
                 fused_target: float
                 target1 = target2 = fused_target = cfg.target_neighbor_angle
-                if becoming:
+                if p_becoming:
                     # Assume(?) that the two component angles are very different sizes; and that the
                     # larger one is the leading edge, so should have a bigger target.
                     # (Note: probably a WRONG assumption, because I'm getting very bad behaviors.)
@@ -238,7 +252,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                                           (p1_fused_energy + p2_fused_energy))
             delta_energy_breaking: float = -delta_energy_making
             
-            k: float = k_edge_angle if becoming else k_angle
+            k: float = k_edge_angle if p_becoming else k_angle
             if breaking:
                 return k * delta_energy_breaking
             else:
@@ -273,9 +287,9 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                           f" is already bonded to {edge_neighbor_count} LeadingEdge particles")
                 return False
 
-        delta_energy: float = (delta_energy_adhesion(p1, p2)
-                               + delta_energy_neighbor_count(p1, p2)
-                               + delta_energy_angle(p1, p2))
+        delta_energy: float = (delta_energy_adhesion(p1, p2, p_becoming)
+                               + delta_energy_neighbor_count(p1, p2, p_becoming)
+                               + delta_energy_angle(p1, p2, p_becoming))
     
         if delta_energy <= 0:
             return True
@@ -449,7 +463,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             # the operation.
             return 0
         
-        if accept(neighbor1, neighbor2, breaking=False, becoming=True):
+        if accept(neighbor1, neighbor2, breaking=False, p_becoming=p):
             _make_bond(neighbor1, neighbor2, verbose=verbose)
             p.become(Little)
             p.style.color = Little.style.color
@@ -506,7 +520,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
         #     # but at the moment I need it to get this working
         #     return 0
 
-        if accept(p, other_leading_edge_p, breaking=True, becoming=True):
+        if accept(p, other_leading_edge_p, breaking=True, p_becoming=recruit):
             # In case recruit was bonded to any additional *other* LeadingEdge particles, need to break those bonds.
             bhandle: tf.BondHandle
             extraneous_bonds: list[tf.BondHandle] = [bhandle for bhandle in recruit.bonds
