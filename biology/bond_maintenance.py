@@ -117,6 +117,10 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             return k_adhesion * delta_energy
         
         def delta_energy_neighbor_count(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+            k_neighbor_count_energy: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
+            if k_neighbor_count_energy == 0:
+                return 0
+            
             p1current_count: int = len(p1.bonds)
             p2current_count: int = len(p2.bonds)
             delta_count: int = -1 if breaking else 1
@@ -135,8 +139,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             p2final_energy: float = (p2final_count - p2target_count) ** 2
     
             delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
-            k: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
-            return k * delta_energy
+            return k_neighbor_count_energy * delta_energy
         
         def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
             def get_component_angles(vertex_particle: tf.ParticleHandle,
@@ -214,6 +217,10 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
 
                 return (theta1, theta2), (target1, target2), fused_target
             
+            k_angle_energy: float = k_edge_angle if becoming else k_angle
+            if k_angle_energy == 0:
+                return 0
+            
             p1_extra: tf.ParticleHandle = None if breaking else p2
             p2_extra: tf.ParticleHandle = None if breaking else p1
             p1_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p1, extra_neighbor=p1_extra)
@@ -246,11 +253,10 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                                           (p1_fused_energy + p2_fused_energy))
             delta_energy_breaking: float = -delta_energy_making
             
-            k: float = k_edge_angle if becoming else k_angle
             if breaking:
-                return k * delta_energy_breaking
+                return k_angle_energy * delta_energy_breaking
             else:
-                return k * delta_energy_making
+                return k_angle_energy * delta_energy_making
             
         bonded_neighbor_ids: list[int] = [phandle.id for phandle in p2.getBondedNeighbors()]
         if breaking:
