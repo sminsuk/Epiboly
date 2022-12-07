@@ -525,10 +525,8 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
         # (instead of simply breaking those extra bonds, like before, which led to problems).
-        bhandle: tf.BondHandle
-        bonds_to_leading_edge: list[tf.BondHandle] = [bhandle for bhandle in recruit.bonds
-                                                      if tfu.other_particle(recruit, bhandle).type_id == LeadingEdge.id]
-        if len(bonds_to_leading_edge) > 2:
+        num_bonds_to_leading_edge: int = nbrs.count_neighbors_of_type(recruit, ptype=LeadingEdge)
+        if num_bonds_to_leading_edge > 2:
             return 0
 
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
@@ -541,6 +539,20 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             # for bhandle in extraneous_bonds:
             #     gc.break_bond(bhandle)
             
+            # In case recruit is bonded to an *internal* particle that already has the maximum edge bonds,
+            # break the bond with that particle. Recruit will become LeadingEdge, which means bonded neighbors
+            # will get an additional bond to the edge. So, if internal neighbor is already bonded to the maximum,
+            # we should not make one more such bond, so delete it.
+            def too_many_edge_neighbors(p: tf.ParticleHandle) -> bool:
+                return nbrs.count_neighbors_of_type(p, ptype=LeadingEdge) >= cfg.max_edge_neighbor_count
+                
+            phandle: tf.ParticleHandle
+            saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle for phandle in recruit.getBondedNeighbors()
+                                                                     if phandle.type_id == Little.id
+                                                                     if too_many_edge_neighbors(phandle)]
+            for phandle in saturated_internal_neighbors:
+                gc.break_bond(tfu.bond_between(recruit, phandle))
+            
             gc.break_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(LeadingEdge)
             recruit.style.color = LeadingEdge.style.color
@@ -549,7 +561,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
             
             # test_ring_is_fucked_up()
-            return 1    # + len(extraneous_bonds)
+            return 1 + len(saturated_internal_neighbors)    # + len(extraneous_bonds)
         return 0
 
     assert k_neighbor_count >= 0 and k_angle >= 0, f"k values must be non-negative; " \

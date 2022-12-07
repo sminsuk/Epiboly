@@ -198,6 +198,14 @@ def distance(p: tf.ParticleHandle, neighbor1: tf.ParticleHandle, neighbor2: tf.P
     """Get total distance of p from its two neighbors"""
     return p.distance(neighbor1) + p.distance(neighbor2)
 
+def bonds_to_neighbors_of_type(p: tf.ParticleHandle, ptype: tf.ParticleType) -> list[tf.BondHandle]:
+    bhandle: tf.BondHandle
+    return [bhandle for bhandle in p.bonds
+            if tfu.other_particle(p, bhandle).type_id == ptype.id]
+
+def count_neighbors_of_type(p: tf.ParticleHandle, ptype: tf.ParticleType) -> int:
+    return len(bonds_to_neighbors_of_type(p, ptype))
+
 def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                  extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
     """Get bonded neighbors, ordered according to their relative angles, so that iterating over the result
