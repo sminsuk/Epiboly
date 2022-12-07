@@ -665,8 +665,8 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
             
             relax_bond(bhandle, r0, r, viscosity, p1, p2)
 
-def maintain_bonds(k_adhesion: float = 25, k_neighbor_count: float = 0.4, k_angle: float = 2,
-                   k_edge_neighbor_count: float = 2, k_edge_angle: float = 6,
+def maintain_bonds(k_adhesion: float = 0, k_neighbor_count: float = 0.4, k_angle: float = 2,
+                   k_edge_neighbor_count: float = 2, k_edge_angle: float = 2,
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
     _make_break_or_become(k_adhesion, k_neighbor_count, k_angle,
                           k_edge_neighbor_count, k_edge_angle, verbose=False)
