@@ -540,15 +540,6 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             return 0
 
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
-            # # In case recruit was bonded to any additional *other* LeadingEdge particles, need to break those bonds.
-            # bhandle: tf.BondHandle
-            # extraneous_bonds: list[tf.BondHandle] = [bhandle for bhandle in recruit.bonds
-            #                                          if (p.id not in bhandle.parts
-            #                                              and other_leading_edge_p.id not in bhandle.parts)
-            #                                          if tfu.other_particle(recruit, bhandle).type_id == LeadingEdge.id]
-            # for bhandle in extraneous_bonds:
-            #     gc.break_bond(bhandle)
-            
             # In case recruit is bonded to an *internal* particle that already has the maximum edge bonds,
             # break the bond with that particle. Recruit will become LeadingEdge, which means bonded neighbors
             # will get an additional bond to the edge. So, if internal neighbor is already bonded to the maximum,
