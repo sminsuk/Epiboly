@@ -409,6 +409,9 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             tf.Angle.create(potential, new_outer_p1, center_p, new_outer_p2)
             angle.destroy()
 
+        if not cfg.angle_bonds_enabled:
+            return
+        
         assert len(p1.angles) == 3 and len(p2.angles) == 3,\
             f"Particles {p1.id}, {p2.id} have {len(p1.angles)}, {len(p2.angles)} Angles, respectively"
         a1: tf.AngleHandle = get_pivot_angle(p1)
@@ -513,21 +516,22 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
         
         if not recruit:
             return 0
-        
-        # Commenting out in hopes that algorithm improvements make this unnecessary
-        # (Sadly, so far this remained necessary. But maybe new criterion below works better. Deprecate this for now.)
-        # pos: tf.fVector3
-        # leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
-        # if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
-        #     # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
-        #     # but at the moment I need it to get this working
-        #     return 0
-        
-        # Try this instead. More natural criterion for preventing runaway edge recruitment.
-        # Still not perfect. Would be better to make this unnecessary, too.
-        recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
-        if recruit_angle < cfg.leading_edge_recruitment_min_angle:
-            return 0
+            
+        if cfg.angle_bonds_enabled:
+            # This more natural criterion for preventing runaway edge recruitment seems to work.
+            # Still not perfect. Would be better to make this unnecessary, too.
+            recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
+            if recruit_angle < cfg.leading_edge_recruitment_min_angle:
+                return 0
+        else:
+            # Hoped that algorithm improvements would make this unnecessary. With Angle bonds, the above
+            # improved version works, but when they are disabled, still need to fall back to this.
+            pos: tf.fVector3
+            leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
+            if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
+                # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
+                # but at the moment I need it to get this working
+                return 0
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
         # (instead of simply breaking those extra bonds, like before, which led to problems).

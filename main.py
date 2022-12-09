@@ -272,6 +272,9 @@ def initialize_leading_edge_bending_resistance() -> None:
         r, theta, phi = particle.sphericalPosition(origin=big_particle.position)
         return theta
 
+    if not cfg.angle_bonds_enabled:
+        return
+    
     edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=cfg.harmonic_angle_spring_constant,
                                                                      theta0=cfg.harmonic_angle_equilibrium_value())
 
