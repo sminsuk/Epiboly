@@ -29,6 +29,7 @@ edge_margin_interior_points: float = 0.15
 harmonic_spring_constant: float = 7.0
 harmonic_edge_spring_constant: float = 7.0  # (for the Bonds)
 harmonic_angle_spring_constant: float = 5.0  # (for the Angles)
+harmonic_angle_tolerance: float = 0.008 * math.pi
 angle_bonds_enabled: bool = True
 
 def harmonic_angle_equilibrium_value() -> float:

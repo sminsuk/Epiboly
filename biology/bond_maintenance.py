@@ -419,8 +419,11 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
         assert a1, f"Particle {p1.id} has no pivot Angle!"
         assert a2, f"Particle {p2.id} has no pivot Angle!"
 
-        edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=cfg.harmonic_angle_spring_constant,
-                                                                         theta0=cfg.harmonic_angle_equilibrium_value())
+        k: float = cfg.harmonic_angle_spring_constant
+        theta0: float = cfg.harmonic_angle_equilibrium_value()
+        tol: float = cfg.harmonic_angle_tolerance
+        edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=k, theta0=theta0, tol=tol)
+        assert edge_angle_potential is not None, f"Failed harmonic_angle potential, k={k}, theta0={theta0}, tol={tol}"
 
         if add:
             assert len(p_becoming.angles) == 0, f"Particle {p_becoming.id} already is part of leading edge!"

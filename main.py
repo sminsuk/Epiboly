@@ -276,7 +276,8 @@ def initialize_leading_edge_bending_resistance() -> None:
         return
     
     edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=cfg.harmonic_angle_spring_constant,
-                                                                     theta0=cfg.harmonic_angle_equilibrium_value())
+                                                                     theta0=cfg.harmonic_angle_equilibrium_value(),
+                                                                     tol=cfg.harmonic_angle_tolerance)
 
     # Sort all the leading edge particles on spherical coordinate theta, into a new list (copy, not live).
     # This is just like when we made the bonds. Now that we have the bonds, we COULD follow the links from

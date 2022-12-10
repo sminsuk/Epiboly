@@ -331,3 +331,44 @@ def _test_arccos() -> None:
 _cos_table_by_millis: dict[int: tuple[float, float]] = {}
 _setup_cos_table()
 # _test_arccos()
+
+def _test_harmonic_angle() -> None:
+    """For testing of issues with angle potential. Fails for certain values of theta0 parameter.
+    
+    Fascinating result:
+    With accepting the default tolerance, theta0=42-138 degrees (note: centered around 90°) always works. 0° and 180°
+    also always works. But depending on the value of k, the ranges in between those, don't work.
+    For k < 2 (I tried 1.9), everything works. For k=2.0, it fails for theta0=41° and for 139°-140°. As k increases,
+    the upper bound of the higher failure range goes up, and the lower bound of the lower failure range goes down,
+    i.e. the failure ranges get larger at their extreme ends until only 0° and 180° remain. For k=5.0 (the value
+    I've been using), it fails for theta0=17°-41° and 139°-163°. (The failure ranges
+    max out at 0 and 180 asymptotically; I tried up to k = 5000 and couldn't get rid of 0° and 180°, but they might
+    disappear eventually.)
+    
+    My theta0 is defined in config.harmonic_angle_equilibrium_value(), = math.pi - (two_pi / len(LeadingEdge.items())).
+    i.e. ranging from just below 180°, down to, say, 145° when there are 10 particles left in the ring. So I need
+    those higher values of theta0 to work.
+    
+    Can I improve this behavior by tweaking other params? I'd like to keep k=5 for now if I can.
+    Making min greater than its default of zero changes the specific ranges, but not in a helpful way.
+    Tolerance defaults to 0.005 * (max - min). If I don't change min & max, then they default to 0 and π,
+    so tol= 0.005 * π. As I raise tol, the failure zones shrink. With 0.008 * π, everything works for my
+    desired parameters (k = 5, theta0 = anything)
+    
+    Conclusion: I can reduce k to 1.9 instead of 5, and avoid the bug. I tried it, the sim works pretty
+    well, but not as pretty as I'd like. The leading edge is wavier. I would like to stick with k = 5.
+    
+    Increase tolerance to 0.008 * π, seems *maybe* less wavy, but also more jittery at the edge.
+    
+    But these effects also seem to depend on how many holes are present, which varies. (Maybe varies *because*
+    of these parameters, but hard to say for sure.) So, maybe want to put off a final decision until after the
+    holes are fixed, then see what I prefer. Might want to end up splitting the difference: reduce k at least a
+    little, if it improves the jitter, but not so much that it gets more wavy. Select k first, then reevaluate
+    to see how much the tolerance needs to be raised.
+    """
+    for degs in range(180, -1, -1):
+        k = 5
+        pot: tf.Potential = tf.Potential.harmonic_angle(k=k, theta0=math.radians(degs), tol=0.008 * math.pi)
+        print(f"{degs}: {pot}")
+
+# _test_harmonic_angle()
