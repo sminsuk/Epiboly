@@ -23,6 +23,7 @@ from control_flow import dynamics as dyn, \
     exec_tests as xt
 import neighbors as nbrs
 from utils import tf_utils as tfu,\
+    epiboly_utils as epu,\
     global_catalogs as gc
 
 from control_flow.interactive import is_interactive, toggle_visibility
@@ -228,11 +229,6 @@ def initialize_bonded_edge():
     def create_bonds():
         print("Bonding ring particles.")
         
-        def theta(particle):
-            # theta relative to the animal/vegetal axis
-            r, theta, phi = particle.sphericalPosition(origin=big_particle.position)
-            return theta
-
         # Use for each of the bonds we'll create here
         r0 = LeadingEdge.radius * 2
         small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
@@ -242,7 +238,7 @@ def initialize_bonded_edge():
                                                               )
 
         # Sort all the new particles on theta, into a new list (copy, not live)
-        sorted_particles = sorted(LeadingEdge.items(), key=theta)
+        sorted_particles = sorted(LeadingEdge.items(), key=epu.embryo_theta)
         
         # Now they can just be bonded in the order in which they are in the list
         previous_particle = sorted_particles[-1]  # last one
@@ -267,11 +263,6 @@ def initialize_leading_edge_bending_resistance() -> None:
     """
     print("Adding Angles to ring particles.")
 
-    def spherical_coordinates_theta(particle: tf.ParticleHandle) -> float:
-        # theta relative to the animal/vegetal axis
-        r, theta, phi = particle.sphericalPosition(origin=big_particle.position)
-        return theta
-
     if not cfg.angle_bonds_enabled:
         return
     
@@ -282,7 +273,7 @@ def initialize_leading_edge_bending_resistance() -> None:
     # Sort all the leading edge particles on spherical coordinate theta, into a new list (copy, not live).
     # This is just like when we made the bonds. Now that we have the bonds, we COULD follow the links from
     # particle to particle, but it's easier to just sort the list of particles by theta again.
-    sorted_particles = sorted(LeadingEdge.items(), key=spherical_coordinates_theta)
+    sorted_particles = sorted(LeadingEdge.items(), key=epu.embryo_theta)
 
     # Now they can just be processed in the order in which they are in the list
     previous_particle = sorted_particles[-1]  # last one

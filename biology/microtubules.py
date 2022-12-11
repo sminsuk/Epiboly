@@ -5,7 +5,8 @@ import math
 import tissue_forge as tf
 from epiboly_init import Big, LeadingEdge
 import config as cfg
-from utils import tf_utils as tfu
+from utils import tf_utils as tfu,\
+    epiboly_utils as epu
 
 def update_tangent_forces(magnitude: int) -> None:
     """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
@@ -17,9 +18,8 @@ def update_tangent_forces(magnitude: int) -> None:
     have arrived.
     """
     # For now, add a vector of fixed magnitude, in the tangent direction
-    big_particle = Big.particle(0)
     for p in LeadingEdge.items():
-        r, theta, phi = p.sphericalPosition(particle=big_particle)
+        theta, phi = epu.embryo_coords(p)
         tangent_phi = phi + cfg.pi_over_2
         tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([magnitude, theta, tangent_phi])
 
@@ -45,7 +45,7 @@ def apply_even_tangent_forces(magnitude: int) -> None:
         weight: float = 0
         
     def get_particle_data(p: tf.ParticleHandle) -> ParticleData:
-        r, theta, phi = p.sphericalPosition(particle=big_particle)
+        theta, phi = epu.embryo_coords(p)
         return ParticleData(p, theta, phi)
     
     p: tf.ParticleHandle

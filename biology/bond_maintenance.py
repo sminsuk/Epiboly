@@ -9,6 +9,7 @@ import tissue_forge as tf
 from epiboly_init import Little, LeadingEdge
 import config as cfg
 from utils import tf_utils as tfu,\
+    epiboly_utils as epu,\
     global_catalogs as gc
 
 import neighbors as nbrs
@@ -459,14 +460,14 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                                            f" leading edge neighbors??? Should always be exactly 2!"
         
         neighbor1, neighbor2 = bonded_neighbors
-        pz: float = p.position.z()
-        if pz <= neighbor1.position.z() or pz <= neighbor2.position.z():
+        p_phi: float = epu.embryo_phi(p)
+        if p_phi >= epu.embryo_phi(neighbor1) or p_phi >= epu.embryo_phi(neighbor2):
             # Overly strict test for validity of doing this operation on this particle. We only want to do it
-            # if the edge of the EVL is concave here. If z of the particle is greater than z of the other two
-            # particles, it's definitely concave. If it's less than the other two, it's definitely convex and
+            # if the edge of the EVL is concave here. If phi of the particle is less than phi of the other two
+            # particles, it's definitely concave. If it's greater than the other two, it's definitely convex and
             # we reject the operation. If it's between the other two, then it may be either convex or concave,
             # but I don't know how to detect the difference without using slow trigonometry; so for now just reject
-            # the operation.
+            # the operation. (Of course, embryo_phi() also uses trig, but at least tf handles it in C++.)
             return 0
         
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
