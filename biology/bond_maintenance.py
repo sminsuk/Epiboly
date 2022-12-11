@@ -1,5 +1,4 @@
 """Handle the remodeling of the bond network as the tissue changes shape"""
-import functools
 import math
 import random
 import time
@@ -70,10 +69,6 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
         breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
         becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
         """
-        def addition(x: float, y: float) -> float:
-            """Just to avoid lambda repetition, for use with reduce(), in delta_energy_adhesion() below"""
-            return x + y
-        
         def delta_energy_adhesion(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
             # An option: limit this to only internal bond remodeling, not edge remodeling:
             # if becoming:
@@ -101,12 +96,12 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             p1p2_weight: float = 1 / p1.distance(p2)
             p1p2_energy: float = cfg.adhesion_energy[p1.type_id][p2.type_id] * p1p2_weight
             
-            p1_energy_sum: float = functools.reduce(addition, p1_energies)
-            p2_energy_sum: float = functools.reduce(addition, p2_energies)
+            p1_energy_sum: float = sum(p1_energies)
+            p2_energy_sum: float = sum(p2_energies)
             energy_sum_without: float = p1_energy_sum + p2_energy_sum
             energy_sum_with: float = energy_sum_without + p1p2_energy
-            particle_total_without: float = (functools.reduce(addition, p1_weighted_count)
-                                             + functools.reduce(addition, p2_weighted_count))
+            particle_total_without: float = (sum(p1_weighted_count)
+                                             + sum(p2_weighted_count))
             particle_total_with: float = particle_total_without + p1p2_weight
             
             mean_energy_without: float = energy_sum_without / particle_total_without
