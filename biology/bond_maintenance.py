@@ -483,16 +483,16 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             return 1
         return 0
     
-    def attempt_recruit_from_internal(p: tf.ParticleHandle) -> int:
+    def attempt_recruit_from_internal(p: tf.ParticleHandle) -> tuple[int, int]:
         """For LeadingEdge particles only. Break the bond with one bonded leading edge neighbor, but only
         if there is an internal particle bonded to both of them. That internal particle becomes leading edge.
         If there are more than one such particle, pick the one with the shortest combined path.
         
         This BREAKS a bond.
-        returns: number of bonds broken
+        returns: number of bonds that became edge, number of bonds broken
         """
         # #### Bypass:
-        # return attempt_break_bond(p)
+        # return 0, attempt_break_bond(p)
         
         # #### Actual implementation:
         leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
@@ -519,14 +519,14 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                                          default=None)
         
         if not recruit:
-            return 0
+            return 0, 0
             
         if cfg.angle_bonds_enabled:
             # This more natural criterion for preventing runaway edge recruitment seems to work.
             # Still not perfect. Would be better to make this unnecessary, too.
             recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
             if recruit_angle < cfg.leading_edge_recruitment_min_angle:
-                return 0
+                return 0, 0
         else:
             # Hoped that algorithm improvements would make this unnecessary. With Angle bonds, the above
             # improved version works, but when they are disabled, still need to fall back to this.
@@ -535,13 +535,13 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
                 # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
                 # but at the moment I need it to get this working
-                return 0
+                return 0, 0
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
         # (instead of simply breaking those extra bonds, like before, which led to problems).
         num_bonds_to_leading_edge: int = nbrs.count_neighbors_of_type(recruit, ptype=LeadingEdge)
         if num_bonds_to_leading_edge > 2:
-            return 0
+            return 0, 0
 
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
             # In case recruit is bonded to an *internal* particle that already has the maximum edge bonds,
@@ -566,8 +566,8 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
             
             # test_ring_is_fucked_up()
-            return 1 + len(saturated_internal_neighbors)    # + len(extraneous_bonds)
-        return 0
+            return 1, 1 + len(saturated_internal_neighbors)
+        return 0, 0
 
     assert k_neighbor_count >= 0 and k_angle >= 0, f"k values must be non-negative; " \
                                                    f"k_neighbor_count = {k_neighbor_count}, k_angle = {k_angle}"
@@ -599,9 +599,9 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             total_bonded += result
             total_to_internal += result
         else:
-            result = attempt_recruit_from_internal(p)
-            total_broken += result
-            total_to_edge += result
+            became_edge, got_broken = attempt_recruit_from_internal(p)
+            total_broken += got_broken
+            total_to_edge += became_edge
     end = time.perf_counter()
 
     print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {end - start} sec. "
