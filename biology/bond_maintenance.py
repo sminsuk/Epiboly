@@ -557,6 +557,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
             recruit.become(LeadingEdge)
             recruit.style.color = LeadingEdge.style.color
             recruit.style.visible = True
+            recruit.force_init = [0, 0, 0]  # remove particle diffusion force
             
             remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
             
@@ -674,11 +675,17 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
     """
     phandle: tf.ParticleHandle
     for phandle in Little.items():
-        bonded_neighbor_positions: tuple[tf.fVector3] = phandle.getBondedNeighbors().positions
-        vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
-        centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
-        force: tf.fVector3 = (phandle.position - centroid) * k_particle_diffusion
-        phandle.force_init = force.as_list()
+        neighbor: tf.ParticleHandle
+        if any([neighbor.type_id == LeadingEdge.id for neighbor in phandle.getBondedNeighbors()]):
+            # Can't add diffusion force for particles bound to leading edge, or they'll go careening into that
+            # open space. Particularly particles immediately after transforming from edge to internal type.
+            phandle.force_init = [0, 0, 0]
+        else:
+            bonded_neighbor_positions: tuple[tf.fVector3] = phandle.getBondedNeighbors().positions
+            vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
+            centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
+            force: tf.fVector3 = (phandle.position - centroid) * k_particle_diffusion
+            phandle.force_init = force.as_list()
         
 
 def maintain_bonds(k_adhesion: float = 0, k_neighbor_count: float = 0.4, k_angle: float = 2,
