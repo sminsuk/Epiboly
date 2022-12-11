@@ -110,9 +110,6 @@ def initialize_interior(leading_edge_phi):
     # by converting them to fVector3 here.
     scale: float = Big.radius + LeadingEdge.radius
     
-    # (note, if testing with the old random_points() above, don't use su.vec because the
-    # vectors here are already in that form, and it will crash.)
-    # final_position = lambda vector: big_particle.position + su.vec(vector) * scale
     def final_position(vector):
         return big_particle.position + tf.fVector3(vector) * scale
     
