@@ -664,10 +664,28 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
             r: float = p1.distance(p2)
             
             relax_bond(bhandle, r0, r, viscosity, p1, p2)
+            
+def _move_toward_open_space(k_particle_diffusion: float) -> None:
+    """Prevent gaps from opening up by giving particles a nudge to move toward open space.
+    
+    This should prevent the situation where particles look for potential bonding partners but can't find one
+    in the direction in which they are most needed (the direction of a hole). For the moment, this applies only
+    to internal particles.
+    """
+    phandle: tf.ParticleHandle
+    for phandle in Little.items():
+        bonded_neighbor_positions: tuple[tf.fVector3] = phandle.getBondedNeighbors().positions
+        vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
+        centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
+        force: tf.fVector3 = (phandle.position - centroid) * k_particle_diffusion
+        phandle.force_init = force.as_list()
+        
 
 def maintain_bonds(k_adhesion: float = 0, k_neighbor_count: float = 0.4, k_angle: float = 2,
                    k_edge_neighbor_count: float = 2, k_edge_angle: float = 2,
+                   k_particle_diffusion: float = 0,
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
     _make_break_or_become(k_adhesion, k_neighbor_count, k_angle,
                           k_edge_neighbor_count, k_edge_angle, verbose=False)
+    _move_toward_open_space(k_particle_diffusion)
     _relax(relaxation_saturation_factor, viscosity)
