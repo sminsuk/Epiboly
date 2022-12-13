@@ -370,5 +370,19 @@ def _test_harmonic_angle() -> None:
         k = 5
         pot: tf.Potential = tf.Potential.harmonic_angle(k=k, theta0=math.radians(degs), tol=0.008 * math.pi)
         print(f"{degs}: {pot}")
+        
+    # With k=5, tol=default, fails with theta0= 150°, but succeeds at 165°. At tol=0.008, both theta0 succeed.
+    test_pot_005_165: tf.Potential = tf.Potential.harmonic_angle(k=5, theta0=math.radians(165), tol=0.005 * math.pi)
+    test_pot_008_165: tf.Potential = tf.Potential.harmonic_angle(k=5, theta0=math.radians(165), tol=0.008 * math.pi)
+    test_pot_008_150: tf.Potential = tf.Potential.harmonic_angle(k=5, theta0=math.radians(150), tol=0.008 * math.pi)
+    test_pot_005_165.plot(force=False, potential=True, max=math.pi)
+    test_pot_008_165.plot(force=False, potential=True, max=math.pi)
+    test_pot_008_150.plot(force=False, potential=True, max=math.pi)
+    
+    test_pot_lower_k_150: tf.Potential = tf.Potential.harmonic_angle(k=1.9, theta0=math.radians(150))
+    test_pot_tiny_k_bigger_min: tf.Potential = tf.Potential.harmonic_angle(k=0.5, theta0=math.radians(150),
+                                                                           min=math.pi/4)
+    test_pot_lower_k_150.plot(force=False, potential=True, max=math.pi)
+    test_pot_tiny_k_bigger_min.plot(force=False, potential=True, max=math.pi)
 
 # _test_harmonic_angle()
