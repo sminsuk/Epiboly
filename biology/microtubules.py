@@ -49,7 +49,6 @@ def apply_even_tangent_forces(magnitude: int) -> None:
         return ParticleData(p, theta, phi)
     
     p: tf.ParticleHandle
-    big_particle = Big.particle(0)
     total_force: float = magnitude * len(LeadingEdge.items())
     particle_data_list: list[ParticleData] = [get_particle_data(p) for p in LeadingEdge.items()]
     sorted_on_theta: list[ParticleData] = sorted(particle_data_list, key=lambda data: data.theta)
