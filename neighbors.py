@@ -127,7 +127,7 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     non_bonded_neighbors: list[tf.ParticleHandle]
     
     # Who am I already bonded to?
-    if tf.version.version == "0.0.2":
+    if tf.version.version != "0.0.1":
         print(f"phandle = {phandle}, len(bonds) = {len(phandle.bonds)}")
         print(f"bond ids = {[b.id for b in phandle.bonds]}")
         my_bonded_neighbor_ids = [neighbor.id for neighbor in phandle.bonded_neighbors]

@@ -235,9 +235,14 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
 
 def other_particle(p: tf.ParticleHandle, b: tf.BondHandle) -> tf.ParticleHandle:
     """Given a particle and one of its bonds, get the particle bonded to"""
+    if tf.version.version != "0.0.1":
+        print(f"p = {p}, type(p) = {type(p)}")
     assert p.id in b.parts, f"Bond {b.id} does not belong to particle {p.id}"
     id1, id2 = b.parts
     gcdict = gc.particles_by_id
+    if tf.version.version != "0.0.1":
+        print(f"id1 = {id1}, p = {p}, p.id = {p.id}")
+    # Todo: In 0.0.2, this will crash because .parts now returns ParticleHandles, not particle ids!
     if id1 == p.id:
         return gcdict[id2]["handle"]
     else:
@@ -256,6 +261,7 @@ def bond_distance(b: tf.BondHandle) -> float:
     return p1.distance(p2)
 
 def cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
+    """ToDo: Once version 0.0.2 is working, it has built-in cross!"""
     return tf.fVector3([v1.y() * v2.z() - v1.z() * v2.y(),
                         v1.z() * v2.x() - v1.x() * v2.z(),
                         v1.x() * v2.y() - v1.y() * v2.x()])
@@ -279,6 +285,7 @@ def truncate(dotprod: float) -> float:
         return dotprod
 
 def angle_from_unit_vectors(unit_vector1: tf.fVector3, unit_vector2: tf.fVector3) -> float:
+    """ToDo: Once version 0.0.2 is working, it has built-in angle from vectors!"""
     cosine: float = truncate(unit_vector1.dot(unit_vector2))
     radians: float = math.acos(cosine)
 
