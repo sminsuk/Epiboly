@@ -3,28 +3,10 @@ from dataclasses import dataclass
 import math
 
 import tissue_forge as tf
-from epiboly_init import Big, LeadingEdge
+from epiboly_init import LeadingEdge
 import config as cfg
 from utils import tf_utils as tfu,\
     epiboly_utils as epu
-
-def update_tangent_forces(magnitude: int) -> None:
-    """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
-    
-    Deprecated.
-    
-    Still to do! This needs a stopping criterion. Based on angle of phi? Or distance of particle
-    from the vegetal pole? Needs criterion both for the individual particle, and for when all of them
-    have arrived.
-    """
-    # For now, add a vector of fixed magnitude, in the tangent direction
-    for p in LeadingEdge.items():
-        theta, phi = epu.embryo_coords(p)
-        tangent_phi = phi + cfg.pi_over_2
-        tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([magnitude, theta, tangent_phi])
-
-        # The assignment runs into the copy-constructor bug! So change to plain list
-        p.force_init = tangent_force_vec.as_list()
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""
@@ -33,7 +15,9 @@ def remove_tangent_forces() -> None:
     print("Tangent forces removed")
 
 def apply_even_tangent_forces(magnitude: int) -> None:
-    """To apply force evenly, must take into account not only the variation in density around the marginal ring, but
+    """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
+    
+    To apply force evenly, must take into account not only the variation in density around the marginal ring, but
     also the effect of radius: if density is measured by delta theta between neighboring edge cells, then a region of
     cells will seem to get less "dense" as it approaches the vegetal pole because the theta between them will increase.
     """
@@ -77,5 +61,7 @@ def apply_even_tangent_forces(magnitude: int) -> None:
         mag: float = total_force * particle_data.weight / weight_total
         tangent_phi = particle_data.phi + cfg.pi_over_2
         tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([mag, particle_data.theta, tangent_phi])
+        
+        # The assignment runs into the copy-constructor bug! So change to plain list
         particle_data.phandle.force_init = tangent_force_vec.as_list()
 

@@ -368,9 +368,6 @@ initialize_leading_edge_bending_resistance()
 # toggle_visibility()
 # toggle_visibility()
 dyn.execute_repeatedly(tasks=[
-        # {"invoke": mt.update_tangent_forces,
-        #  "args": {"magnitude": 5}
-        #  },
         {"invoke": mt.apply_even_tangent_forces,
          "args": {"magnitude": 5}
          },
@@ -379,9 +376,6 @@ dyn.execute_repeatedly(tasks=[
 
 tf.show()
 dyn.execute_repeatedly(tasks=[
-        # {"invoke": mt.update_tangent_forces,
-        #  "args": {"magnitude": 5}
-        #  },
         {"invoke": mt.apply_even_tangent_forces,
          "args": {"magnitude": 5}
          },
