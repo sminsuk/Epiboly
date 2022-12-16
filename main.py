@@ -355,6 +355,11 @@ equilibrate_to_leading_edge(300)
 add_interior_bonds()
 initialize_leading_edge_bending_resistance()
 
+# ##### Test! #####
+# p: tf.ParticleHandle = Little.items()[0]
+# other_p: tf.ParticleHandle = nbrs.get_nearest_non_bonded_neighbor(p)
+# nbrs.get_ordered_bonded_neighbors(p, other_p)
+
 # toggle_visibility()
 # toggle_visibility()
 dyn.execute_repeatedly(tasks=[
