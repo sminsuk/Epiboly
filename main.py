@@ -1,14 +1,4 @@
-"""Epiboly simulation
-
-In progress: bond breaking & remaking
-
-Third experiment with bond maintenance: now, with stress relaxation.
-
-Break bonds with a probability proportional to tension. Probability a linear function of energy (between r0 and
-a multiple of r0).
-
-Make new bonds whenever particles approach close enough to qualify as "nearby", same as the initial setup.
-"""
+"""Epiboly simulation"""
 
 import math
 import time
