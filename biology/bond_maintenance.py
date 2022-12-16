@@ -690,9 +690,17 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
 
 def maintain_bonds(k_adhesion: float = 0, k_neighbor_count: float = 0.4, k_angle: float = 2,
                    k_edge_neighbor_count: float = 2, k_edge_angle: float = 2,
-                   k_particle_diffusion: float = 20,
-                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
+                   k_particle_diffusion: float = 40,
+                   relaxation_saturation_factor: float = 2, viscosity: float = 0.001) -> None:
     _make_break_or_become(k_adhesion, k_neighbor_count, k_angle,
                           k_edge_neighbor_count, k_edge_angle, verbose=False)
     _move_toward_open_space(k_particle_diffusion)
     _relax(relaxation_saturation_factor, viscosity)
+    
+    # Notes on parameters: with relaxation disabled (viscosity=0), k_particle_diffusion=20 works well.
+    # When relaxation is enabled (viscosity=0.001), surprisingly, we get more holes, not fewer. A higher
+    # value of k_particle_diffusion seems to be needed, then. 40 works okay, might try a little higher,
+    # but 50 was way too much and produced instability. Also, a higher viscosity may be needed because
+    # the recoil after disabling the external force seems like still too much.
+    #
+    # To be revisited later after I reconsider/retool the particle diffusion algorithm.
