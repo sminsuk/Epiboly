@@ -221,7 +221,7 @@ def initialize_bonded_edge():
         small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
                                                               k=cfg.harmonic_edge_spring_constant,
                                                               min=r0,
-                                                              max=6
+                                                              max=cfg.max_potential_cutoff
                                                               )
 
         # Sort all the new particles on theta, into a new list (copy, not live)
