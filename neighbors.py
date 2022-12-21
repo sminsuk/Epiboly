@@ -187,7 +187,7 @@ def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
     return nearest_neighbor
 
 def get_shared_bonded_neighbors(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.ParticleHandle]:
-    """"""
+    """If there are none, returns empty list"""
     phandle: tf.ParticleHandle
     p1_ids: list[int] = [phandle.id for phandle in p1.getBondedNeighbors()]
     shared_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p2.getBondedNeighbors()
