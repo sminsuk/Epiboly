@@ -6,4 +6,12 @@ __pycache__
 
 # This file appeared as a new, untracked file when I told PyCharm to turn off the grammar checks.
 # This is not project related!
+# And ugh, cloning my project onto a new machine caused the file to appear again as an untracked file,
+# under a new name (because my user name is different on the two machines), so I had to add that second filename.
+# Any future user of the code will see the same thing happen them and will have to add their own named file to
+# this list if they want to keep their git status clean.
+# This file is located in .idea/dictionaries/, the only file there, so I considered using a wildcard to ignore
+# ALL *.xml files in that location, but that may not be safe without some assurance that PyCharm won't ever
+# put any other file in the same location.
 sharon.xml
+sminsuk.xml
