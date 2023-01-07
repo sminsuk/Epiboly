@@ -2,8 +2,10 @@
 
 These are general purpose utility functions for Tissue Forge, not specific to any particular simulation.
 """
+from datetime import datetime, timezone
 import math
 import numpy as np
+import os
 import os.path as path
 import sys
 import traceback
@@ -395,18 +397,35 @@ def _test_harmonic_angle() -> None:
 
 # _test_harmonic_angle()
 
+def timestring() -> str:
+    # timezone-aware local time in local timezone:
+    local: datetime = datetime.now(timezone.utc).astimezone()
+
+    # 12-hr clock, with am/pm and timezone, and no colons, e.g. '2023-01-07 12-50-35 AM PST'
+    # (i.e., suitable for directory or file name)
+    return local.strftime("%Y-%m-%d %I-%M-%S %p %Z")
+
 def init_screenshots() -> None:
     """
-    WIP. Expected to need here:
-    1. Create a directory inside _image_root, with a meaningful & unique name: DateTime, params?
-        (But first, find out if I can even save ONE file before accomodating multiple ones.)
-    2. Or maybe output a text file to that directory? With lots of metadata. DateTime, params, etc.
-    3. Add the directory name to _image_root, should only have to do this once.
+    Set up directories for all image output: root directory for all output from the current script, ever;
+    and a subdirectory for all output of the CURRENT RUN of the current script.
+    
+    Maybe ToDo: output a text file to that directory? With lots of metadata. DateTime, params, etc.?
     """
-    pass
+    global _image_dir
+    
+    # one directory for all TF output from this script, ever:
+    image_root = path.expanduser("~/TissueForge_image_export/")
+    
+    # subdirectory with unique name for all output of the current run:
+    _image_dir = image_root + timestring()
+    
+    # Creates the parent directory if it doesn't yet exist; and the subdirectory UNLESS it already exists:
+    os.makedirs(_image_dir)
 
-_image_root: str = path.expanduser("~/TissueForge_image_export/")
+_image_dir: str
 _image_export_enabled: bool = True
+init_screenshots()
 
 def save_screenshot() -> int:
     """
@@ -423,8 +442,9 @@ def save_screenshot() -> int:
     _image_export_enabled = False
     
     filename: str = "test.jpg"
-    path: str = _image_root + filename
+    path: str = f"{_image_dir}/{filename}"
     print(f"Saving file to '{path}'")
     result: int = tf.system.screenshot(path, decorate=False, bgcolor=[0, 0, 0])
-    print(f"Screenshot save result code = {result}")
+    if result != 0:
+        print(f"Something went wrong, result code = {result}")
     return result
