@@ -344,14 +344,23 @@ def reset_camera():
 def equilibrate_to_leading_edge(steps: int = 1):
     freeze_leading_edge(True)
     tf.step(steps)
+    tfu.save_screenshot()
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
+tfu.save_screenshot()
+tfu._image_export_enabled = True
+
 # Future note: I'd like to be able to enable lagging here, programmatically, but it's missing from the API.
 # TJ will add it in a future release.
 reset_camera()
 print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(300)
+
+tfu._image_export_enabled = True
+tfu.save_screenshot()
+tfu._image_export_enabled = True
+
 add_interior_bonds()
 initialize_leading_edge_bending_resistance()
 
@@ -363,6 +372,7 @@ initialize_leading_edge_bending_resistance()
 # toggle_visibility()
 # toggle_visibility()
 dyn.execute_repeatedly(tasks=[
+        {"invoke": tfu.save_screenshot},
         {"invoke": mt.apply_even_tangent_forces,
          "args": {"magnitude": 5}
          },
@@ -371,6 +381,7 @@ dyn.execute_repeatedly(tasks=[
 
 tf.show()
 dyn.execute_repeatedly(tasks=[
+        {"invoke": tfu.save_screenshot},
         {"invoke": mt.apply_even_tangent_forces,
          "args": {"magnitude": 5}
          },
@@ -401,4 +412,7 @@ dyn.execute_repeatedly(tasks=[
 #
 # toggle_radius()
 # toggle_radius()
+tfu._image_export_enabled = True
+# tfu.save_screenshot()
+# tfu._image_export_enabled = True
 tf.show()

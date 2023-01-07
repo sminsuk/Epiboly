@@ -4,6 +4,7 @@ These are general purpose utility functions for Tissue Forge, not specific to an
 """
 import math
 import numpy as np
+import os.path as path
 import sys
 import traceback
 from typing import Optional
@@ -393,3 +394,37 @@ def _test_harmonic_angle() -> None:
     test_pot_tiny_k_bigger_min.plot(force=False, potential=True, max=math.pi)
 
 # _test_harmonic_angle()
+
+def init_screenshots() -> None:
+    """
+    WIP. Expected to need here:
+    1. Create a directory inside _image_root, with a meaningful & unique name: DateTime, params?
+        (But first, find out if I can even save ONE file before accomodating multiple ones.)
+    2. Or maybe output a text file to that directory? With lots of metadata. DateTime, params, etc.
+    3. Add the directory name to _image_root, should only have to do this once.
+    """
+    pass
+
+_image_root: str = path.expanduser("~/TissueForge_image_export/")
+_image_export_enabled: bool = True
+
+def save_screenshot() -> int:
+    """
+    WIP. For now, trying this with an existing directory. And just one image.
+    Didn't work: png gives blank image (black even if I set a different bgcolor)
+        (**Until** I launch the simulator; then it works after that, even after dismissing the simulator!
+        Could have sworn I had already tried that.)
+    Tried all the other formats, they crash the app, segfault!
+    """
+    # For now, just do this once:
+    global _image_export_enabled
+    if not _image_export_enabled:
+        return 1
+    _image_export_enabled = False
+    
+    filename: str = "test.jpg"
+    path: str = _image_root + filename
+    print(f"Saving file to '{path}'")
+    result: int = tf.system.screenshot(path, decorate=False, bgcolor=[0, 0, 0])
+    print(f"Screenshot save result code = {result}")
+    return result
