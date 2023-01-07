@@ -427,13 +427,18 @@ _image_dir: str
 _image_export_enabled: bool = True
 init_screenshots()
 
-def save_screenshot() -> int:
+def save_screenshot(annotation: str = None) -> int:
     """
-    WIP. For now, trying this with an existing directory. And just one image.
     Didn't work: png gives blank image (black even if I set a different bgcolor)
         (**Until** I launch the simulator; then it works after that, even after dismissing the simulator!
         Could have sworn I had already tried that.)
     Tried all the other formats, they crash the app, segfault!
+    
+    Give the file a (hopefully) unique name, by using annotation or Universe.time as the filename.
+    To keep the filenames unique:
+    1. Caller should not use the same annotation twice; think of it as a context-sensitive tag.
+    2. Caller *should* provide annotations for multiple shots when simulation is paused (or not yet started)
+    3. Caller should *not* provide an annotation at all when calling from within a repeated event
     """
     # For now, just do this once:
     global _image_export_enabled
@@ -441,7 +446,9 @@ def save_screenshot() -> int:
         return 1
     _image_export_enabled = False
     
-    filename: str = "test.jpg"
+    if not annotation:
+        annotation = f"Simulation time = {round(tf.Universe.time, 2)}"
+    filename: str = f"{annotation}.jpg"
     path: str = f"{_image_dir}/{filename}"
     print(f"Saving file to '{path}'")
     result: int = tf.system.screenshot(path, decorate=False, bgcolor=[0, 0, 0])
