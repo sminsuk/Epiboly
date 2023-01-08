@@ -413,6 +413,8 @@ def init_screenshots() -> None:
     Maybe ToDo: output a text file to that directory? With lots of metadata. DateTime, params, etc.?
     """
     global _image_dir
+    if not screenshot_export_enabled():
+        return
     
     # one directory for all TF output from this script, ever:
     image_root = path.expanduser("~/TissueForge_image_export/")
@@ -422,21 +424,6 @@ def init_screenshots() -> None:
     
     # Creates the parent directory if it doesn't yet exist; and the subdirectory UNLESS it already exists:
     os.makedirs(_image_dir)
-
-_image_dir: str
-_previous_screenshot_timestep: int = 0
-_current_screenshot_timestep: int = 0
-init_screenshots()
-
-# Screenshot export: Use 0 to mean, display rendering only, no export;
-# Anything greater than 0, export only, and no display rendering
-# (That was the intent, for a workaround that unfortunately did not work around.
-# So for now, can export but still have to run everything in the simulator.)
-_screenshot_export_interval: int = 100
-
-def screenshot_export() -> bool:
-    """Read-only version of _screenshot_export_interval to be used by callers as a flag"""
-    return _screenshot_export_interval != 0
 
 def _export_screenshot(filename: str) -> None:
     path: str = f"{_image_dir}/{filename}"
@@ -455,6 +442,9 @@ def save_screenshot(filename: str, show_timestep: bool = True) -> None:
     For use outside of timestep events. A single one-off export. Caller provides filename (no extension).
     Timestep will be appended to filename unless show_timestep = False (and filename is not blank).
     """
+    if not screenshot_export_enabled():
+        return
+
     suffix: str = f"Timestep = {_current_screenshot_timestep}"
     suffix += f"; Universe.time = {round(tf.Universe.time, 2)}"
     if not filename:
@@ -467,6 +457,8 @@ def save_screenshot(filename: str, show_timestep: bool = True) -> None:
 def save_screenshot_repeatedly() -> None:
     """For use inside timestep events. Keeps track of export interval, and names files accordingly"""
     global _previous_screenshot_timestep, _current_screenshot_timestep
+    if not screenshot_export_enabled():
+        return
     
     # Note that this implementation means that the first time this function is ever called, the screenshot
     # will always be saved, and will be defined (and labeled) as Timestep 0. Even if the simulation has
@@ -483,3 +475,18 @@ def save_screenshot_repeatedly() -> None:
         
     _current_screenshot_timestep += 1
     
+_image_dir: str
+_previous_screenshot_timestep: int = 0
+_current_screenshot_timestep: int = 0
+
+# Screenshot export: Use 0 to mean, display rendering only, no export;
+# Anything greater than 0, export only, and no display rendering
+# (That was the intent, for a workaround that unfortunately did not work around.
+# So for now, can export but still have to run everything in the simulator.)
+_screenshot_export_interval: int = 100
+
+def screenshot_export_enabled() -> bool:
+    """Read-only version of _screenshot_export_interval to be used by callers as a flag"""
+    return _screenshot_export_interval != 0
+
+init_screenshots()

@@ -386,7 +386,7 @@ dyn.execute_repeatedly(tasks=[
 # tf.step() - changes in the sim are not captured. This is starting to feel like it's related to the interactivity
 # bugs that were allegedly fixed in v 0.0.2. Too bad I can't use that yet! So, table this for now.
 #
-# if tfu.screenshot_export():
+# if tfu.screenshot_export_enabled():
 #     tf.show()   # User must close the simulator manually, then here, screenshots() work until you interrupt the script
 #     while True:
 #         tf.step()
