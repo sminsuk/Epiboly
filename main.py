@@ -415,4 +415,12 @@ dyn.execute_repeatedly(tasks=[
 # toggle_radius()
 tfu.save_screenshot(f"Between two invocations of tf.show()")
 tf.show()
+
+# Test: Once having returned from tf.show(), can we now get screenshots during tf.step()?
+# If it works, then I have a workaround for avoiding display rendering.
+# Leave the Task list alone and just do some stepping. (It works!)
+tfu.save_screenshot(f"After 2nd invocation of tf.show(), before trying tf.step()")
+print("Now stepping, 3 time units (~300 steps)")
+tf.step(until=3)
+
 tfu.save_screenshot(f"Final")
