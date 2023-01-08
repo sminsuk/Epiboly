@@ -424,10 +424,19 @@ def init_screenshots() -> None:
     os.makedirs(_image_dir)
 
 _image_dir: str
-_screenshot_export_interval: int = 100
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 init_screenshots()
+
+# Screenshot export: Use 0 to mean, display rendering only, no export;
+# Anything greater than 0, export only, and no display rendering
+# (That was the intent, for a workaround that unfortunately did not work around.
+# So for now, can export but still have to run everything in the simulator.)
+_screenshot_export_interval: int = 100
+
+def screenshot_export() -> bool:
+    """Read-only version of _screenshot_export_interval to be used by callers as a flag"""
+    return _screenshot_export_interval != 0
 
 def _export_screenshot(filename: str) -> None:
     path: str = f"{_image_dir}/{filename}"

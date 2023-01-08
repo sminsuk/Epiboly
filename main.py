@@ -380,6 +380,19 @@ dyn.execute_repeatedly(tasks=[
         {"invoke": bonds.maintain_bonds},
         ])
 
+# Initial rudimentary version of workaround to get exports to work in tf.step()
+# Only partial failure; on the one hand, the screenshots themselves do work, if you do this.
+# (You get an image instead of a black field.) However, they are all identical, once you go into a loop of
+# tf.step() - changes in the sim are not captured. This is starting to feel like it's related to the interactivity
+# bugs that were allegedly fixed in v 0.0.2. Too bad I can't use that yet! So, table this for now.
+#
+# if tfu.screenshot_export():
+#     tf.show()   # User must close the simulator manually, then here, screenshots() work until you interrupt the script
+#     while True:
+#         tf.step()
+# else:
+#     tf.show()
+
 tf.show()
 dyn.execute_repeatedly(tasks=[
         {"invoke": tfu.save_screenshot_repeatedly},
@@ -418,9 +431,11 @@ tf.show()
 
 # Test: Once having returned from tf.show(), can we now get screenshots during tf.step()?
 # If it works, then I have a workaround for avoiding display rendering.
-# Leave the Task list alone and just do some stepping. (It works!)
-tfu.save_screenshot(f"After 2nd invocation of tf.show(), before trying tf.step()")
-print("Now stepping, 3 time units (~300 steps)")
-tf.step(until=3)
+# Leave the Task list alone and just do some stepping.
+# (It works - to get screenshots. But not useful ones, as they are all identical!)
+#
+# tfu.save_screenshot(f"After 2nd invocation of tf.show(), before trying tf.step()")
+# print("Now stepping, 3 time units (~300 steps)")
+# tf.step(until=3)
 
 tfu.save_screenshot(f"Final")
