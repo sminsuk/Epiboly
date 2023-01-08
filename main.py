@@ -352,6 +352,11 @@ tfu.save_screenshot("After particle initialization, before equilibration", show_
 # Future note: I'd like to be able to enable lagging here, programmatically, but it's missing from the API.
 # TJ will add it in a future release.
 reset_camera()
+# I used the following to test whether save_screenshot() works during tf.step(), prior to ever invoking tf.show().
+# (It doesn't.) Use it again to validate once I have a fix, then can delete.
+dyn.execute_repeatedly(tasks=[
+        # {"invoke": tfu.save_screenshot_repeatedly},
+        ])
 print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(duration=300)
 
