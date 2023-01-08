@@ -447,6 +447,7 @@ def save_screenshot(filename: str, show_timestep: bool = True) -> None:
     Timestep will be appended to filename unless show_timestep = False (and filename is not blank).
     """
     suffix: str = f"Timestep = {_current_screenshot_timestep}"
+    suffix += f"; Universe.time = {round(tf.Universe.time, 2)}"
     if not filename:
         filename = suffix
     elif show_timestep:

@@ -341,9 +341,9 @@ def reset_camera():
     tf.system.camera_view_front()
     tf.system.camera_zoom_to(-12)
 
-def equilibrate_to_leading_edge(steps: int = 1):
+def equilibrate_to_leading_edge(duration: float):
     freeze_leading_edge(True)
-    tf.step(steps)
+    tf.step(until=duration)
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
@@ -353,7 +353,7 @@ tfu.save_screenshot("After particle initialization, before equilibration", show_
 # TJ will add it in a future release.
 reset_camera()
 print("Invisibly equilibrating; simulator will appear shortly...")
-equilibrate_to_leading_edge(300)
+equilibrate_to_leading_edge(duration=300)
 
 tfu.save_screenshot(f"After equilibration", show_timestep=False)
 
