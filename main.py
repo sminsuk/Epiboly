@@ -14,7 +14,8 @@ from control_flow import dynamics as dyn, \
 import neighbors as nbrs
 from utils import tf_utils as tfu,\
     epiboly_utils as epu,\
-    global_catalogs as gc
+    global_catalogs as gc,\
+    video_export as vx
 
 from control_flow.interactive import is_interactive, toggle_visibility
 if is_interactive():
@@ -347,7 +348,7 @@ def equilibrate_to_leading_edge(duration: float):
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
-tfu.save_screenshot("After particle initialization, before equilibration", show_timestep=False)
+vx.save_screenshot("After particle initialization, before equilibration", show_timestep=False)
 
 # Future note: I'd like to be able to enable lagging here, programmatically, but it's missing from the API.
 # TJ will add it in a future release.
@@ -355,12 +356,12 @@ reset_camera()
 # I used the following to test whether save_screenshot() works during tf.step(), prior to ever invoking tf.show().
 # (It doesn't.) Use it again to validate once I have a fix, then can delete.
 dyn.execute_repeatedly(tasks=[
-        # {"invoke": tfu.save_screenshot_repeatedly},
+        # {"invoke": vx.save_screenshot_repeatedly},
         ])
 print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(duration=300)
 
-tfu.save_screenshot(f"After equilibration", show_timestep=False)
+vx.save_screenshot(f"After equilibration", show_timestep=False)
 
 add_interior_bonds()
 initialize_leading_edge_bending_resistance()
@@ -373,7 +374,7 @@ initialize_leading_edge_bending_resistance()
 # toggle_visibility()
 # toggle_visibility()
 dyn.execute_repeatedly(tasks=[
-        {"invoke": tfu.save_screenshot_repeatedly},
+        {"invoke": vx.save_screenshot_repeatedly},
         {"invoke": mt.apply_even_tangent_forces,
          "args": {"magnitude": 5}
          },
@@ -386,7 +387,7 @@ dyn.execute_repeatedly(tasks=[
 # tf.step() - changes in the sim are not captured. This is starting to feel like it's related to the interactivity
 # bugs that were allegedly fixed in v 0.0.2. Too bad I can't use that yet! So, table this for now.
 #
-# if tfu.screenshot_export_enabled():
+# if vx.screenshot_export_enabled():
 #     tf.show()   # User must close the simulator manually, then here, screenshots() work until you interrupt the script
 #     while True:
 #         tf.step()
@@ -395,7 +396,7 @@ dyn.execute_repeatedly(tasks=[
 
 tf.show()
 dyn.execute_repeatedly(tasks=[
-        {"invoke": tfu.save_screenshot_repeatedly},
+        {"invoke": vx.save_screenshot_repeatedly},
         {"invoke": mt.apply_even_tangent_forces,
          "args": {"magnitude": 5}
          },
@@ -426,7 +427,7 @@ dyn.execute_repeatedly(tasks=[
 #
 # toggle_radius()
 # toggle_radius()
-tfu.save_screenshot(f"Between two invocations of tf.show()")
+vx.save_screenshot(f"Between two invocations of tf.show()")
 tf.show()
 
 # Test: Once having returned from tf.show(), can we now get screenshots during tf.step()?
@@ -434,8 +435,8 @@ tf.show()
 # Leave the Task list alone and just do some stepping.
 # (It works - to get screenshots. But not useful ones, as they are all identical!)
 #
-# tfu.save_screenshot(f"After 2nd invocation of tf.show(), before trying tf.step()")
+# vx.save_screenshot(f"After 2nd invocation of tf.show(), before trying tf.step()")
 # print("Now stepping, 3 time units (~300 steps)")
 # tf.step(until=3)
 
-tfu.save_screenshot(f"Final")
+vx.save_screenshot(f"Final")
