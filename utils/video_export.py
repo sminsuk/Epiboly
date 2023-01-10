@@ -1,5 +1,10 @@
-"""Export simulation screenshots"""
+"""Export simulation screenshots and compile them into movies
+
+StackOverflow: https://stackoverflow.com/a/62434934
+Documentation of MoviePy: https://zulko.github.io/moviepy/index.html
+"""
 from datetime import datetime, timezone
+import moviepy.video.io.ImageSequenceClip as movieclip
 import os
 import os.path as path
 
@@ -20,8 +25,9 @@ def init_screenshots() -> None:
     and a subdirectory for all output of the CURRENT RUN of the current script.
 
     Maybe ToDo: output a text file to that directory? With lots of metadata. DateTime, params, etc.?
+    ToDo: in fact, maybe output the console, to capture any errors, etc.? Important for automated runs.
     """
-    global _image_dir
+    global _image_dir, _image_path
     if not screenshot_export_enabled():
         return
     
@@ -29,13 +35,19 @@ def init_screenshots() -> None:
     image_root = path.expanduser("~/TissueForge_image_export/")
     
     # subdirectory with unique name for all output of the current run:
-    _image_dir = image_root + timestring()
+    _image_dir = timestring()
+    
+    # full path to that directory
+    _image_path = os.path.join(image_root, _image_dir)
     
     # Creates the parent directory if it doesn't yet exist; and the subdirectory UNLESS it already exists:
-    os.makedirs(_image_dir)
+    os.makedirs(_image_path)
+    
+    # Temporary junk folder for the exports that currently don't work, so they don't go into the video.
+    os.makedirs(os.path.join(_image_path, "junk"))
 
 def _export_screenshot(filename: str) -> None:
-    path: str = f"{_image_dir}/{filename}"
+    path: str = os.path.join(_image_path, filename)
     print(f"Saving file to '{path}'")
     result: int = tf.system.screenshot(path, decorate=False, bgcolor=[0, 0, 0])
     if result != 0:
@@ -85,6 +97,7 @@ def save_screenshot_repeatedly() -> None:
     _current_screenshot_timestep += 1
 
 _image_dir: str
+_image_path: str
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 
@@ -92,10 +105,44 @@ _current_screenshot_timestep: int = 0
 # Anything greater than 0, export only, and no display rendering
 # (That was the intent, for a workaround that unfortunately did not work around.
 # So for now, can export but still have to run everything in the simulator.)
-_screenshot_export_interval: int = 100
+_screenshot_export_interval: int = 10
 
 def screenshot_export_enabled() -> bool:
     """Read-only version of _screenshot_export_interval to be used by callers as a flag"""
     return _screenshot_export_interval != 0
 
 init_screenshots()
+
+def make_movie() -> None:
+    if not screenshot_export_enabled():
+        return
+
+    with os.scandir(_image_path) as dir_entries_it:
+        dir_entries_chron: list[os.DirEntry] = sorted(dir_entries_it, key=lambda entry: entry.stat().st_mtime_ns)
+    image_filenames = [entry.path
+                       for entry in dir_entries_chron
+                       if entry.name.endswith(".jpg")]
+    print(f"Assembling movie from {len(image_filenames)} images")
+    clip = movieclip.ImageSequenceClip(image_filenames, fps=24)
+
+    # Save the movie clip using the directory name also as the movie name, and save it to that same directory
+    clip.write_videofile(os.path.join(_image_path, _image_dir + ".mp4"))
+
+    # Notes on codec and file type:
+    # .mp4 (defaults to codec "libx264"): looks okay; quality not as good as the jpg files it's made from;
+    #   "quality tunable using bitrate argument". (See below.)
+    # .mp4, codec = mpeg4
+    # .mov, codec = mpeg4
+    #   These two are identical as far as I can tell. (Same codec, different wrappers.) Precisely the same file size,
+    #   and the same quality. Quality is TERRIBLE for some reason, starting out looking same as the default, but
+    #   getting worse as the simulation proceeds. File size is a bit smaller. Unclear whether these are also "tunable".
+    # .avi (2 different codecs): much bigger files, promises "perfect quality", but unfortunately I can't open them.
+    
+    # Notes on bitrate argument: Barely documented at all, except that another arg called audio_bitrate is a string
+    # with a number followed by "k", so I tried that for video bitrate, too.
+    # But experiment shows:
+    #   "50k" gives a tiny file (42 KB instead of 3 MB) with an utterly degraded image;
+    #   "3000k" gives a file just slightly smaller than the default (1.8 MB instead of 2.1 MB) and with no
+    #       noticeable quality difference.
+    #   "10000k" and "30000k" both give much larger files (8 and 24 MB respectively, vs. 3), with again no discernable
+    #       difference in quality. So, what's the point? Leave bitrate argument out, accept the default ("None").

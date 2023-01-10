@@ -348,7 +348,7 @@ def equilibrate_to_leading_edge(duration: float):
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
-vx.save_screenshot("After particle initialization, before equilibration", show_timestep=False)
+vx.save_screenshot("junk/After particle initialization, before equilibration", show_timestep=False)
 
 # Future note: I'd like to be able to enable lagging here, programmatically, but it's missing from the API.
 # TJ will add it in a future release.
@@ -361,7 +361,7 @@ dyn.execute_repeatedly(tasks=[
 print("Invisibly equilibrating; simulator will appear shortly...")
 equilibrate_to_leading_edge(duration=300)
 
-vx.save_screenshot(f"After equilibration", show_timestep=False)
+vx.save_screenshot(f"junk/After equilibration", show_timestep=False)
 
 add_interior_bonds()
 initialize_leading_edge_bending_resistance()
@@ -440,3 +440,4 @@ tf.show()
 # tf.step(until=3)
 
 vx.save_screenshot(f"Final")
+vx.make_movie()
