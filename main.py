@@ -433,11 +433,14 @@ tf.show()
 # Test: Once having returned from tf.show(), can we now get screenshots during tf.step()?
 # If it works, then I have a workaround for avoiding display rendering.
 # Leave the Task list alone and just do some stepping.
-# (It works - to get screenshots. But not useful ones, as they are all identical!)
+# (It works - to get screenshots. But not useful ones, as they are all identical! And that's the case
+# whether I use "until=", or "for step in range(num_steps)".)
 #
 # vx.save_screenshot(f"After 2nd invocation of tf.show(), before trying tf.step()")
 # print("Now stepping, 3 time units (~300 steps)")
 # tf.step(until=3)
+# for step in range(300):
+#     tf.step()
 
 vx.save_screenshot(f"Final")
 vx.make_movie()
