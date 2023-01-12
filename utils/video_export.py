@@ -43,13 +43,10 @@ def init_screenshots() -> None:
     # Creates the parent directory if it doesn't yet exist; and the subdirectory UNLESS it already exists:
     os.makedirs(_image_path)
     
-    # Temporary junk folder for the exports that currently don't work, so they don't go into the video.
-    os.makedirs(os.path.join(_image_path, "junk"))
-
 def _export_screenshot(filename: str) -> None:
     path: str = os.path.join(_image_path, filename)
     print(f"Saving file to '{path}'")
-    result: int = tf.system.screenshot(path, decorate=False, bgcolor=[0, 0, 0])
+    result: int = tf.system.screenshot(path, bgcolor=[0, 0, 0])
     if result != 0:
         print(tfu.bluecolor + f"Something went wrong with screenshot export, result code = {result}" + tfu.endcolor)
 
@@ -90,7 +87,7 @@ def save_screenshot_repeatedly() -> None:
     # until this works without running tf.show().
     
     elapsed: int = _current_screenshot_timestep - _previous_screenshot_timestep
-    if elapsed % _screenshot_export_interval == 0:
+    if elapsed % screenshot_export_interval == 0:
         _previous_screenshot_timestep = _current_screenshot_timestep
         save_screenshot("")  # just timestep as filename
     
@@ -101,15 +98,14 @@ _image_path: str
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 
-# Screenshot export: Use 0 to mean, display rendering only, no export;
-# Anything greater than 0, export only, and no display rendering
-# (That was the intent, for a workaround that unfortunately did not work around.
-# So for now, can export but still have to run everything in the simulator.)
-_screenshot_export_interval: int = 10
+# Caller settable parameter (this may need to change during the simulation)
+# Screenshot export: Use 0 to mean no export;
+# Anything greater than 0, counts timesteps between exports.
+screenshot_export_interval: int = 10
 
 def screenshot_export_enabled() -> bool:
-    """Read-only version of _screenshot_export_interval to be used by callers as a flag"""
-    return _screenshot_export_interval != 0
+    """Convenience function. Interpret screenshot_export_interval as flag for whether export is enabled"""
+    return screenshot_export_interval != 0
 
 init_screenshots()
 

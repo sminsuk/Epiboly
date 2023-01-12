@@ -44,6 +44,8 @@ def harmonic_angle_equilibrium_value() -> float:
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
 
+stopping_condition_phi: float = math.pi * 0.95
+
 # Huge maximum for neighbor-finding distance_factor in bond-making algorithm, that should never be reached.
 # Just insurance against a weird infinite loop.
 # this value used as distance_factor will result in an absolute search distance = max_potential_cutoff

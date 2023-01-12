@@ -5,6 +5,7 @@ import time
 
 import tissue_forge as tf
 from epiboly_init import Little, Big, LeadingEdge   # Tissue Forge initialization and global ParticleType creation
+from epiboly_init import windowless
 import config as cfg
 
 from biology import bond_maintenance as bonds,\
@@ -348,21 +349,24 @@ def equilibrate_to_leading_edge(duration: float):
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
-vx.save_screenshot("junk/After particle initialization, before equilibration", show_timestep=False)
-
+def sim_finished() -> bool:
+    arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
+    return epu.embryo_phi(arbitrary_edge_particle) > cfg.stopping_condition_phi
+    
 # Future note: I'd like to be able to enable lagging here, programmatically, but it's missing from the API.
 # TJ will add it in a future release.
 reset_camera()
-# I used the following to test whether save_screenshot() works during tf.step(), prior to ever invoking tf.show().
-# (It doesn't.) Use it again to validate once I have a fix, then can delete.
-dyn.execute_repeatedly(tasks=[
-        # {"invoke": vx.save_screenshot_repeatedly},
-        ])
-print("Invisibly equilibrating; simulator will appear shortly...")
+
+# Use this to include equilibration in the video export. Only works in windowless, because tf.show() hasn't run yet.
+# if windowless:
+#     vx.screenshot_export_interval = 500
+#     dyn.execute_repeatedly(tasks=[
+#             {"invoke": vx.save_screenshot_repeatedly},
+#             ])
+
+print(f"Equilibrating... {'' if windowless else 'simulator will appear shortly...'}")
+
 equilibrate_to_leading_edge(duration=300)
-
-vx.save_screenshot(f"junk/After equilibration", show_timestep=False)
-
 add_interior_bonds()
 initialize_leading_edge_bending_resistance()
 
@@ -381,66 +385,53 @@ dyn.execute_repeatedly(tasks=[
         {"invoke": bonds.maintain_bonds},
         ])
 
-# Initial rudimentary version of workaround to get exports to work in tf.step()
-# Only partial failure; on the one hand, the screenshots themselves do work, if you do this.
-# (You get an image instead of a black field.) However, they are all identical, once you go into a loop of
-# tf.step() - changes in the sim are not captured. This is starting to feel like it's related to the interactivity
-# bugs that were allegedly fixed in v 0.0.2. Too bad I can't use that yet! So, table this for now.
-#
-# if vx.screenshot_export_enabled():
-#     tf.show()   # User must close the simulator manually, then here, screenshots() work until you interrupt the script
-#     while True:
-#         tf.step()
-# else:
-#     tf.show()
+vx.screenshot_export_interval = 10
+if windowless:
+    # failsafe maximum; remember this is steps, not exported images.
+    # (Number of exported images = steps / screenshot_export_interval)
+    # A good value for quick smoke-test runs where you want the sim to run to completion quickly, is 50-100
+    max_steps: int = 8000   # about an hour's worth of windowed rendering when nothing is bogged down
+    
+    for step in range(max_steps):
+        if sim_finished():
+            break
+        tf.step()
+else:
+    tf.show()
+    dyn.execute_repeatedly(tasks=[
+            {"invoke": vx.save_screenshot_repeatedly},
+            {"invoke": mt.apply_even_tangent_forces,
+             "args": {"magnitude": 5}
+             },
+            {"invoke": bonds.maintain_bonds,
+             "args": {
+                      #     ###For making/breaking algorithm:
+                      # "k_adhesion": 1.0,
+                      # "k_neighbor_count": 1.0,
+                      # "k_angle": 1.0,
+                      # "k_edge_neighbor_count": 1.0,
+                      # "k_edge_angle": 1.0,
+                      # "k_particle_diffusion": 20,
+                      #     ###For relaxation:
+                      # "relaxation_saturation_factor": 2,
+                      # "viscosity": 0.001
+                      }
+             },
+            ])
+    # mt.remove_tangent_forces()
+    
+    # tf.step()
+    # while not xt.is_equilibrated(epsilon=0.01):
+    #     # print("stepping!")
+    #     tf.step()
+    #     tf.Simulator.redraw()  # will this work once irun() is working? Do irun() before the loop?
+    
+    # tf.step(50)
+    #
+    # toggle_radius()
+    # toggle_radius()
+    tf.show()
+    
+    vx.save_screenshot(f"Final")
 
-tf.show()
-dyn.execute_repeatedly(tasks=[
-        {"invoke": vx.save_screenshot_repeatedly},
-        {"invoke": mt.apply_even_tangent_forces,
-         "args": {"magnitude": 5}
-         },
-        {"invoke": bonds.maintain_bonds,
-         "args": {
-                  #     ###For making/breaking algorithm:
-                  # "k_adhesion": 1.0,
-                  # "k_neighbor_count": 1.0,
-                  # "k_angle": 1.0,
-                  # "k_edge_neighbor_count": 1.0,
-                  # "k_edge_angle": 1.0,
-                  # "k_particle_diffusion": 20,
-                  #     ###For relaxation:
-                  # "relaxation_saturation_factor": 2,
-                  # "viscosity": 0.001
-                  }
-         },
-        ])
-# mt.remove_tangent_forces()
-
-# tf.step()
-# while not xt.is_equilibrated(epsilon=0.01):
-#     # print("stepping!")
-#     tf.step()
-#     tf.Simulator.redraw()  # will this work once irun() is working? Do irun() before the loop?
-
-# tf.step(50)
-#
-# toggle_radius()
-# toggle_radius()
-vx.save_screenshot(f"Between two invocations of tf.show()")
-tf.show()
-
-# Test: Once having returned from tf.show(), can we now get screenshots during tf.step()?
-# If it works, then I have a workaround for avoiding display rendering.
-# Leave the Task list alone and just do some stepping.
-# (It works - to get screenshots. But not useful ones, as they are all identical! And that's the case
-# whether I use "until=", or "for step in range(num_steps)".)
-#
-# vx.save_screenshot(f"After 2nd invocation of tf.show(), before trying tf.step()")
-# print("Now stepping, 3 time units (~300 steps)")
-# tf.step(until=3)
-# for step in range(300):
-#     tf.step()
-
-vx.save_screenshot(f"Final")
 vx.make_movie()
