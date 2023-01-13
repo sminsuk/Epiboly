@@ -359,7 +359,7 @@ reset_camera()
 
 # Use this to include equilibration in the video export. Only works in windowless, because tf.show() hasn't run yet.
 # if windowless:
-#     vx.screenshot_export_interval = 500
+#     vx.set_screenshot_export_interval(500)
 #     dyn.execute_repeatedly(tasks=[
 #             {"invoke": vx.save_screenshot_repeatedly},
 #             ])
@@ -385,7 +385,7 @@ dyn.execute_repeatedly(tasks=[
         {"invoke": bonds.maintain_bonds},
         ])
 
-vx.screenshot_export_interval = 10
+vx.set_screenshot_export_interval()
 if windowless:
     # failsafe maximum; remember this is steps, not exported images.
     # (Number of exported images = steps / screenshot_export_interval)

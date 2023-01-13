@@ -87,7 +87,7 @@ def save_screenshot_repeatedly() -> None:
     # until this works without running tf.show().
     
     elapsed: int = _current_screenshot_timestep - _previous_screenshot_timestep
-    if elapsed % screenshot_export_interval == 0:
+    if elapsed % _screenshot_export_interval == 0:
         _previous_screenshot_timestep = _current_screenshot_timestep
         save_screenshot("")  # just timestep as filename
     
@@ -98,14 +98,36 @@ _image_path: str
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 
-# Caller settable parameter (this may need to change during the simulation)
+# Caller settable parameter (through the setter only)
 # Screenshot export: Use 0 to mean no export;
 # Anything greater than 0, counts timesteps between exports.
-screenshot_export_interval: int = 10
+_screenshot_export_interval: int = 10
+
+def set_screenshot_export_interval(interval: int = 10) -> None:
+    """Safely set screenshot interval
+    
+    (Interval may need to change during the simulation.)
+    Call with no arg to reset to the default value (e.g. after changing it temporarily)
+    
+    Enabling/disabling screenshots happens at launch and can't be changed thereafter. Thus:
+    if disabled (stored interval == 0), then caller may not change it.
+    if enabled (stored interval > 0), then caller may not change it to 0.
+    
+    But, remember that once enabled, the task list for repeated events can always be changed to start/stop calling
+    the "save_screenshot" functions.
+    """
+    if screenshot_export_enabled():
+        if interval > 0:
+            _screenshot_export_interval = interval
+        else:
+            print(tfu.bluecolor + "Warning: screenshot export cannot be disabled after initialization" + tfu.endcolor)
+    else:
+        if interval != 0:
+            print(tfu.bluecolor + "Warning: screenshot export cannot be enabled after initialization" + tfu.endcolor)
 
 def screenshot_export_enabled() -> bool:
     """Convenience function. Interpret screenshot_export_interval as flag for whether export is enabled"""
-    return screenshot_export_interval != 0
+    return _screenshot_export_interval != 0
 
 init_screenshots()
 
