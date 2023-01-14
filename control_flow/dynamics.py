@@ -65,4 +65,6 @@ def _master_event(evt: tf.event.TimeEvent) -> int:
     return 0
 
 # This will happen as soon as it's imported (after the tf.init)
-tf.event.on_time(period=tf.Universe.dt, invoke_method=_master_event)
+# Note: dt * 0.9 in order to deal with a weirdness in the timer arithmetic. This will actually result in invoke_method
+# being called once each timestep. Using exactly dt results in the event being skipped about a third of the time!
+tf.event.on_time(period=tf.Universe.dt * 0.9, invoke_method=_master_event)
