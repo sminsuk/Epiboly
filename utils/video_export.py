@@ -169,8 +169,6 @@ def screenshot_export_enabled() -> bool:
     """Convenience function. Interpret screenshot_export_interval as flag for whether export is enabled"""
     return _screenshot_export_interval != 0
 
-init_screenshots()
-
 def make_movie() -> None:
     if not screenshot_export_enabled():
         return
@@ -204,3 +202,17 @@ def make_movie() -> None:
     #       noticeable quality difference.
     #   "10000k" and "30000k" both give much larger files (8 and 24 MB respectively, vs. 3), with again no discernable
     #       difference in quality. So, what's the point? Leave bitrate argument out, accept the default ("None").
+    
+def make_movie_in_post(directory_name: str) -> None:
+    global _image_dir, _image_path
+    image_root = path.expanduser("~/TissueForge_image_export/")
+    _image_dir = directory_name
+    _image_path = os.path.join(image_root, _image_dir)
+    make_movie()
+
+if __name__ == "__main__":
+    # Be sure to supply the directory name before running this
+    make_movie_in_post(directory_name="Directory name goes here")
+else:
+    init_screenshots()
+
