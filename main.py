@@ -350,8 +350,19 @@ def equilibrate_to_leading_edge(duration: float):
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
     
 def sim_finished() -> bool:
-    arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
-    return epu.embryo_phi(arbitrary_edge_particle) > cfg.stopping_condition_phi
+    finished: bool
+    
+    # Based on progress of leading edge in terms of phi:
+    # arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
+    # leading_edge_progress: float = epu.embryo_phi(arbitrary_edge_particle)
+    # finished = leading_edge_progress > cfg. stopping_condition_phi
+    
+    # Or alternatively,
+    
+    # Based on number of leading edge particles
+    finished = len(LeadingEdge.items()) < 16
+    
+    return finished
     
 # Future note: I'd like to be able to enable lagging here, programmatically, but it's missing from the API.
 # TJ will add it in a future release.
@@ -390,7 +401,7 @@ if windowless:
     # failsafe maximum; remember this is steps, not exported images.
     # (Number of exported images = steps / screenshot_export_interval)
     # A good value for quick smoke-test runs where you want the sim to run to completion quickly, is 50-100
-    max_steps: int = 8000   # about an hour's worth of windowed rendering when nothing is bogged down
+    max_steps: int = 13001  # enough to capture a full epiboly, determined by trial and error
     
     for step in range(max_steps):
         if sim_finished():
