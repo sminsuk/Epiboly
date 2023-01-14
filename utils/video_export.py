@@ -15,42 +15,61 @@ from epiboly_init import LeadingEdge, windowless
 from utils import epiboly_utils as epu
 from utils import tf_utils as tfu
 
-def automated_camera_rotate() -> None:
-    """Camera control during windowless export
+_rotation_started: bool = False
+_rotation_finished: bool = False
 
+def _test_when_to_start_rotation() -> None:
+    """At the appropriate time, trigger rotation by changing the value of _rotation_started from False to True"""
+    global _rotation_started
+    
+    # Position of leading edge at which we start rotating the camera. π/2 is good for testing (the equator,
+    # which is reached by the leading edge early in the simulation). For full epiboly, wait until close to veg pole.
+    rotation_start_position: float = math.pi * 0.8
+    
+    arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
+    leading_edge_progress: float = epu.embryo_phi(arbitrary_edge_particle)
+    if leading_edge_progress > rotation_start_position:
+        _rotation_started = True
+
+def _test_when_to_finish_rotation() -> None:
+    """At the appropriate time, halt rotation by changing the value of _rotation_finished from False to True.
+    
     Rotate from Front down to Bottom. Specific behavior of the quaternion (return value of tf.system.camera_rotation())
     is a bit weird; I selected angle() as the relevant property, and dropping below pi as the relevant behavior,
     based on empirical testing, but it may be very specific to this particular rotation. Seems like this may be brittle.
+    (In fact, a small refactor – no algorithmic change – necessitated an adjustment in the tolerance, inexplicably.)
     """
-    if not windowless:
-        # This function is mainly intended for windowless export; not needed while simulator is displayed.
-        # But, to observe the behavior of this function in real time, comment out this if statement
-        return
+    global _rotation_finished
     
     # Camera angle starts at 1.5π at Front position (pointing at equator), drops to π at Bottom (pointing at vegetal
     # pole), and then continues to drop lower if you rotate past Bottom and up the other side. So we want to stop
     # when angle < π. However, it does not hit exactly. At very bottom, value is slightly greater than π;
     # stopping at π thus overshoots by one rotation increment. So add a small tolerance to stop in the right place.
-    # (ToDo? alternative: could also fix this with a global "stop" flag, set by checking the NEW angle, AFTER
-    # the camera is rotated.)
-    target_camera_angle: float = math.pi + 0.02
+    target_camera_angle: float = math.pi + 0.04
     
-    # Position of leading edge at which we start rotating the camera. π/2 is good for testing (the equator,
-    # which is reached by the leading edge early in the simulation). Maybe try 0.8π for full epiboly?
-    rotation_start_position: float = math.pi * 0.8
-    
-    arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
-    leading_edge_progress: float = epu.embryo_phi(arbitrary_edge_particle)
     quat: tf.fQuaternion = tf.system.camera_rotation()
-    if (leading_edge_progress > rotation_start_position
-            and quat.angle() > target_camera_angle):
+    if quat.angle() < target_camera_angle:
+        _rotation_finished = True
+
+def _automated_camera_rotate() -> None:
+    """Camera control during windowless export"""
+    if not windowless:
+        # This function is mainly intended for windowless export; not needed while simulator is displayed.
+        # But, to observe the behavior of this function in real time, comment out this if statement
+        return
+    
+    if not _rotation_started:
+        _test_when_to_start_rotation()
+    
+    if _rotation_started and not _rotation_finished:
         # Note that "up" is "down". Behavior of "rotate up" is that the camera moves down toward vegetal.
         # The camera angle indeed "rotates up" around it's OWN axis while its position rotates DOWN relative to the
         # universe at the same time – continuing to point toward the center of the universe the whole time.
-        # The effect is that the particles move upward in the field of view, i.e. the camera moves downward.
+        # The effect is that the particles rotate upward in the field of view, i.e. the camera rotates downward.
         tf.system.camera_rotate_up()
-
-def timestring() -> str:
+        _test_when_to_finish_rotation()
+    
+def _timestring() -> str:
     # timezone-aware local time in local timezone:
     local: datetime = datetime.now(timezone.utc).astimezone()
     
@@ -58,7 +77,7 @@ def timestring() -> str:
     # (i.e., suitable for directory or file name)
     return local.strftime("%Y-%m-%d %I-%M-%S %p %Z")
 
-def init_screenshots() -> None:
+def _init_screenshots() -> None:
     """
     Set up directories for all image output: root directory for all output from the current script, ever;
     and a subdirectory for all output of the CURRENT RUN of the current script.
@@ -74,7 +93,7 @@ def init_screenshots() -> None:
     image_root = path.expanduser("~/TissueForge_image_export/")
     
     # subdirectory with unique name for all output of the current run:
-    _image_dir = timestring()
+    _image_dir = _timestring()
     
     # full path to that directory
     _image_path = os.path.join(image_root, _image_dir)
@@ -129,7 +148,7 @@ def save_screenshot_repeatedly() -> None:
     if elapsed % _screenshot_export_interval == 0:
         _previous_screenshot_timestep = _current_screenshot_timestep
         save_screenshot("")  # just timestep as filename
-        automated_camera_rotate()
+        _automated_camera_rotate()
     
     _current_screenshot_timestep += 1
 
@@ -214,5 +233,5 @@ if __name__ == "__main__":
     # Be sure to supply the directory name before running this
     make_movie_in_post(directory_name="Directory name goes here")
 else:
-    init_screenshots()
+    _init_screenshots()
 
