@@ -221,6 +221,11 @@ def make_movie() -> None:
     #       noticeable quality difference.
     #   "10000k" and "30000k" both give much larger files (8 and 24 MB respectively, vs. 3), with again no discernable
     #       difference in quality. So, what's the point? Leave bitrate argument out, accept the default ("None").
+    #       (Actually, this *does* improve the quality of the mpeg4 codecs, getting them comparable to the default one.
+    #       But still, only at the expense of having a much larger file, so why bother? Though I wonder... how high
+    #       can you go, and how much better can quality get? Can you approach back to the quality of the origin jpgs?)
+    #       (Also: it's all relative. For a full-length epiboly video, file size of 10000K mpeg4 was 63 MB vs 16 for
+    #       the default. Bigger, but this is still tiny compared to what you get from the MacOS video capture.)
     
 def make_movie_in_post(directory_name: str) -> None:
     global _image_dir, _image_path
