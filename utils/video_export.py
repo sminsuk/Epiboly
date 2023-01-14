@@ -4,12 +4,51 @@ StackOverflow: https://stackoverflow.com/a/62434934
 Documentation of MoviePy: https://zulko.github.io/moviepy/index.html
 """
 from datetime import datetime, timezone
-import moviepy.video.io.ImageSequenceClip as movieclip
+import math
 import os
 import os.path as path
 
+import moviepy.video.io.ImageSequenceClip as movieclip
+
 import tissue_forge as tf
+from epiboly_init import LeadingEdge, windowless
+from utils import epiboly_utils as epu
 from utils import tf_utils as tfu
+
+def automated_camera_rotate() -> None:
+    """Camera control during windowless export
+
+    Rotate from Front down to Bottom. Specific behavior of the quaternion (return value of tf.system.camera_rotation())
+    is a bit weird; I selected angle() as the relevant property, and dropping below pi as the relevant behavior,
+    based on empirical testing, but it may be very specific to this particular rotation. Seems like this may be brittle.
+    """
+    if not windowless:
+        # This function is mainly intended for windowless export; not needed while simulator is displayed.
+        # But, to observe the behavior of this function in real time, comment out this if statement
+        return
+    
+    # Camera angle starts at 1.5π at Front position (pointing at equator), drops to π at Bottom (pointing at vegetal
+    # pole), and then continues to drop lower if you rotate past Bottom and up the other side. So we want to stop
+    # when angle < π. However, it does not hit exactly. At very bottom, value is slightly greater than π;
+    # stopping at π thus overshoots by one rotation increment. So add a small tolerance to stop in the right place.
+    # (ToDo? alternative: could also fix this with a global "stop" flag, set by checking the NEW angle, AFTER
+    # the camera is rotated.)
+    target_camera_angle: float = math.pi + 0.02
+    
+    # Position of leading edge at which we start rotating the camera. π/2 is good for testing (the equator,
+    # which is reached by the leading edge early in the simulation). Maybe try 0.8π for full epiboly?
+    rotation_start_position: float = math.pi * 0.8
+    
+    arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
+    leading_edge_progress: float = epu.embryo_phi(arbitrary_edge_particle)
+    quat: tf.fQuaternion = tf.system.camera_rotation()
+    if (leading_edge_progress > rotation_start_position
+            and quat.angle() > target_camera_angle):
+        # Note that "up" is "down". Behavior of "rotate up" is that the camera moves down toward vegetal.
+        # The camera angle indeed "rotates up" around it's OWN axis while its position rotates DOWN relative to the
+        # universe at the same time – continuing to point toward the center of the universe the whole time.
+        # The effect is that the particles move upward in the field of view, i.e. the camera moves downward.
+        tf.system.camera_rotate_up()
 
 def timestring() -> str:
     # timezone-aware local time in local timezone:
@@ -90,6 +129,7 @@ def save_screenshot_repeatedly() -> None:
     if elapsed % _screenshot_export_interval == 0:
         _previous_screenshot_timestep = _current_screenshot_timestep
         save_screenshot("")  # just timestep as filename
+        automated_camera_rotate()
     
     _current_screenshot_timestep += 1
 
