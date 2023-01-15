@@ -3,7 +3,7 @@
 These are utility functions specific to this simulation.
 """
 import tissue_forge as tf
-from epiboly_init import Big
+from epiboly_init import Big, LeadingEdge
 
 def embryo_phi(particle: tf.ParticleHandle) -> float:
     """phi relative to the animal/vegetal axis"""
@@ -19,3 +19,7 @@ def embryo_coords(particle: tf.ParticleHandle) -> tuple[float, float]:
     """theta, phi relative to the animal/vegetal axis"""
     r, theta, phi = particle.sphericalPosition(particle=Big.particle(0))
     return theta, phi
+
+def leading_edge_max_phi() -> float:
+    """phi of the most progressed leading edge particle"""
+    return max([embryo_phi(particle) for particle in LeadingEdge.items()])

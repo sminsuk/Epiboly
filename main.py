@@ -353,14 +353,12 @@ def sim_finished() -> bool:
     finished: bool
     
     # Based on progress of leading edge in terms of phi:
-    # arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
-    # leading_edge_progress: float = epu.embryo_phi(arbitrary_edge_particle)
-    # finished = leading_edge_progress > cfg. stopping_condition_phi
+    finished = epu.leading_edge_max_phi() > cfg. stopping_condition_phi
     
     # Or alternatively,
     
     # Based on number of leading edge particles
-    finished = len(LeadingEdge.items()) < 16
+    # finished = len(LeadingEdge.items()) < 16
     
     return finished
     

@@ -24,11 +24,9 @@ def _test_when_to_start_rotation() -> None:
     
     # Position of leading edge at which we start rotating the camera. π/2 is good for testing (the equator,
     # which is reached by the leading edge early in the simulation). For full epiboly, wait until close to veg pole.
-    rotation_start_position: float = math.pi * 0.8
+    rotation_start_position: float = math.pi * 0.75
     
-    arbitrary_edge_particle: tf.ParticleHandle = LeadingEdge.items()[0]
-    leading_edge_progress: float = epu.embryo_phi(arbitrary_edge_particle)
-    if leading_edge_progress > rotation_start_position:
+    if epu.leading_edge_max_phi() > rotation_start_position:
         _rotation_started = True
 
 def _test_when_to_finish_rotation() -> None:
