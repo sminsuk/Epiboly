@@ -55,11 +55,11 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
         _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
 
-def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: float,
+def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                           k_edge_neighbor_count: float, k_edge_angle: float, verbose: bool = False) -> None:
     """
     All the "k": coefficient, like lambda for each energy term in the Potts model, but "lambda" is python reserved word.
-    Energy terms: adhesion energy, neighbor-count constraint (like Potts model volume constraint), angle constraint.
+    Energy terms: neighbor-count constraint (like Potts model volume constraint), angle constraint.
     k_edge_neighbor_count, k_edge_angle: same, for the leading-edge transformations, so they can be tuned separately.
     """
 
@@ -69,49 +69,6 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
         breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
         becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
         """
-        def delta_energy_adhesion(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
-            # An option: limit this to only internal bond remodeling, not edge remodeling:
-            # if becoming:
-            #     # Don't apply this criterion to leading edge transformations
-            #     return 0
-            
-            if k_adhesion == 0:
-                return 0
-            
-            neighbor: tf.ParticleHandle
-            # Look at all neighbors except each other (we'll do that separately, later)
-            p1_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in p1.getBondedNeighbors()
-                                                     if neighbor.id != p2.id]
-            p2_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in p2.getBondedNeighbors()
-                                                     if neighbor.id != p1.id]
-            # Weight the effect of each neighbor according to its distance
-            p1_weighted_count: list[float] = [1 / p1.distance(neighbor)
-                                              for neighbor in p1_neighbors]
-            p2_weighted_count: list[float] = [1 / p2.distance(neighbor)
-                                              for neighbor in p2_neighbors]
-            p1_energies: list[float] = [cfg.adhesion_energy[p1.type_id][neighbor.type_id] * p1_weighted_count[i]
-                                        for i, neighbor in enumerate(p1_neighbors)]
-            p2_energies: list[float] = [cfg.adhesion_energy[p2.type_id][neighbor.type_id] * p2_weighted_count[i]
-                                        for i, neighbor in enumerate(p2_neighbors)]
-            p1p2_weight: float = 1 / p1.distance(p2)
-            p1p2_energy: float = cfg.adhesion_energy[p1.type_id][p2.type_id] * p1p2_weight
-            
-            p1_energy_sum: float = sum(p1_energies)
-            p2_energy_sum: float = sum(p2_energies)
-            energy_sum_without: float = p1_energy_sum + p2_energy_sum
-            energy_sum_with: float = energy_sum_without + p1p2_energy
-            particle_total_without: float = (sum(p1_weighted_count)
-                                             + sum(p2_weighted_count))
-            particle_total_with: float = particle_total_without + p1p2_weight
-            
-            mean_energy_without: float = energy_sum_without / particle_total_without
-            mean_energy_with: float = energy_sum_with / particle_total_with
-            mean_energy_before: float = mean_energy_with if breaking else mean_energy_without
-            mean_energy_after: float = mean_energy_without if breaking else mean_energy_with
-            
-            delta_energy: float = mean_energy_after - mean_energy_before
-            return k_adhesion * delta_energy
-        
         def delta_energy_neighbor_count(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
             k_neighbor_count_energy: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
             if k_neighbor_count_energy == 0:
@@ -283,8 +240,7 @@ def _make_break_or_become(k_adhesion: float, k_neighbor_count: float, k_angle: f
                           f" is already bonded to {edge_neighbor_count} LeadingEdge particles")
                 return False
 
-        delta_energy: float = (delta_energy_adhesion(p1, p2)
-                               + delta_energy_neighbor_count(p1, p2)
+        delta_energy: float = (delta_energy_neighbor_count(p1, p2)
                                + delta_energy_angle(p1, p2))
     
         if delta_energy <= 0:
@@ -688,11 +644,11 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
             phandle.force_init = force.as_list()
         
 
-def maintain_bonds(k_adhesion: float = 0, k_neighbor_count: float = 0.4, k_angle: float = 2,
+def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
                    k_edge_neighbor_count: float = 2, k_edge_angle: float = 2,
                    k_particle_diffusion: float = 20,
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
-    _make_break_or_become(k_adhesion, k_neighbor_count, k_angle,
+    _make_break_or_become(k_neighbor_count, k_angle,
                           k_edge_neighbor_count, k_edge_angle, verbose=False)
     _move_toward_open_space(k_particle_diffusion)
     _relax(relaxation_saturation_factor, viscosity)

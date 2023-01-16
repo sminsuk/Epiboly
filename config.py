@@ -56,15 +56,6 @@ max_distance_factor: float = max_potential_cutoff / Little.radius
 min_neighbor_count: int = 3
 max_edge_neighbor_count: int = 3
 
-# Adhesion energies: named, and for convenience, also in a dict[type_id: dict[type_id: energy]]
-energy_little_little: float = 5.0
-energy_little_edge: float = 10.0
-energy_edge_edge: float = 20.0
-adhesion_energy = {Little.id: {Little.id: energy_little_little,
-                               LeadingEdge.id: energy_little_edge},
-                   LeadingEdge.id: {Little.id: energy_little_edge,
-                                    LeadingEdge.id: energy_edge_edge}}
-
 # For neighbor angle energy calculations. Not only to avoid magic numbers,
 # but also because these would otherwise be calculated millions of times,
 # which is wasteful, even for an inexpensive operation.
