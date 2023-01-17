@@ -310,9 +310,6 @@ tf.bind.types(big_small_pot, Big, LeadingEdge)
 # Also bind to Little (interior) particles, just during equilibration. Once the biology starts, will remove it.
 tf.bind.types(big_small_pot, Big, Little)
 
-# for the eventual removal
-big_small_repulsion_only = tf.Potential.lennard_jones_12_6(min=0.275, max=3.15, A=9.612e6, B=19608)
-
 r0 = LeadingEdge.radius * 2
 
 # All small particles repel each other all the time, inside r0
@@ -381,11 +378,6 @@ print(f"Equilibrating... {'' if windowless else 'simulator will appear shortly..
 equilibrate_to_leading_edge(duration=300)
 add_interior_bonds()
 initialize_leading_edge_bending_resistance()
-
-# ##### Test! #####
-# p: tf.ParticleHandle = Little.items()[0]
-# other_p: tf.ParticleHandle = nbrs.get_nearest_non_bonded_neighbor(p)
-# nbrs.get_ordered_bonded_neighbors(p, other_p)
 
 # toggle_visibility()
 # toggle_visibility()
