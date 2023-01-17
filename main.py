@@ -282,11 +282,9 @@ def replace_all_small_small_potentials(new_potential):
     tf.bind.types(new_potential, LeadingEdge, LeadingEdge)
     tf.bind.types(new_potential, LeadingEdge, Little)
     tf.bind.types(new_potential, Little, Little)
-
-# ######################### main ##########################
-
-print(f"tissue-forge version = {tf.version.version}")
-print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
+    
+# ######## Stuff I won't have to do if Importing equilibrated simulation state because it will have
+# ######## been done in advance:
 
 # Potentials, bound at the level of types:
 #
@@ -378,6 +376,11 @@ print(f"Equilibrating... {'' if windowless else 'simulator will appear shortly..
 equilibrate_to_leading_edge(duration=300)
 add_interior_bonds()
 initialize_leading_edge_bending_resistance()
+
+# ######################### main ##########################
+
+print(f"tissue-forge version = {tf.version.version}")
+print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
 
 # toggle_visibility()
 # toggle_visibility()
