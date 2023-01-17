@@ -366,8 +366,11 @@ def sim_finished() -> bool:
 # TJ will add it in a future release.
 reset_camera()
 
-# Use this to include equilibration in the video export. Only works in windowless, because tf.show() hasn't run yet.
+# Use this to include equilibration in the video export.
+# Only works in windowless, because equilibration uses tf.step(), not tf.show().
 # if windowless:
+#     vx.save_screenshot("Timestep true zero")    # Illustration that export labeled "Timestep 0" is really timestep 1
+#
 #     vx.set_screenshot_export_interval(500)
 #     dyn.execute_repeatedly(tasks=[
 #             {"invoke": vx.save_screenshot_repeatedly},
@@ -440,6 +443,6 @@ else:
     # toggle_radius()
     tf.show()
     
-    vx.save_screenshot(f"Final")
+    vx.save_screenshot("Final")
 
 vx.make_movie()

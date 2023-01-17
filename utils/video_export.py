@@ -100,6 +100,7 @@ def _init_screenshots() -> None:
     os.makedirs(_image_path)
     
 def _export_screenshot(filename: str) -> None:
+    """Note, in system.screenshot(), bgcolor (and decorate) args only work in windowless mode."""
     path: str = os.path.join(_image_path, filename)
     print(f"Saving file to '{path}'")
     result: int = tf.system.screenshot(path, bgcolor=[0, 0, 0])
@@ -108,12 +109,10 @@ def _export_screenshot(filename: str) -> None:
 
 def save_screenshot(filename: str, show_timestep: bool = True) -> None:
     """
-    Didn't work: jpg gives blank image (black even if I set a different bgcolor)
-        (**Until** I launch the simulator; then it works after that, even after dismissing the simulator!
-        Could have sworn I had already tried that.)
-    Tried all the other formats, they crash the app, segfault!
-
-    For use outside of timestep events. A single one-off export. Caller provides filename (no extension).
+    Calling this method directly, is intended for one-off export operations *outside* of timestep events. Thus it
+    only works in windowless mode. In windowed mode, always access this through save_screenshot_repeatedly().
+    
+    Caller provides filename (no extension). Saves as jpg. All other formats crash the app, segfault!
     Timestep will be appended to filename unless show_timestep = False (and filename is not blank).
     """
     if not screenshot_export_enabled():
@@ -129,7 +128,11 @@ def save_screenshot(filename: str, show_timestep: bool = True) -> None:
     _export_screenshot(filename + ".jpg")
 
 def save_screenshot_repeatedly() -> None:
-    """For use inside timestep events. Keeps track of export interval, and names files accordingly"""
+    """For use inside timestep events. Keeps track of export interval, and names files accordingly.
+    
+    Works best in windowless mode.
+    Can also use in windowed mode but only while the simulator window is running, not in tf.step().
+    """
     global _previous_screenshot_timestep, _current_screenshot_timestep
     if not screenshot_export_enabled():
         return
@@ -137,10 +140,10 @@ def save_screenshot_repeatedly() -> None:
     # Note that this implementation means that the first time this function is ever called, the screenshot
     # will always be saved, and will be defined (and labeled) as Timestep 0. Even if the simulation has
     # been running before that, and Universe.time > 0.
-    # But also note that this image is really (I think) simulation timestep 1, EVEN IF the simulation is
-    # starting fresh. Because (I think) by the time the event gets called in Timestep 0, the physics has
-    # already been integrated, and particles have moved. Currently unable to get a screenshot before that,
-    # until this works without running tf.show().
+    # But also note that that first image is really simulation timestep 1, EVEN IF the simulation is
+    # starting fresh. Because by the time the event gets called in Timestep 0, the physics has
+    # already been integrated, and particles have moved. If need a screenshot before that, can get it
+    # (in windowless mode only) by calling a one-off save_screenshot() before calling tf.step().
     
     elapsed: int = _current_screenshot_timestep - _previous_screenshot_timestep
     if elapsed % _screenshot_export_interval == 0:
@@ -173,9 +176,11 @@ def set_screenshot_export_interval(interval: int = 10) -> None:
     But, remember that once enabled, the task list for repeated events can always be changed to start/stop calling
     the "save_screenshot" functions.
     """
+    global _screenshot_export_interval
     if screenshot_export_enabled():
         if interval > 0:
             _screenshot_export_interval = interval
+            print(f"Screenshot export interval set to {interval} timesteps")
         else:
             print(tfu.bluecolor + "Warning: screenshot export cannot be disabled after initialization" + tfu.endcolor)
     else:
