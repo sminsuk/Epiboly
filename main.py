@@ -5,7 +5,6 @@ import time
 
 import tissue_forge as tf
 from epiboly_init import Little, Big, LeadingEdge   # Tissue Forge initialization and global ParticleType creation
-from epiboly_init import windowless
 import config as cfg
 
 from biology import bond_maintenance as bonds,\
@@ -363,7 +362,7 @@ reset_camera()
 
 # Use this to include equilibration in the video export.
 # Only works in windowless, because equilibration uses tf.step(), not tf.show().
-# if windowless:
+# if cfg.windowless:
 #     vx.save_screenshot("Timestep true zero")    # Illustration that export labeled "Timestep 0" is really timestep 1
 #
 #     vx.set_screenshot_export_interval(500)
@@ -371,7 +370,7 @@ reset_camera()
 #             {"invoke": vx.save_screenshot_repeatedly},
 #             ])
 
-print(f"Equilibrating... {'' if windowless else 'simulator will appear shortly...'}")
+print(f"Equilibrating... {'' if cfg.windowless else 'simulator will appear shortly...'}")
 
 equilibrate_to_leading_edge(duration=300)
 add_interior_bonds()
@@ -393,7 +392,7 @@ dyn.execute_repeatedly(tasks=[
         ])
 
 vx.set_screenshot_export_interval()
-if windowless:
+if cfg.windowless:
     # failsafe maximum; remember this is steps, not exported images.
     # (Number of exported images = steps / screenshot_export_interval)
     # A good value for quick smoke-test runs where you want the sim to run to completion quickly, is 50-100

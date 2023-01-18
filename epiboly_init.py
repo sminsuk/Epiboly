@@ -4,6 +4,7 @@ Everything that *should* be in the global namespace, should be here, and that sh
 Everything else should be local to a function, or in a module.
 """
 import tissue_forge as tf
+import config as cfg
 from utils import tf_utils as tfu
 
 class LittleType(tf.ParticleTypeSpec):
@@ -26,11 +27,10 @@ class LeadingEdgeType(LittleType):
 # In order to have my ParticleType instances also be globally available, I have to initialize 
 # Tissue Forge before instantiating them, so that has to be done here as well.
 
-windowless: bool = True
 _window_size: list[int] = [800, 600]    # [800, 600] is default; [1200, 900] is nice and big for presentations
 _dim = [10., 10., 10.]
 # Cutoff = largest potential.max in the sim, so that all necessary potentials will be evaluated:
-tf.init(dim=_dim, windowless=windowless, window_size=_window_size)  # , cutoff = 2)
+tf.init(dim=_dim, windowless=cfg.windowless, window_size=_window_size)  # , cutoff = 2)
 
 Little: tf.ParticleType = LittleType.get()
 Big: tf.ParticleType = BigType.get()

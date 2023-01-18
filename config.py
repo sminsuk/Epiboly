@@ -4,6 +4,16 @@ Magic numbers, especially ones used in more than one place.
 """
 import math
 
+# TF windowless mode, in which the simulation is driven only by
+# tf.step() and never tf.show(), and no graphics are displayed.
+windowless: bool = True
+
+# Number of timesteps between screenshots. User configurable here at load time. Can
+# also be adjusted dynamically at run time, but callers should never set this directly;
+# instead use the setter in module video_export, which owns it.
+# To disable screenshot export, set to 0.
+screenshot_export_interval: int = 10
+
 # Just while determining empirically, the right number of interior particles to use.
 # If there are too many, with frozen LeadingEdge, they'll pop past. If too few,
 # they'll never fill the space no matter how long they equilibrate. Once the right
