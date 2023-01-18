@@ -160,7 +160,9 @@ def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
 
     neighbors: list[tf.ParticleHandle] = []
     distance_factor: float = 1
-    while not neighbors and distance_factor < cfg.max_distance_factor:
+    # Huge maximum that should never be reached, just insurance against a weird infinite loop:
+    max_distance_factor: float = cfg.max_potential_cutoff / Little.radius
+    while not neighbors and distance_factor < max_distance_factor:
         # Get all neighbors not already bonded to, within the given radius. (There may be none.)
         neighbors = get_non_bonded_neighbors(phandle, distance_factor)
         

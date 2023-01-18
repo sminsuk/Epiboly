@@ -352,9 +352,9 @@ def _test_harmonic_angle() -> None:
     max out at 0 and 180 asymptotically; I tried up to k = 5000 and couldn't get rid of 0° and 180°, but they might
     disappear eventually.)
     
-    My theta0 is defined in config.harmonic_angle_equilibrium_value(), = math.pi - (two_pi / len(LeadingEdge.items())).
-    i.e. ranging from just below 180°, down to, say, 145° when there are 10 particles left in the ring. So I need
-    those higher values of theta0 to work.
+    My theta0 is defined in bond_maintenance.harmonic_angle_equilibrium_value(); it equals
+    math.pi - (two_pi / len(LeadingEdge.items())). I.e. ranging from just below 180°, down to, say,
+    145° when there are 10 particles left in the ring. So I need those higher values of theta0 to work.
     
     Can I improve this behavior by tweaking other params? I'd like to keep k=5 for now if I can.
     Making min greater than its default of zero changes the specific ranges, but not in a helpful way.

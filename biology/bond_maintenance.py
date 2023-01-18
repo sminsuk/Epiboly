@@ -55,6 +55,15 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
         _make_bond(neighbor, phandle, verbose)
     return len(neighbors)
 
+def harmonic_angle_equilibrium_value() -> float:
+    """A function rather than just a config constant because it depends on the number of particles in the ring"""
+    # Equilibrium angle might look like π from within the plane of the leading edge, but the actual angle is
+    # different. And, it changes if the number of leading edge particles changes. Hopefully it won't need to be
+    # dynamically updated to be that precise. If the number of particles changes, they'll "try" to reach a target angle
+    # that is not quite right, but will be opposed by the same force acting on the neighbor particles, so hopefully
+    # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
+    return math.pi - (cfg.two_pi / len(LeadingEdge.items()))
+
 def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                           k_edge_neighbor_count: float, k_edge_angle: float, verbose: bool = False) -> None:
     """
@@ -372,7 +381,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         assert a2, f"Particle {p2.id} has no pivot Angle!"
 
         k: float = cfg.harmonic_angle_spring_constant
-        theta0: float = cfg.harmonic_angle_equilibrium_value()
+        theta0: float = harmonic_angle_equilibrium_value()
         tol: float = cfg.harmonic_angle_tolerance
         edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=k, theta0=theta0, tol=tol)
         assert edge_angle_potential is not None, f"Failed harmonic_angle potential, k={k}, theta0={theta0}, tol={tol}"
@@ -483,7 +492,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # improved version works, but when they are disabled, still need to fall back to this.
             pos: tf.fVector3
             leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
-            if recruit.position.z() > leading_edge_baseline + cfg.leading_edge_recruitment_limit:
+            leading_edge_recruitment_zone: float = cfg.leading_edge_recruitment_limit * LeadingEdge.radius
+            if recruit.position.z() > leading_edge_baseline + leading_edge_recruitment_zone:
                 # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
                 # but at the moment I need it to get this working
                 return 0, 0
