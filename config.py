@@ -1,12 +1,13 @@
 """Config
 
-Magic numbers, especially ones used in more than one place.
+Flags and magic numbers, especially ones used in more than one place.
 """
 import math
 
-# TF windowless mode, in which the simulation is driven only by
+# Whether to use TF windowless mode, in which the simulation is driven only by
 # tf.step() and never tf.show(), and no graphics are displayed.
-windowless: bool = True
+# But name this flag as a positive rather than a negative, to avoid confusing double negatives ("not windowless").
+windowed_mode: bool = False
 
 # Whether to show the equilibration steps.
 # In windowless mode, whether to include them in any exported screenshots;

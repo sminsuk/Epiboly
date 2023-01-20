@@ -53,7 +53,7 @@ def _test_when_to_finish_rotation() -> None:
 
 def _automated_camera_rotate() -> None:
     """Camera control during windowless export"""
-    if not cfg.windowless:
+    if cfg.windowed_mode:
         # This function is mainly intended for windowless export; not needed while simulator is displayed.
         # But, to observe the behavior of this function in real time, comment out this if statement
         return

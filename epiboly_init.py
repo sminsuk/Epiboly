@@ -30,7 +30,7 @@ class LeadingEdgeType(LittleType):
 _window_size: list[int] = [800, 600]    # [800, 600] is default; [1200, 900] is nice and big for presentations
 _dim = [10., 10., 10.]
 # Cutoff = largest potential.max in the sim, so that all necessary potentials will be evaluated:
-tf.init(dim=_dim, windowless=cfg.windowless, window_size=_window_size)  # , cutoff = 2)
+tf.init(dim=_dim, windowless=not cfg.windowed_mode, window_size=_window_size)  # , cutoff = 2)
 
 Little: tf.ParticleType = LittleType.get()
 Big: tf.ParticleType = BigType.get()

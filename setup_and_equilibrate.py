@@ -280,7 +280,7 @@ def equilibrate_to_leading_edge() -> None:
     if cfg.show_equilibration and vx.screenshot_export_enabled():
         # Include equilibration in the video export
         
-        if cfg.windowless:
+        if not cfg.windowed_mode:
             # Single screenshot illustrates that the one labeled "Timestep 0" is really timestep 1.
             # (The two images will be slightly different.)
             # This only works in windowless because in windowed mode, screenshots don't work until the simulator opens.
@@ -291,13 +291,12 @@ def equilibrate_to_leading_edge() -> None:
         
     freeze_leading_edge(True)
     
-    if cfg.show_equilibration and not cfg.windowless:
-        # Showing equilibration in windowed mode.
+    if cfg.show_equilibration and cfg.windowed_mode:
         # User must quit the simulator after equilibration in order to proceed. (It will be relaunched automatically.)
         # This is for use during development only.
         tf.show()
     else:
-        print(f"Equilibrating... {'' if cfg.windowless else 'simulator will appear shortly...'}")
+        print(f"Equilibrating... {'simulator will appear shortly...' if cfg.windowed_mode else ''}")
     
         # Remember that with "until" arg, this is not steps, it's units of Universe.time.
         # (Number of steps = duration / Universe.dt)
