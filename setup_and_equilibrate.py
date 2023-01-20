@@ -132,6 +132,106 @@ def initialize_interior(leading_edge_phi):
     # print("filtering/scaling/converting all together take:", scaled_time - random_points_time, "seconds")
     # print("instantiating takes:", finished - scaled_time, "seconds")
 
+def initialize_full_sphere_evl_cells() -> None:
+    """Setup what will be the interior particles, but covering the entire sphere.
+    
+    We'll get rid of the ones we don't want, later, after equilibration, to give us just a cap.
+    """
+    print("Calculating particle positions.")
+    start = time.perf_counter()
+    
+    # Generate position vectors.
+    # number of points requested are for the full sphere. Final total will be less after filtering (later).
+    
+    # Set this here for now, put it in config after this is all finalized. ToDo: AFTER I know the "correct"
+    # number of cells based on real data: Select the full-sphere number in order to get the correct number after
+    # filtering; then fiddle around with the SIZE of the cells, until they fit. (I.e., until they don't cause any
+    # downward "pressure" creating "epiboly" in the equilibration phase.)
+    alt_num_spherical_positions: int = 1600
+    
+    # noinspection PyUnreachableCode
+    if True:
+        # new method:
+        # (gets list of plain python list[3])
+        vectors = tfu.random_nd_spherical(npoints=alt_num_spherical_positions, dim=3)
+    else:
+        # or alternatively, old method using tf built-in (and transform to match the output type of
+        # the new method, so I can test either way):
+        # noinspection PyTypeChecker
+        vectors = tf.random_points(tf.PointsType.Sphere.value, alt_num_spherical_positions)
+        vectors = [vector.as_list() for vector in vectors]
+    
+    random_points_time = time.perf_counter()
+    
+    num_particles = len(vectors)
+    print(f"Creating {num_particles} particles.")
+    filtered_time = time.perf_counter()
+    
+    # Transform unit sphere to sphere with radius = big particle radius + small particle radius
+    # (i.e. particles just touching) and concentric on the big particle.
+    # And even though plain python lists[3] is what we ultimately need, easiest to do the math
+    # by converting them to fVector3 here.
+    big_particle: tf.ParticleHandle = Big.items()[0]
+    scale: float = big_particle.radius + LeadingEdge.radius
+    
+    def final_position(vector) -> tf.fVector3:
+        return big_particle.position + tf.fVector3(vector) * scale
+    
+    # Better workaround of argument problem. Rebuilding the list of positions got past the
+    # TypeError in factory(), but the error message for that TypeError showed that it wasn't
+    # really the list of positions, but the positions themselves (type fVector3), that were
+    # the problem: C++ (apparently on Mac only) not able to accept an fVector3 as parameter
+    # to the fVector3 constructor (i.e. copy-constructor). And this is probably why, calling
+    # still resulted in an error reported by tf itself rather than by python, complaining
+    # "error: Number of particles to create could not be determined." Therefore, in our final
+    # transformation, turn the resulting fVector3 objects back into normal python lists (hence normal
+    # C++ vectors) using fVector3.as_list(), solved the problem.
+    final_positions = [final_position(vector).as_list() for vector in vectors]
+    scaled_time = time.perf_counter()
+    
+    # Original approach, slower: instantiate particles 1-at-a-time.
+    # Benchmarked at around 0.009 seconds!
+    #     for position in final_positions:
+    #         LeadingEdge(position)
+    
+    # New approach, faster: instantiate particles using ParticleType.factory().
+    #
+    # Note that when I run it in Jupyter, the text output from this function, including the text output
+    # of random_points(), all appears instantaneously *after* it finishes running, but when run from a
+    # plain python script, I noticed that that output came out very slowly. So this was a red herring!
+    #
+    # Benchmarked at around 0.007 seconds! Barely faster than 1-at-a-time. So the problem was not
+    # really the particle creation, but the calculation of random_points()!
+    Little.factory(positions=final_positions)
+    
+    # Give these each a Style object so I can access them later
+    # Also add each particle to the global catalog
+    phandle: tf.ParticleHandle
+    for phandle in Little.items():
+        phandle.style = tf.rendering.Style()
+        phandle.style.color = Little.style.color
+        particle_values: gc.ParticleData = {"handle": phandle}
+        gc.particles_by_id[phandle.id] = particle_values
+    
+    finished = time.perf_counter()
+    # print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
+    # print("filtering takes:", filtered_time - random_points_time, "seconds")
+    # print("scaling (and converting to list) takes:", scaled_time - filtered_time, "seconds")
+    # print("filtering/scaling/converting all together take:", scaled_time - random_points_time, "seconds")
+    # print("instantiating takes:", finished - scaled_time, "seconds")
+
+def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
+    """Filter to include only the ones above where the ring will be."""
+    limit: float = leading_edge_z + LeadingEdge.radius
+    phandle: tf.ParticleHandle
+    vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in Little.items()
+                                                  if phandle.position.z() < limit]
+    for phandle in vegetal_particles:
+        del gc.particles_by_id[phandle.id]
+        phandle.destroy()
+        
+    print(f"{len(Little.items())} particles remaining")
+        
 def add_interior_bonds():
     print("Bonding interior particles.")
     for particle in Little.items():
@@ -272,11 +372,24 @@ def replace_all_small_small_potentials(new_potential):
     tf.bind.types(new_potential, LeadingEdge, Little)
     tf.bind.types(new_potential, Little, Little)
 
-def freeze_leading_edge(frozen: bool = True):
-    for particle in LeadingEdge.items():
-        particle.frozen_z = frozen
+def freeze_leading_edge_z(frozen: bool = True) -> None:
+    phandle: tf.ParticleHandle
+    for phandle in LeadingEdge.items():
+        phandle.frozen_x = False
+        phandle.frozen_y = False
+        phandle.frozen_z = frozen
+        
+def freeze_leading_edge_completely() -> None:
+    phandle: tf.ParticleHandle
+    for phandle in LeadingEdge.items():
+        phandle.frozen = True
+        
+def unfreeze_leading_edge() -> None:
+    phandle: tf.ParticleHandle
+    for phandle in LeadingEdge.items():
+        phandle.frozen = False
 
-def equilibrate_to_leading_edge() -> None:
+def equilibrate(duration: float) -> None:
     if cfg.show_equilibration and vx.screenshot_export_enabled():
         # Include equilibration in the video export
         
@@ -289,8 +402,6 @@ def equilibrate_to_leading_edge() -> None:
         vx.set_screenshot_export_interval(500)
         dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly}])
         
-    freeze_leading_edge(True)
-    
     if cfg.show_equilibration and cfg.windowed_mode:
         # User must quit the simulator after equilibration in order to proceed. (It will be relaunched automatically.)
         # This is for use during development only.
@@ -301,11 +412,20 @@ def equilibrate_to_leading_edge() -> None:
         # Remember that with "until" arg, this is not steps, it's units of Universe.time.
         # (Number of steps = duration / Universe.dt)
         # (And furthermore, it's a duration; it will not run "until" that time, but for that AMOUNT of time!)
-        duration: float = 300
         tf.step(until=duration)
     
-    freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
+
+def equilibrate_to_leading_edge() -> None:
+    freeze_leading_edge_z(True)
+    equilibrate(300)
+    freeze_leading_edge_z(False)
+
+def move_ring_z(destination: float) -> None:
+    p: tf.ParticleHandle
+    for p in LeadingEdge.items():
+        x, y, z = p.position
+        p.position = tf.fVector3([x, y, destination])
 
 def setup_global_potentials() -> None:
     # Potentials, bound at the level of types:
@@ -350,13 +470,72 @@ def initialize_embryo() -> None:
     equilibrate_to_leading_edge()
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
-
+    
+def show() -> None:
+    """Call during development and testing, immediately after calling equilibrate()
+    
+    If show_equilibration True, then we watched it happen;
+    if False, then bring up simulator so we can examine the results.
+    """
+    if not cfg.show_equilibration:
+        tf.show()
+    
+def alt_initialize_embryo() -> None:
+    setup_global_potentials()
+    
+    Big([5, 5, 5])
+    initialize_bonded_edge()
+    freeze_leading_edge_z(True)
+    print("Equilibrating ring (frozen in z) (40)")
+    equilibrate(40)
+    initialize_leading_edge_bending_resistance()
+    freeze_leading_edge_completely()
+    show()  # let me examine the results
+    print("Equilibrated ring, now frozen completely and moving them out of the way")
+    leading_edge_z: float = LeadingEdge.items()[0].position.z()
+    move_ring_z(destination=9.8)
+    tf.show()
+    print("Moved the ring out of the way, now creating the full sphere of EVL cells")
+    initialize_full_sphere_evl_cells()
+    tf.show()
+    print("Created full sphere of EVL cells, now letting them equilibrate (150)")
+    equilibrate(150)
+    show()
+    print("Equilibrated full sphere of EVL cells, now filtering the excess")
+    filter_evl_to_animal_cap(leading_edge_z)
+    tf.show()
+    print("Filtered down to animal cap, now putting the ring back")
+    move_ring_z(destination=leading_edge_z)
+    freeze_leading_edge_z(True)
+    tf.show()
+    print("Ring is back in place and unfrozen (in x and y only), now equilibrating a bit more (30)")
+    equilibrate(30)
+    show()
+    print("Equilibrated with z frozen, now adding interior bonds")
+    add_interior_bonds()
+    tf.show()
+    print("Added interior bonds, now equilibrating a bit more (10)")
+    equilibrate(10)  # Happens quickly, once bonds are added
+    show()
+    print("Equilibrated with bonds and still frozen in z, now unfreezing and letting the edge relax (10)")
+    unfreeze_leading_edge()
+    equilibrate(10)
+    show()
+    print("Edge relaxed, now letting 'er rip (" + tfu.bluecolor + "Goal: " + tfu.endcolor
+          + "Should not expand more, if well-equilibrated and cell count and radius are correct!)")
+    
+    # Still ToDo: run the whole script with this version and see how it goes.
+    # Then, work on getting the cell numbers and sizes correct.
+    
 if __name__ == "__main__":
-    # While developing this module, just execute this in isolation
+    # While developing this module, just execute this in isolation.
+    # Designed to run in windowed mode, and flipping between show_equilibration True/False for testing.
     def show_utime() -> None:
         print(f"\rUniverse.time = {round(tf.Universe.time, 2)}", end="")
     
     epu.reset_camera()
     dyn.execute_repeatedly(tasks=[{"invoke": show_utime}])
-    initialize_embryo()
+    alt_initialize_embryo()
+    tf.show()
+    vx.make_movie()
     
