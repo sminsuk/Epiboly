@@ -8,10 +8,15 @@ import math
 # tf.step() and never tf.show(), and no graphics are displayed.
 windowless: bool = True
 
-# Number of timesteps between screenshots. User configurable here at load time. Can
-# also be adjusted dynamically at run time, but callers should never set this directly;
-# instead use the setter in module video_export, which owns it.
-# To disable screenshot export, set to 0.
+# Whether to show the equilibration steps.
+# In windowless mode, whether to include them in any exported screenshots;
+# in windowed mode, whether to show them in the simulator window (and any exported screenshots), or hide in tf.step();
+# useful in windowed mode to set True during development so I can see what I'm doing; otherwise leave as False.
+show_equilibration: bool = False
+
+# Number of timesteps between screenshots. User configurable here at load time. Can also be adjusted dynamically
+# at run time (only to adjust the value, not to enable/disable), but callers should never set this directly;
+# instead use the setter in module video_export, which owns it. To disable screenshot export, set to 0.
 screenshot_export_interval: int = 10
 
 # Just while determining empirically, the right number of interior particles to use.

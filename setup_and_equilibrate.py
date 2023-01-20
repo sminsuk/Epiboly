@@ -276,13 +276,34 @@ def freeze_leading_edge(frozen: bool = True):
     for particle in LeadingEdge.items():
         particle.frozen_z = frozen
 
-def equilibrate_to_leading_edge(duration: float):
+def equilibrate_to_leading_edge() -> None:
+    if cfg.show_equilibration and vx.screenshot_export_enabled():
+        # Include equilibration in the video export
+        
+        if cfg.windowless:
+            # Single screenshot illustrates that the one labeled "Timestep 0" is really timestep 1.
+            # (The two images will be slightly different.)
+            # This only works in windowless because in windowed mode, screenshots don't work until the simulator opens.
+            vx.save_screenshot("Timestep true zero")
+        
+        vx.set_screenshot_export_interval(500)
+        dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly}])
+        
     freeze_leading_edge(True)
     
-    # Remember that with "until" arg, this is not steps, it's units of Universe.time.
-    # (Number of steps = duration / Universe.dt)
-    # (And furthermore, it's a duration; it will not run "until" that time, it will run for that long!)
-    tf.step(until=duration)
+    if cfg.show_equilibration and not cfg.windowless:
+        # Showing equilibration in windowed mode.
+        # User must quit the simulator after equilibration in order to proceed. (It will be relaunched automatically.)
+        # This is for use during development only.
+        tf.show()
+    else:
+        print(f"Equilibrating... {'' if cfg.windowless else 'simulator will appear shortly...'}")
+    
+        # Remember that with "until" arg, this is not steps, it's units of Universe.time.
+        # (Number of steps = duration / Universe.dt)
+        # (And furthermore, it's a duration; it will not run "until" that time, but for that AMOUNT of time!)
+        duration: float = 300
+        tf.step(until=duration)
     
     freeze_leading_edge(False)
     print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
@@ -327,24 +348,7 @@ def setup_global_potentials() -> None:
 def initialize_embryo() -> None:
     setup_global_potentials()
     initialize_particles()
-
-    # Use this to include equilibration in the video export.
-    # Only works in windowless, because equilibration uses tf.step(), not tf.show().
-    # if cfg.windowless:
-    #     epu.reset_camera()
-    #
-    #     # Single screenshot illustrates that the one labeled "Timestep 0" is really timestep 1.
-    #     # (The two images will be slightly different.)
-    #     vx.save_screenshot("Timestep true zero")
-    #
-    #     vx.set_screenshot_export_interval(500)
-    #     dyn.execute_repeatedly(tasks=[
-    #             {"invoke": vx.save_screenshot_repeatedly},
-    #             ])
-
-    print(f"Equilibrating... {'' if cfg.windowless else 'simulator will appear shortly...'}")
-    
-    equilibrate_to_leading_edge(duration=300)
+    equilibrate_to_leading_edge()
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
 

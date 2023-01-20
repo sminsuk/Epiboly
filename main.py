@@ -26,9 +26,9 @@ if is_interactive():
 print(f"tissue-forge version = {tf.version.version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
 
+epu.reset_camera()
 setup.initialize_embryo()
 
-epu.reset_camera()
 # toggle_visibility()
 # toggle_visibility()
 dyn.execute_repeatedly(tasks=[

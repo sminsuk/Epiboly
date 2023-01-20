@@ -1,5 +1,7 @@
 """Export simulation screenshots and compile them into movies
 
+All export functions are no-ops unless export has been enabled in config.py
+
 StackOverflow: https://stackoverflow.com/a/62434934
 Documentation of MoviePy: https://zulko.github.io/moviepy/index.html
 """
@@ -168,8 +170,8 @@ def set_screenshot_export_interval(interval: int = 10) -> None:
     if disabled (stored interval == 0), then caller may not change it.
     if enabled (stored interval > 0), then caller may not change it to 0.
     
-    But, remember that once enabled, the task list for repeated events can always be changed to start/stop calling
-    the "save_screenshot" functions.
+    But, remember that once enabled, export can still be turned on and off on the fly by changing whether
+    "save_screenshot_repeatedly" is included in the task list for repeated events.
     """
     if screenshot_export_enabled():
         if interval > 0:
@@ -177,9 +179,6 @@ def set_screenshot_export_interval(interval: int = 10) -> None:
             print(f"Screenshot export interval set to {interval} timesteps")
         else:
             print(tfu.bluecolor + "Warning: screenshot export cannot be disabled after initialization" + tfu.endcolor)
-    else:
-        if interval != 0:
-            print(tfu.bluecolor + "Warning: screenshot export cannot be enabled after initialization" + tfu.endcolor)
 
 def screenshot_export_enabled() -> bool:
     """Convenience function. Interpret screenshot_export_interval as flag for whether export is enabled"""
