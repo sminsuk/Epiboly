@@ -351,3 +351,12 @@ def initialize_embryo() -> None:
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
 
+if __name__ == "__main__":
+    # While developing this module, just execute this in isolation
+    def show_utime() -> None:
+        print(f"\rUniverse.time = {round(tf.Universe.time, 2)}", end="")
+    
+    epu.reset_camera()
+    dyn.execute_repeatedly(tasks=[{"invoke": show_utime}])
+    initialize_embryo()
+    
