@@ -399,13 +399,37 @@ def screenshot_true_zero() -> None:
     """
     if cfg.show_equilibration and vx.screenshot_export_enabled() and not cfg.windowed_mode:
         vx.save_screenshot("Timestep true zero")
-
-def equilibrate(duration: float) -> None:
-    if cfg.show_equilibration and vx.screenshot_export_enabled():
-        # Include equilibration in the video export
+        
+def initialize_movie_export() -> None:
+    """If exporting screenshots for video including equilibration, create a task list for that.
+    
+    This will override the task list for the running Universe.time readout at the bottom of the console, but
+    the latter won't be needed because we'll be showing the image filenames, which also include Universe.time.
+    """
+    if cfg.show_equilibration and vx.screenshot_export_enabled() and not _final_screenshots_only:
         vx.set_screenshot_export_interval(25)
         dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly}])
         
+def final_result_screenshots() -> None:
+    """If enabled, capture still images from multiple angles. Dev only; will never be executed if running from main."""
+    if _final_screenshots_only and vx.screenshot_export_enabled():
+        tf.system.camera_view_front()
+        tf.system.camera_zoom_to(-12)
+        vx.save_screenshot("Front", show_timestep=False)
+    
+        tf.system.camera_view_left()
+        tf.system.camera_zoom_to(-12)
+        vx.save_screenshot("Left", show_timestep=False)
+    
+        tf.system.camera_view_back()
+        tf.system.camera_zoom_to(-12)
+        vx.save_screenshot("Back", show_timestep=False)
+    
+        tf.system.camera_view_right()
+        tf.system.camera_zoom_to(-12)
+        vx.save_screenshot("Right", show_timestep=False)
+
+def equilibrate(duration: float) -> None:
     if cfg.show_equilibration and cfg.windowed_mode:
         # User must quit the simulator after each equilibration step (each of the multiple launches of the
         # simulator window) in order to proceed. (It will be relaunched automatically.)
@@ -473,6 +497,7 @@ def initialize_embryo() -> None:
     setup_global_potentials()
     initialize_particles()
     screenshot_true_zero()
+    initialize_movie_export()
     equilibrate_to_leading_edge()
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
@@ -493,6 +518,7 @@ def new_initialize_embryo() -> None:
     freeze_leading_edge_z(True)
     
     screenshot_true_zero()
+    initialize_movie_export()
     
     equilibrate(40)
     initialize_leading_edge_bending_resistance()
@@ -565,7 +591,12 @@ def alt_initialize_embryo() -> None:
     
     # Still ToDo: run the whole script with this version and see how it goes.
     # Then, work on getting the cell numbers and sizes correct.
-    
+
+# True: don't save screenshots throughout, or make a movie; just save stills from multiple angles when finished,
+# False: save screenshots throughout, and make a movie; no special stills at the end.
+# Of course, is ignored if screenshots not enabled in config.py
+_final_screenshots_only: bool = True
+
 if __name__ == "__main__":
     # While developing this module, just execute this in isolation.
     # Designed to run in windowed mode, and flipping between show_equilibration True/False for testing.
@@ -581,5 +612,9 @@ if __name__ == "__main__":
     new_initialize_embryo()     # to run the new one without pauses, as it will play when run in the sim from main
     
     tf.show()
-    vx.make_movie()
+    
+    if _final_screenshots_only:
+        final_result_screenshots()
+    else:
+        vx.make_movie()
     
