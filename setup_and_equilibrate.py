@@ -388,22 +388,27 @@ def unfreeze_leading_edge() -> None:
     phandle: tf.ParticleHandle
     for phandle in LeadingEdge.items():
         phandle.frozen = False
+        
+def screenshot_true_zero() -> None:
+    """If exporting screenshots including equilibration, start with one screenshot before any timestepping
+    
+    Only works in windowless mode, because screenshots in windowed mode don't work until after the simulator opens.
+    
+    Single screenshot illustrates that the one labeled "Timestep 0" is really timestep 1.
+    (The two images will be slightly different.)
+    """
+    if cfg.show_equilibration and vx.screenshot_export_enabled() and not cfg.windowed_mode:
+        vx.save_screenshot("Timestep true zero")
 
 def equilibrate(duration: float) -> None:
     if cfg.show_equilibration and vx.screenshot_export_enabled():
         # Include equilibration in the video export
-        
-        if not cfg.windowed_mode:
-            # Single screenshot illustrates that the one labeled "Timestep 0" is really timestep 1.
-            # (The two images will be slightly different.)
-            # This only works in windowless because in windowed mode, screenshots don't work until the simulator opens.
-            vx.save_screenshot("Timestep true zero")
-        
-        vx.set_screenshot_export_interval(500)
+        vx.set_screenshot_export_interval(25)
         dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly}])
         
     if cfg.show_equilibration and cfg.windowed_mode:
-        # User must quit the simulator after equilibration in order to proceed. (It will be relaunched automatically.)
+        # User must quit the simulator after each equilibration step (each of the multiple launches of the
+        # simulator window) in order to proceed. (It will be relaunched automatically.)
         # This is for use during development only.
         tf.show()
     else:
@@ -467,10 +472,44 @@ def setup_global_potentials() -> None:
 def initialize_embryo() -> None:
     setup_global_potentials()
     initialize_particles()
+    screenshot_true_zero()
     equilibrate_to_leading_edge()
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
+
+def new_initialize_embryo() -> None:
+    """Based on the experiments done in alt_initialize_embryo(), but with the development scaffolding removed
     
+    Note that the equilibration times at each step are highly trial-and-error, and each one sets the context for
+    the subsequent steps, so these are all infinitely tweakable. These, along with number of particles (see
+    num_spherical_positions) and size of particles, determine the final outcome of equilibration.
+    
+    Intended to run from main, but can also run from the development code down below: set cfg.show_equilibration=False
+    """
+    setup_global_potentials()
+    
+    Big([5, 5, 5])
+    initialize_bonded_edge()
+    freeze_leading_edge_z(True)
+    
+    screenshot_true_zero()
+    
+    equilibrate(40)
+    initialize_leading_edge_bending_resistance()
+    freeze_leading_edge_completely()
+    leading_edge_z: float = LeadingEdge.items()[0].position.z()
+    move_ring_z(destination=9.8)
+    initialize_full_sphere_evl_cells()
+    equilibrate(150)
+    filter_evl_to_animal_cap(leading_edge_z)
+    move_ring_z(destination=leading_edge_z)
+    freeze_leading_edge_z(True)
+    equilibrate(30)
+    add_interior_bonds()
+    equilibrate(10)  # Happens quickly, once bonds are added
+    unfreeze_leading_edge()
+    equilibrate(10)
+
 def show() -> None:
     """Call during development and testing, immediately after calling equilibrate()
     
@@ -535,7 +574,12 @@ if __name__ == "__main__":
     
     epu.reset_camera()
     dyn.execute_repeatedly(tasks=[{"invoke": show_utime}])
-    alt_initialize_embryo()
+    
+    # Choose one:
+    # initialize_embryo()         # to run the old one and make sure I haven't broken the sim during W.I.P.
+    # alt_initialize_embryo()     # to run the new one with the ability to pause and examine each step
+    new_initialize_embryo()     # to run the new one without pauses, as it will play when run in the sim from main
+    
     tf.show()
     vx.make_movie()
     

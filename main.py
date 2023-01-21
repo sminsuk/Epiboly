@@ -27,7 +27,10 @@ print(f"tissue-forge version = {tf.version.version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
 
 epu.reset_camera()
-setup.initialize_embryo()
+
+# Choose one:
+# setup.initialize_embryo()       # the old one
+setup.new_initialize_embryo()   # the new one under development
 
 # toggle_visibility()
 # toggle_visibility()
