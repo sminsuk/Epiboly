@@ -615,6 +615,7 @@ if __name__ == "__main__":
         print(f"\rUniverse.time = {round(tf.Universe.time, 2)}", end="")
     
     epu.reset_camera()
+    dyn.initialize_master_event()
     dyn.execute_repeatedly(tasks=[{"invoke": show_utime}])
     
     # Choose one:
