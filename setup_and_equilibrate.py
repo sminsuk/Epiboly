@@ -435,6 +435,9 @@ def show_equilibrating_message() -> None:
     else:
         print("Equilibrating...")
         
+def show_is_equilibrated_message() -> None:
+    print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
+        
 def equilibrate(duration: float) -> None:
     if cfg.show_equilibration and cfg.windowed_mode:
         # User must quit the simulator after each equilibration step (each of the multiple launches of the
@@ -447,8 +450,6 @@ def equilibrate(duration: float) -> None:
         # (And furthermore, it's a duration; it will not run "until" that time, but for that AMOUNT of time!)
         tf.step(until=duration)
     
-    print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
-
 def equilibrate_to_leading_edge() -> None:
     freeze_leading_edge_z(True)
     equilibrate(300)
@@ -504,6 +505,7 @@ def initialize_embryo() -> None:
     screenshot_true_zero()
     initialize_movie_export()
     equilibrate_to_leading_edge()
+    show_is_equilibrated_message()
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
 
@@ -541,6 +543,7 @@ def new_initialize_embryo() -> None:
     equilibrate(10)  # Happens quickly, once bonds are added
     unfreeze_leading_edge()
     equilibrate(10)
+    show_is_equilibrated_message()
 
 def show() -> None:
     """Call during development and testing, immediately after calling equilibrate()
@@ -593,6 +596,7 @@ def alt_initialize_embryo() -> None:
     unfreeze_leading_edge()
     equilibrate(10)
     show()
+    show_is_equilibrated_message()
     print("Edge relaxed, now letting 'er rip (" + tfu.bluecolor + "Goal: " + tfu.endcolor
           + "Should not expand more, if well-equilibrated and cell count and radius are correct!)")
     
