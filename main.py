@@ -26,6 +26,7 @@ if is_interactive():
 print(f"tissue-forge version = {tf.version.version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
 
+dyn.initialize_master_event()
 epu.reset_camera()
 
 # Choose one:

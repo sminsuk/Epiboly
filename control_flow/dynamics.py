@@ -1,6 +1,6 @@
 """Set up dynamical changes to the system.
 
-Creates events that are run every simulation step. By default, they do nothing,
+Creates a master invoke_method that is executed on each repeated event invocation. By default, it does nothing,
 until execute_repeatedly() is called, creating a task list.
 """
 from collections.abc import Callable
@@ -14,10 +14,13 @@ class Task(TypedDict, total=False):
     args: dict                      # not required, if invoke function takes no args
 
 def execute_repeatedly(tasks: list[Task] = None) -> None:
-    """Execute these tasks, in order, once per timestep.
+    """Execute these tasks, in order, once per event invocation.
     
     Each time this is called, the old task list is replaced by the new one.
-    To clear the task list so nothing is happening, omit the arg or pass [].
+    To clear the task list so nothing is happening, omit the arg or pass an empty list.
+    
+    If called prior to calling initialize_master_event() (or providing your own event), no tasks
+    are executed until master_event_method() gets invoked by an event.
     """
     global _tasks
     
@@ -45,10 +48,21 @@ def execute_repeatedly(tasks: list[Task] = None) -> None:
 
 _tasks: list[Task] = []
 
-def _master_event(evt: tf.event.TimeEvent) -> int:
-    """This is intended to be run every simulation step. Runs repeatedly forever unless error."""
-    global _tasks
+def master_event_method(evt: tf.event.Event) -> int:
+    """This is intended to be used as the _invoke_method of a Tissue Forge timed event.
     
+    By default, does nothing until it has been provided with a task list. Change its behavior on the fly
+    and as often as desired, by providing a new task list, using the function execute_repeatedly().
+    
+    ToDo: This isn't quite general enough for sharing, yet. Needs to pass the evt object to the invoke methods
+    of each task, so that they can .remove() when desired, and especially for ParticleTimeEvent so that they
+    can extract Particle and ParticleType information.
+    
+    Note: evt object will be either TimeEvent or ParticleTimeEvent, depending on the type of event invocation that
+    was set up. I type-hinted plain "Event" in order to represent that generality. Doesn't seem to matter;
+    PyCharm doesn't complain, regardless of which type-hint I use or which type of event is sent, presumably
+    because master_event_method() is never called directly from python, but only indirectly from TF itself.
+    """
     for task in _tasks:
         invoke: Callable[..., None] = task["invoke"]
         args: dict = task["args"]
@@ -64,7 +78,18 @@ def _master_event(evt: tf.event.TimeEvent) -> int:
     
     return 0
 
-# This will happen as soon as it's imported (after the tf.init)
-# Note: dt * 0.9 in order to deal with a weirdness in the timer arithmetic. This will actually result in invoke_method
-# being called once each timestep. Using exactly dt results in the event being skipped about a third of the time!
-tf.event.on_time(period=tf.Universe.dt * 0.9, invoke_method=_master_event)
+def initialize_master_event() -> None:
+    """Sets up to invoke events once per timestep.
+    
+    Convenience method to set up a master event. Alternatively, provide your own event, using either
+    of the timed-event functions in Tissue Forge – on_time() or on_particletime() – with any desired
+    customizing parameters. Use master_event_method as your invoke_method. master_event_method will
+    be called repeatedly forever unless error.
+    
+    If called prior to calling execute_repeatedly(), events do nothing until they've been provided
+    with a task list by calling that function.
+    """
+    # Note: dt * 0.9 in order to deal with a weirdness in the timer arithmetic. This
+    # will actually result in invoke_method being called once each timestep. Using
+    # exactly dt would result in the event being skipped about a third of the time!
+    tf.event.on_time(period=tf.Universe.dt * 0.9, invoke_method=master_event_method)
