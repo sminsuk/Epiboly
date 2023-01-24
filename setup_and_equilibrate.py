@@ -222,10 +222,9 @@ def initialize_full_sphere_evl_cells() -> None:
 
 def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
     """Filter to include only the ones above where the ring will be."""
-    limit: float = leading_edge_z + LeadingEdge.radius
     phandle: tf.ParticleHandle
     vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in Little.items()
-                                                  if phandle.position.z() < limit]
+                                                  if phandle.position.z() < leading_edge_z]
     for phandle in vegetal_particles:
         del gc.particles_by_id[phandle.id]
         phandle.destroy()
@@ -505,6 +504,14 @@ def initialize_embryo() -> None:
     screenshot_true_zero()
     initialize_movie_export()
     equilibrate_to_leading_edge()
+    
+    # Various refactorings aside, one functional change to fix this older version of the algorithm:
+    # Repeat the filter, to get escapers. (Note to self: should I now shrink/eliminate the gap?)
+    leading_edge_z: float = LeadingEdge.items()[0].position.z()
+    filter_evl_to_animal_cap(leading_edge_z)
+    if cfg.show_equilibration:
+        vx.save_screenshot("Escapers removed")
+
     show_is_equilibrated_message()
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
@@ -539,6 +546,8 @@ def new_initialize_embryo() -> None:
     move_ring_z(destination=leading_edge_z)
     freeze_leading_edge_z(True)
     equilibrate(150)
+    # Repeat the filtering, to trim "escaped" interior particles that end up below the leading edge:
+    filter_evl_to_animal_cap(leading_edge_z)
     add_interior_bonds()
     equilibrate(10)  # Happens quickly, once bonds are added
     unfreeze_leading_edge()
@@ -586,7 +595,10 @@ def alt_initialize_embryo() -> None:
     print("Ring is back in place and unfrozen (in x and y only), now equilibrating a bit more (150)")
     equilibrate(150)
     show()
-    print("Equilibrated with z frozen, now adding interior bonds")
+    print(f"Equilibrated with z frozen, now re-filtering to remove escapers")
+    filter_evl_to_animal_cap(leading_edge_z)
+    tf.show()
+    print(f"Removed escapers, now adding interior bonds")
     add_interior_bonds()
     tf.show()
     print("Added interior bonds, now equilibrating a bit more (10)")
@@ -606,7 +618,7 @@ def alt_initialize_embryo() -> None:
 # True: don't save screenshots throughout, or make a movie; just save stills from multiple angles when finished,
 # False: save screenshots throughout, and make a movie; no special stills at the end.
 # Of course, is ignored if screenshots not enabled in config.py
-_final_screenshots_only: bool = True
+_final_screenshots_only: bool = False
 
 if __name__ == "__main__":
     # While developing this module, just execute this in isolation.
