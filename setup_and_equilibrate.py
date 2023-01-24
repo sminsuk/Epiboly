@@ -429,6 +429,12 @@ def final_result_screenshots() -> None:
         tf.system.camera_zoom_to(-12)
         vx.save_screenshot("Right", show_timestep=False)
 
+def show_equilibrating_message() -> None:
+    if cfg.windowed_mode and not cfg.show_equilibration:
+        print("Equilibrating; simulator will appear shortly...")
+    else:
+        print("Equilibrating...")
+        
 def equilibrate(duration: float) -> None:
     if cfg.show_equilibration and cfg.windowed_mode:
         # User must quit the simulator after each equilibration step (each of the multiple launches of the
@@ -436,8 +442,6 @@ def equilibrate(duration: float) -> None:
         # This is for use during development only.
         tf.show()
     else:
-        print(f"Equilibrating... {'simulator will appear shortly...' if cfg.windowed_mode else ''}")
-    
         # Remember that with "until" arg, this is not steps, it's units of Universe.time.
         # (Number of steps = duration / Universe.dt)
         # (And furthermore, it's a duration; it will not run "until" that time, but for that AMOUNT of time!)
@@ -495,6 +499,7 @@ def setup_global_potentials() -> None:
     
 def initialize_embryo() -> None:
     setup_global_potentials()
+    show_equilibrating_message()
     initialize_particles()
     screenshot_true_zero()
     initialize_movie_export()
@@ -512,6 +517,7 @@ def new_initialize_embryo() -> None:
     Intended to run from main, but can also run from the development code down below: set cfg.show_equilibration=False
     """
     setup_global_potentials()
+    show_equilibrating_message()
     
     Big([5, 5, 5])
     initialize_bonded_edge()
@@ -547,6 +553,7 @@ def show() -> None:
     
 def alt_initialize_embryo() -> None:
     setup_global_potentials()
+    show_equilibrating_message()
     
     Big([5, 5, 5])
     initialize_bonded_edge()
