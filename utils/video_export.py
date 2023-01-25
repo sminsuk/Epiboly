@@ -122,6 +122,8 @@ def save_screenshot(filename: str, show_timestep: bool = True) -> None:
     
     suffix: str = f"Timestep = {_current_screenshot_timestep}"
     suffix += f"; Universe.time = {round(tf.Universe.time, 2)}"
+    suffix += f"; phi = {round(epu.leading_edge_mean_phi(), 2)}"
+    suffix += f"; veloc.z = {round(epu.leading_edge_velocity_z(), 4)}"
     if not filename:
         filename = suffix
     elif show_timestep:

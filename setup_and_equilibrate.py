@@ -548,8 +548,21 @@ def new_initialize_embryo() -> None:
     equilibrate(150)
     # Repeat the filtering, to trim "escaped" interior particles that end up below the leading edge:
     filter_evl_to_animal_cap(leading_edge_z)
-    add_interior_bonds()
-    equilibrate(10)  # Happens quickly, once bonds are added
+    # add_interior_bonds()
+    # equilibrate(10)  # Happens quickly, once bonds are added
+    
+    # ################# Test ##################
+    # Free-runnning equilibration without interior bonds.
+    # Instead of add_interior_bonds() (comment out the call above),
+    # DESTROY the ring bonds and Angles.
+    angle: tf.AngleHandle
+    bhandle: tf.BondHandle
+    for angle in tf.AngleHandle.items():
+        angle.destroy()
+    for bhandle in tf.BondHandle.items():
+        bhandle.destroy()
+    # ############## End of test ##############
+    
     unfreeze_leading_edge()
     equilibrate(10)
     show_is_equilibrated_message()
@@ -635,10 +648,12 @@ if __name__ == "__main__":
     # alt_initialize_embryo()     # to run the new one with the ability to pause and examine each step
     new_initialize_embryo()     # to run the new one without pauses, as it will play when run in the sim from main
     
-    tf.show()
-    
     if _final_screenshots_only:
         final_result_screenshots()
     else:
+        # And then just let it run and see how much further equilibration happens
+        # (Need to quit manually, by quitting simulator or the app, as the case may be)
+        equilibrate(10000)
+    
         vx.make_movie()
     
