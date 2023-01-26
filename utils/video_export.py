@@ -8,7 +8,6 @@ Documentation of MoviePy: https://zulko.github.io/moviepy/index.html
 from datetime import datetime, timezone
 import math
 import os
-import os.path as path
 
 import moviepy.video.io.ImageSequenceClip as movieclip
 
@@ -90,7 +89,7 @@ def _init_screenshots() -> None:
         return
     
     # one directory for all TF output from this script, ever:
-    image_root = path.expanduser("~/TissueForge_image_export/")
+    image_root = os.path.expanduser("~/TissueForge_image_export/")
     
     # subdirectory with unique name for all output of the current run:
     _image_dir = _timestring()
@@ -100,6 +99,12 @@ def _init_screenshots() -> None:
     
     # Creates the parent directory if it doesn't yet exist; and the subdirectory UNLESS it already exists:
     os.makedirs(_image_path)
+    
+def sim_root() -> str:
+    """Make _image_path available to the rest of the app, as a central destination for other types
+    of output as well, like MatPlatLib saved plots. ToDo: Should probably refactor this somewhere else.
+    """
+    return _image_path
     
 def _export_screenshot(filename: str) -> None:
     """Note, in system.screenshot(), bgcolor (and decorate) args only work in windowless mode."""
@@ -227,7 +232,7 @@ def make_movie() -> None:
     
 def make_movie_in_post(directory_name: str) -> None:
     global _image_dir, _image_path
-    image_root = path.expanduser("~/TissueForge_image_export/")
+    image_root = os.path.expanduser("~/TissueForge_image_export/")
     _image_dir = directory_name
     _image_path = os.path.join(image_root, _image_dir)
     make_movie()

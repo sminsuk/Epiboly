@@ -9,6 +9,7 @@ from control_flow import dynamics as dyn, \
     exec_tests as xt
 import setup_and_equilibrate as setup
 from utils import epiboly_utils as epu,\
+    plotting as plot,\
     video_export as vx
 
 from control_flow.interactive import is_interactive, toggle_visibility
@@ -95,3 +96,4 @@ else:
         tf.step()
 
 vx.make_movie()
+plot.save_graph()

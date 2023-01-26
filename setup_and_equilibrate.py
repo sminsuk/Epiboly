@@ -12,7 +12,8 @@ from control_flow import dynamics as dyn, \
     exec_tests as xt
 from utils import tf_utils as tfu,\
     epiboly_utils as epu,\
-    global_catalogs as gc
+    global_catalogs as gc,\
+    plotting as plot
 from utils import video_export as vx
 
 def initialize_interior(leading_edge_phi):
@@ -407,7 +408,9 @@ def initialize_movie_export() -> None:
     """
     if cfg.show_equilibration and vx.screenshot_export_enabled() and not _final_screenshots_only:
         vx.set_screenshot_export_interval(25)
-        dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly}])
+        dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly},
+                                      {"invoke": plot.show_graph}
+                                      ])
         
 def final_result_screenshots() -> None:
     """If enabled, capture still images from multiple angles. Dev only; will never be executed if running from main."""
@@ -528,7 +531,8 @@ def new_initialize_embryo() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    Big([5, 5, 5])
+    big_particle: tf.ParticleHandle = Big([5, 5, 5])
+    big_particle.frozen = True
     initialize_bonded_edge()
     freeze_leading_edge_z(True)
     
@@ -580,7 +584,8 @@ def alt_initialize_embryo() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    Big([5, 5, 5])
+    big_particle: tf.ParticleHandle = Big([5, 5, 5])
+    big_particle.frozen = True
     initialize_bonded_edge()
     freeze_leading_edge_z(True)
     print("Equilibrating ring (frozen in z) (40)")
@@ -656,4 +661,6 @@ if __name__ == "__main__":
         equilibrate(10000)
     
         vx.make_movie()
+    
+    plot.save_graph()
     
