@@ -657,8 +657,10 @@ if __name__ == "__main__":
         final_result_screenshots()
     else:
         # And then just let it run and see how much further equilibration happens
-        # (Need to quit manually, by quitting simulator or the app, as the case may be)
-        equilibrate(10000)
+        # (Small duration, equal to the amount of time for equilibration-proper, so that it
+        # will have a stopping point when free-running in windowless mode; in windowed mode,
+        # need to quit manually, by quitting simulator.)
+        equilibrate(300)
     
         vx.make_movie()
     
