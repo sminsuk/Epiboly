@@ -51,8 +51,8 @@ def show_graph() -> None:
         _phi.append(phi)
         
         # ToDo? In windowless, technically we don't need to do this until once, at the end, just before
-        # saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
-        # (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
+        #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
+        #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
         _ax.plot(_timesteps, _phi, "bo")
 
     _timestep += 1
