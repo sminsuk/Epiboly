@@ -15,6 +15,7 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 
 from epiboly_init import LeadingEdge, Little
+import config as cfg
 import utils.epiboly_utils as epu
 import utils.video_export as vx
 
@@ -61,7 +62,9 @@ def save_graph() -> None:
     if _fig:
         # i.e., only if init_graph() was ever run
         total_evl_cells: int = len(Little.items()) + len(LeadingEdge.items())
-        filename: str = f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}.png"
+        filename: str = f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}"
+        filename += f" ({cfg.num_spherical_positions} + {cfg.num_leading_edge_points})"
+        filename += ".png"
         filepath: str = os.path.join(vx.sim_root(), filename)
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")
         
