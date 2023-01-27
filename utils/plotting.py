@@ -29,7 +29,7 @@ def _init_graph() -> None:
     global _fig, _ax
     
     _fig, _ax = plt.subplots()
-    _ax.set_ylabel("mean phi of leading edge (radians)")
+    _ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
 
 def show_graph() -> None:
     global _timestep
