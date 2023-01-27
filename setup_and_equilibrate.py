@@ -661,8 +661,8 @@ if __name__ == "__main__":
         # will have a stopping point when free-running in windowless mode; in windowed mode,
         # need to quit manually, by quitting simulator.)
         equilibrate(300)
-    
+
+        plot.save_graph()
         vx.make_movie()
     
-    plot.save_graph()
     
