@@ -40,17 +40,19 @@ def initialize_interior(leading_edge_phi):
     # Generate position vectors.
     # number of points requested are for the full sphere. Final total will be less after filtering.
     
-    # Tweak parameters: density (number of points requested), edge_margin (gap left when placing
-    # interior cells so they aren't placed too close to ring, and so they have room to expand into),
-    # for these two approaches (tf.random_points()
+    # With the improvement of clipping off the "escaper" interior cells below the leading edge,
+    # it's no longer necessary to leave a gap between the two sets of cells. So the old "edge_margin"
+    # variable is eliminated, and the process is now much simpler and easier to work with. (Maybe so
+    # much so, that I'll stick with this instead of the newer algorithm? We'll see.)
+    # Tweak: density (number of points requested) for these two approaches (tf.random_points()
     # and su.random_nd_spherical()). Goal is to get an initial layout (after equilibration) that touches
     # the bonded ring without deforming it. random_nd_spherical() is a bit less uniform so has more holes to
     # start with, hence more bunching elsewhere, hence tends to expand more unevenly during equilibration.
     # Note that increasing the density but also the size of the gap, can balance out to give the same
     # number of particles, but with different initial distribution and equilibration dynamics.
-    # For awhile had different numbers of point and edge_margins for the two, but ultimately came around
-    # to the same values for each (2050 and 0.15), so I guess those must be the "right" values.
-    # (Note: moved the definition of these constants to the config module, and tweaked it further.)
+    # For awhile had different numbers of points for the two, but ultimately came around
+    # to the same value for each (2050), so I guess that must be the "right" value.
+    # (Note: moved the definition of this constantss to the config module, and tweaked it further.)
     # Could conceivably even have different spring constants on the potentials in the two cases; I have
     # tweaked that to be best for equilibration; when ready to "start the biology running", can easily
     # change them at that time.
@@ -59,23 +61,18 @@ def initialize_interior(leading_edge_phi):
         # new method:
         # (gets list of plain python list[3])
         vectors = tfu.random_nd_spherical(npoints=cfg.num_spherical_positions, dim=3)
-        edge_margin = cfg.edge_margin_interior_points
     else:
         # or alternatively, old method using tf built-in (and transform to match the output type of
         # the new method, so I can test either way):
         # noinspection PyTypeChecker
         vectors = tf.random_points(tf.PointsType.Sphere.value, cfg.num_spherical_positions)
         vectors = [vector.as_list() for vector in vectors]
-        edge_margin = cfg.edge_margin_interior_points
     
     random_points_time = time.perf_counter()
     
     # Filter to include only the ones inside the existing ring of LeadingEdge particles
-    # I could probably calculate this more correctly, but for now just subtract a little bit
-    # from leading_edge_phi (eyeball it) so that the two particle types don't overrun each other.
-    # This is in radians so 5 degrees ~ 0.09. (See edge_margin values above.)
     filtered_vectors = [vector for vector in vectors
-                        if tfu.spherical_from_cartesian(vector)[2] < leading_edge_phi - edge_margin]
+                        if tfu.spherical_from_cartesian(vector)[2] < leading_edge_phi]
     num_particles = len(filtered_vectors)
     print(f"Creating {num_particles} particles.")
     filtered_time = time.perf_counter()
@@ -360,7 +357,8 @@ def initialize_leading_edge_bending_resistance() -> None:
         previous_particle = particle
 
 def initialize_particles() -> None:
-    Big([5, 5, 5])
+    big_particle: tf.ParticleHandle = Big([5, 5, 5])
+    big_particle.frozen = True
     
     # Small particles in two steps. First create simple ring of bonded LeadingEdge, then fill in the interior particles.
     leading_edge_phi = initialize_bonded_edge()
@@ -516,8 +514,17 @@ def initialize_embryo() -> None:
         vx.save_screenshot("Escapers removed")
 
     show_is_equilibrated_message()
-    add_interior_bonds()
-    initialize_leading_edge_bending_resistance()
+    # add_interior_bonds()
+    # initialize_leading_edge_bending_resistance()
+
+    # ################# Test ##################
+    # Free-runnning equilibration without interior bonds.
+    # Instead of add_interior_bonds() and bending_resistance() (comment out the calls above),
+    # DESTROY the ring bonds
+    bhandle: tf.BondHandle
+    for bhandle in tf.BondHandle.items():
+        bhandle.destroy()
+    # ############## End of test ##############
 
 def new_initialize_embryo() -> None:
     """Based on the experiments done in alt_initialize_embryo(), but with the development scaffolding removed

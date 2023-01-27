@@ -36,7 +36,6 @@ epiboly_initial_percentage: int = 43     # real value for the misnomer "30% epib
 # See comments in function initialize_interior() in main for explanation
 num_leading_edge_points: int = 75
 num_spherical_positions: int = 2000  # 2050
-edge_margin_interior_points: float = 0.15
 
 # Some items for bond-making:
 # harmonic potential:
