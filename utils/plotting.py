@@ -14,7 +14,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 
-from epiboly_init import LeadingEdge
+from epiboly_init import LeadingEdge, Little
 import utils.epiboly_utils as epu
 import utils.video_export as vx
 
@@ -60,10 +60,12 @@ def show_graph() -> None:
 def save_graph() -> None:
     if _fig:
         # i.e., only if init_graph() was ever run
-        filepath: str = os.path.join(vx.sim_root(), "Plot.png")
+        total_evl_cells: int = len(Little.items()) + len(LeadingEdge.items())
+        filename: str = f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}.png"
+        filepath: str = os.path.join(vx.sim_root(), filename)
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")
         
-# At import time: set to interactive mode so that plot display isn't blocking.
+# At import time: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
 # Note to self: do I need to make sure interactive is off, when I'm in windowless mode? That would be
 # necessary for true automation, but would be nice to run windowless manually and still see the plots.
 # However, it seems like TF is suppressing that; in windowless only, the plots aren't showing up once
