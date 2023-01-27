@@ -48,14 +48,6 @@ def initialize_interior(leading_edge_phi):
     # and su.random_nd_spherical()). Goal is to get an initial layout (after equilibration) that touches
     # the bonded ring without deforming it. random_nd_spherical() is a bit less uniform so has more holes to
     # start with, hence more bunching elsewhere, hence tends to expand more unevenly during equilibration.
-    # Note that increasing the density but also the size of the gap, can balance out to give the same
-    # number of particles, but with different initial distribution and equilibration dynamics.
-    # For awhile had different numbers of points for the two, but ultimately came around
-    # to the same value for each (2050), so I guess that must be the "right" value.
-    # (Note: moved the definition of this constantss to the config module, and tweaked it further.)
-    # Could conceivably even have different spring constants on the potentials in the two cases; I have
-    # tweaked that to be best for equilibration; when ready to "start the biology running", can easily
-    # change them at that time.
     # noinspection PyUnreachableCode
     if True:
         # new method:
@@ -141,22 +133,16 @@ def initialize_full_sphere_evl_cells() -> None:
     # Generate position vectors.
     # number of points requested are for the full sphere. Final total will be less after filtering (later).
     
-    # Set this here for now, put it in config after this is all finalized. ToDo: AFTER I know the "correct"
-    # number of cells based on real data: Select the full-sphere number in order to get the correct number after
-    # filtering; then fiddle around with the SIZE of the cells, until they fit. (I.e., until they don't cause any
-    # downward "pressure" creating "epiboly" in the equilibration phase.)
-    alt_num_spherical_positions: int = 1600
-    
     # noinspection PyUnreachableCode
     if True:
         # new method:
         # (gets list of plain python list[3])
-        vectors = tfu.random_nd_spherical(npoints=alt_num_spherical_positions, dim=3)
+        vectors = tfu.random_nd_spherical(npoints=cfg.num_spherical_positions, dim=3)
     else:
         # or alternatively, old method using tf built-in (and transform to match the output type of
         # the new method, so I can test either way):
         # noinspection PyTypeChecker
-        vectors = tf.random_points(tf.PointsType.Sphere.value, alt_num_spherical_positions)
+        vectors = tf.random_points(tf.PointsType.Sphere.value, cfg.num_spherical_positions)
         vectors = [vector.as_list() for vector in vectors]
     
     random_points_time = time.perf_counter()

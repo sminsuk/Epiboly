@@ -33,9 +33,9 @@ screenshot_export_interval: int = 10
 # LeadingEdge.frozen_z = True
 epiboly_initial_percentage: int = 43     # real value for the misnomer "30% epiboly")
 
-# See comments in function initialize_interior() in main for explanation
-num_leading_edge_points: int = 75
-num_spherical_positions: int = 2000  # 2050
+# How many leading edge and interior cells to make
+num_leading_edge_points: int = 105
+num_spherical_positions: int = 4950
 
 # Some items for bond-making:
 # harmonic potential:

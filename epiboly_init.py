@@ -9,7 +9,7 @@ from utils import tf_utils as tfu
 
 class LittleType(tf.ParticleTypeSpec):
     mass = 15
-    radius = 0.15
+    radius = 0.08
     dynamics = tf.Overdamped
 
 class BigType(tf.ParticleTypeSpec):
