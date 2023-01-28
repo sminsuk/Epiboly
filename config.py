@@ -37,8 +37,8 @@ epiboly_initial_percentage: int = 43     # real value for the misnomer "30% epib
 num_leading_edge_points: int = 105
 num_spherical_positions: int = 4950
 
-# Some items for bond-making:
-# harmonic potential:
+# Some items for Potential- and Bond-making:
+harmonic_repulsion_spring_constant: float = 5.0
 harmonic_spring_constant: float = 7.0
 harmonic_edge_spring_constant: float = 7.0  # (for the Bonds)
 harmonic_angle_spring_constant: float = 5.0  # (for the Angles)

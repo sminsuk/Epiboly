@@ -474,7 +474,7 @@ def setup_global_potentials() -> None:
     
     # All small particles repel each other all the time, inside r0
     small_small_repulsion = tf.Potential.harmonic(r0=r0,
-                                                  k=5.0,
+                                                  k=cfg.harmonic_repulsion_spring_constant,
                                                   max=r0
                                                   )
     
