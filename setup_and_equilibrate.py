@@ -545,12 +545,13 @@ def new_initialize_embryo() -> None:
     equilibrate(150)
     # Repeat the filtering, to trim "escaped" interior particles that end up below the leading edge:
     filter_evl_to_animal_cap(leading_edge_z)
+    
     # add_interior_bonds()
     # equilibrate(10)  # Happens quickly, once bonds are added
     
     # ################# Test ##################
     # Free-runnning equilibration without interior bonds.
-    # Instead of add_interior_bonds() (comment out the call above),
+    # Instead of add_interior_bonds() (comment out the calls above),
     # DESTROY the ring bonds and Angles.
     angle: tf.AngleHandle
     bhandle: tf.BondHandle
@@ -609,13 +610,30 @@ def alt_initialize_embryo() -> None:
     print(f"Equilibrated with z frozen, now re-filtering to remove escapers")
     filter_evl_to_animal_cap(leading_edge_z)
     tf.show()
-    print(f"Removed escapers, now adding interior bonds")
-    add_interior_bonds()
+    
+    # print(f"Removed escapers, now adding interior bonds")
+    # add_interior_bonds()
+    # tf.show()
+    # print("Added interior bonds, now equilibrating a bit more (10)")
+    # equilibrate(10)  # Happens quickly, once bonds are added
+    # show()
+    # print("Equilibrated with bonds and still frozen in z, now unfreezing and letting the edge relax (10)")
+
+    # ################# Test ##################
+    # Free-runnning equilibration without interior bonds.
+    # Instead of add_interior_bonds() (comment out the calls above),
+    # DESTROY the ring bonds and Angles.
+    print("Removed escapers, now ELIMINATING bonds")
+    angle: tf.AngleHandle
+    bhandle: tf.BondHandle
+    for angle in tf.AngleHandle.items():
+        angle.destroy()
+    for bhandle in tf.BondHandle.items():
+        bhandle.destroy()
     tf.show()
-    print("Added interior bonds, now equilibrating a bit more (10)")
-    equilibrate(10)  # Happens quickly, once bonds are added
-    show()
-    print("Equilibrated with bonds and still frozen in z, now unfreezing and letting the edge relax (10)")
+    print("Eliminated bonds, now unfreezing and letting the edge relax (10)")
+    # ############## End of test ##############
+    
     unfreeze_leading_edge()
     equilibrate(10)
     show()
