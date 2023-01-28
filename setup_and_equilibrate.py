@@ -607,11 +607,11 @@ def alt_initialize_embryo() -> None:
     print("Ring is back in place and unfrozen (in x and y only), now equilibrating a bit more (150)")
     equilibrate(150)
     show()
-    print(f"Equilibrated with z frozen, now re-filtering to remove escapers")
+    print("Equilibrated with z frozen, now re-filtering to remove escapers")
     filter_evl_to_animal_cap(leading_edge_z)
     tf.show()
     
-    # print(f"Removed escapers, now adding interior bonds")
+    # print("Removed escapers, now adding interior bonds")
     # add_interior_bonds()
     # tf.show()
     # print("Added interior bonds, now equilibrating a bit more (10)")
