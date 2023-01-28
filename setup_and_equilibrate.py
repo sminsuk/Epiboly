@@ -451,23 +451,23 @@ def setup_global_potentials() -> None:
     # Potentials, bound at the level of types:
     #
     # Large-small: LJ, originally max = equilibrium distance = sum of radii (for only repulsion), but then
-    # expanded max to include attraction for the purposes of bringing particles down to the surface during
-    # setup. Setup at first with this attraction so all particles go to the right place. Then, once the
-    # biology starts, can remove that from interior particles, because they should not remain attached.
+    # expanded max to include attraction for the purposes of bringing particles down to the surface.
     # Should eventually switch this to Morse (or maybe harmonic) for ease of use (and consistency),
     # if I ever need to change it again.
     #
     # Small-small (both types, to themselves and to each other):
-    # During setup: harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
+    # harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
     # applied only inside the equilibrium distance).
-    # Then: this will be replaced by a new potential added via bonds, handling both attraction and repulsion.
     
     # Big-small equilibrium distance = 3.15
+    # (ToDo: 3.15 was old eq. distance; now that I've changed the radius, that would change, too. Should be
+    #   Big.radius + Little.radius. Would have to recalculate big_small_pot, but it doesn't really matter
+    #   that much. Probably should switch it to harmonic for consistency anyway.)
     # Note, with LJ, to adjust well-depth with minimal change to equilibrium distance, keep A/B constant.
     big_small_pot = tf.Potential.lennard_jones_12_6(min=0.275, max=5, A=9.612e6, B=19608)
     tf.bind.types(big_small_pot, Big, LeadingEdge)
     
-    # Also bind to Little (interior) particles, just during equilibration. Once the biology starts, will remove it.
+    # Also bind to Little (interior) particles.
     tf.bind.types(big_small_pot, Big, Little)
     
     r0 = LeadingEdge.radius * 2
