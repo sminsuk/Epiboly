@@ -540,6 +540,13 @@ def new_initialize_embryo() -> None:
     filter_evl_to_animal_cap(leading_edge_z)
     move_ring_z(destination=leading_edge_z)
     freeze_leading_edge_z(True)
+    
+    # # This was temporary camera manipulation to get a good shot of the instability bug. Still need it?
+    # vx.save_screenshot("Capture the gap before moving the camera")
+    # tf.system.camera_view_top()   # one or the other, top() or reset()
+    # tf.system.camera_reset()
+    # tf.system.camera_zoom_to(-13)
+    
     equilibrate(150)
     # Repeat the filtering, to trim "escaped" interior particles that end up below the leading edge:
     filter_evl_to_animal_cap(leading_edge_z)
