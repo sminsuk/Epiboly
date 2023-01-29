@@ -390,7 +390,7 @@ def initialize_movie_export() -> None:
     This will override the task list for the running Universe.time readout at the bottom of the console, but
     the latter won't be needed because we'll be showing the image filenames, which also include Universe.time.
     """
-    if cfg.show_equilibration and vx.screenshot_export_enabled() and not _final_screenshots_only:
+    if cfg.show_equilibration and vx.screenshot_export_enabled():
         vx.set_screenshot_export_interval(25)
         dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly},
                                       {"invoke": plot.show_graph}
@@ -398,7 +398,7 @@ def initialize_movie_export() -> None:
         
 def final_result_screenshots() -> None:
     """If enabled, capture still images from multiple angles. Dev only; will never be executed if running from main."""
-    if _final_screenshots_only and vx.screenshot_export_enabled():
+    if _final_screenshots and vx.screenshot_export_enabled():
         tf.system.camera_view_front()
         tf.system.camera_zoom_to(-12)
         vx.save_screenshot("Front", show_timestep=False)
@@ -649,10 +649,10 @@ def alt_initialize_embryo() -> None:
     # Still ToDo: run the whole script with this version and see how it goes.
     # Then, work on getting the cell numbers and sizes correct.
 
-# True: don't save screenshots throughout, or make a movie; just save stills from multiple angles when finished,
+# True: After making the movie when sim is finished, save stills from multiple angles.
 # False: save screenshots throughout, and make a movie; no special stills at the end.
 # Of course, is ignored if screenshots not enabled in config.py
-_final_screenshots_only: bool = False
+_final_screenshots: bool = True
 
 if __name__ == "__main__":
     # While developing this module, just execute this in isolation.
@@ -664,21 +664,21 @@ if __name__ == "__main__":
     dyn.initialize_master_event()
     dyn.execute_repeatedly(tasks=[{"invoke": show_utime}])
     
-    # Choose one:
+    # ***** Choose one: *****
     # initialize_embryo()         # to run the old one and make sure I haven't broken the sim during W.I.P.
     # alt_initialize_embryo()     # to run the new one with the ability to pause and examine each step
     new_initialize_embryo()     # to run the new one without pauses, as it will play when run in the sim from main
     
-    if _final_screenshots_only:
-        final_result_screenshots()
-    else:
-        # And then just let it run and see how much further equilibration happens
-        # (Small duration, equal to the amount of time for equilibration-proper, so that it
-        # will have a stopping point when free-running in windowless mode; in windowed mode,
-        # need to quit manually, by quitting simulator.)
-        equilibrate(300)
-
-        plot.save_graph()
-        vx.make_movie()
+    # And then just let it run and see how much further equilibration happens
+    # (Small duration, equal to the amount of time for equilibration-proper, so that it
+    # will have a stopping point when free-running in windowless mode; in windowed mode,
+    # need to quit manually, by quitting simulator.)
+    equilibrate(300)
+    
+    plot.save_graph()
+    vx.make_movie()
+    
+    # Only after making the movie, so that these stills won't be included
+    final_result_screenshots()
     
     
