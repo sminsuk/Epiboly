@@ -459,12 +459,10 @@ def setup_global_potentials() -> None:
     # harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
     # applied only inside the equilibrium distance).
     
-    # Big-small equilibrium distance = 3.15
-    # (ToDo: 3.15 was old eq. distance; now that I've changed the radius, that would change, too. Should be
-    #   Big.radius + Little.radius. Would have to recalculate big_small_pot, but it doesn't really matter
-    #   that much. Probably should switch it to harmonic for consistency anyway.)
+    # Big-small equilibrium distance = 3.08
+    # (ToDo: Probably should switch this to harmonic for consistency.)
     # Note, with LJ, to adjust well-depth with minimal change to equilibrium distance, keep A/B constant.
-    big_small_pot = tf.Potential.lennard_jones_12_6(min=0.275, max=5, A=9.612e6, B=19608)
+    big_small_pot = tf.Potential.lennard_jones_12_6(min=0.275, max=5, A=7.3e6, B=17088)
     tf.bind.types(big_small_pot, Big, LeadingEdge)
     
     # Also bind to Little (interior) particles.
