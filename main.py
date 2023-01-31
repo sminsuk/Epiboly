@@ -95,5 +95,5 @@ else:
             break
         tf.step()
 
-vx.make_movie()
 plot.save_graph()
+vx.make_movie()
