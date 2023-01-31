@@ -14,7 +14,7 @@ def remove_tangent_forces() -> None:
         p.force_init = [0, 0, 0]
     print("Tangent forces removed")
 
-def apply_even_tangent_forces(magnitude: int) -> None:
+def apply_even_tangent_forces(total_force: int) -> None:
     """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
     
     To apply force evenly, must take into account not only the variation in density around the marginal ring, but
@@ -33,7 +33,6 @@ def apply_even_tangent_forces(magnitude: int) -> None:
         return ParticleData(p, theta, phi)
     
     p: tf.ParticleHandle
-    total_force: float = magnitude * len(LeadingEdge.items())
     particle_data_list: list[ParticleData] = [get_particle_data(p) for p in LeadingEdge.items()]
     sorted_on_theta: list[ParticleData] = sorted(particle_data_list, key=lambda data: data.theta)
 

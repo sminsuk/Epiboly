@@ -39,7 +39,7 @@ setup.new_initialize_embryo()   # the new one under development
 dyn.execute_repeatedly(tasks=[
         {"invoke": vx.save_screenshot_repeatedly},
         {"invoke": mt.apply_even_tangent_forces,
-         "args": {"magnitude": 5}
+         "args": {"total_force": 375}
          },
         {"invoke": bonds.maintain_bonds},
         ])
@@ -50,7 +50,7 @@ if cfg.windowed_mode:
     dyn.execute_repeatedly(tasks=[
             {"invoke": vx.save_screenshot_repeatedly},
             {"invoke": mt.apply_even_tangent_forces,
-             "args": {"magnitude": 5}
+             "args": {"total_force": 375}
              },
             {"invoke": bonds.maintain_bonds,
              "args": {
