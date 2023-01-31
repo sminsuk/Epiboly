@@ -97,3 +97,6 @@ else:
 
 plot.save_graph()
 vx.make_movie()
+
+# Only after making the movie, so that these stills won't be included
+vx.final_result_screenshots()

@@ -16,6 +16,29 @@ import config as cfg
 from utils import epiboly_utils as epu
 from utils import tf_utils as tfu
 
+def final_result_screenshots() -> None:
+    """If enabled, capture still images from multiple angles.
+
+    Note: This doesn't work in windowed mode; all 4 images come out the same. I.e., the camera updates
+    don't result in a display update. Not worth trying to get around.
+    """
+    if not cfg.windowed_mode and screenshot_export_enabled():
+        tf.system.camera_view_front()
+        tf.system.camera_zoom_to(-12)
+        save_screenshot("Front", show_timestep=False)
+        
+        tf.system.camera_view_left()
+        tf.system.camera_zoom_to(-12)
+        save_screenshot("Left", show_timestep=False)
+        
+        tf.system.camera_view_back()
+        tf.system.camera_zoom_to(-12)
+        save_screenshot("Back", show_timestep=False)
+        
+        tf.system.camera_view_right()
+        tf.system.camera_zoom_to(-12)
+        save_screenshot("Right", show_timestep=False)
+
 _rotation_started: bool = False
 _rotation_finished: bool = False
 

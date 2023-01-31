@@ -395,25 +395,6 @@ def initialize_movie_export() -> None:
         dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly},
                                       {"invoke": plot.show_graph}
                                       ])
-        
-def final_result_screenshots() -> None:
-    """If enabled, capture still images from multiple angles. Dev only; will never be executed if running from main."""
-    if _final_screenshots and vx.screenshot_export_enabled():
-        tf.system.camera_view_front()
-        tf.system.camera_zoom_to(-12)
-        vx.save_screenshot("Front", show_timestep=False)
-    
-        tf.system.camera_view_left()
-        tf.system.camera_zoom_to(-12)
-        vx.save_screenshot("Left", show_timestep=False)
-    
-        tf.system.camera_view_back()
-        tf.system.camera_zoom_to(-12)
-        vx.save_screenshot("Back", show_timestep=False)
-    
-        tf.system.camera_view_right()
-        tf.system.camera_zoom_to(-12)
-        vx.save_screenshot("Right", show_timestep=False)
 
 def show_equilibrating_message() -> None:
     if cfg.windowed_mode and not cfg.show_equilibration:
@@ -649,11 +630,6 @@ def alt_initialize_embryo() -> None:
     # Still ToDo: run the whole script with this version and see how it goes.
     # Then, work on getting the cell numbers and sizes correct.
 
-# True: After making the movie when sim is finished, save stills from multiple angles.
-# False: save screenshots throughout, and make a movie; no special stills at the end.
-# Of course, is ignored if screenshots not enabled in config.py
-_final_screenshots: bool = True
-
 if __name__ == "__main__":
     # While developing this module, just execute this in isolation.
     # Designed to run in windowed mode, and flipping between show_equilibration True/False for testing.
@@ -679,6 +655,6 @@ if __name__ == "__main__":
     vx.make_movie()
     
     # Only after making the movie, so that these stills won't be included
-    final_result_screenshots()
+    vx.final_result_screenshots()
     
     
