@@ -480,23 +480,31 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         
         if not recruit:
             return 0, 0
-            
-        if cfg.angle_bonds_enabled:
-            # This more natural criterion for preventing runaway edge recruitment seems to work.
-            # Still not perfect. Would be better to make this unnecessary, too.
-            recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
-            if recruit_angle < cfg.leading_edge_recruitment_min_angle:
-                return 0, 0
-        else:
-            # Hoped that algorithm improvements would make this unnecessary. With Angle bonds, the above
-            # improved version works, but when they are disabled, still need to fall back to this.
-            pos: tf.fVector3
-            leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
-            leading_edge_recruitment_zone: float = cfg.leading_edge_recruitment_limit * LeadingEdge.radius
-            if recruit.position.z() > leading_edge_baseline + leading_edge_recruitment_zone:
-                # Prevent runaway edge proliferation by restricting its height. I don't really want to do this,
-                # but at the moment I need it to get this working
-                return 0, 0
+
+        # # ##### Alternative criterion for preventing runaway edge recruitment #####
+        # # For awhile this seemed like the more natural approach, and worked well, at least
+        # # when Angle bonds were included. After changing the number and size of EVL particles,
+        # # it needed adjusting (had worked with cfg.leading_edge_recruitment_min_angle = pi/3.5; now
+        # # needed to make it more stringent, with pi/2.5). But I did not really like the arbitrariness
+        # # of this, or understand why it would be impacted by particle size, so probably will just
+        # # stick with the old way, below. That way is based on a multiple of radius, and still works
+        # # robustly even after the particle size change.
+        # if cfg.angle_bonds_enabled:
+        #     recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
+        #     if recruit_angle < cfg.leading_edge_recruitment_min_angle:
+        #         return 0, 0
+        
+        # Prevent runaway edge recruitment.
+        # Hoped that algorithm improvements would make this unnecessary. Would prefer to understand the cause,
+        # but we can at least prevent by a rule. Disallow recruitment if the recruited particle is too far from
+        # the leading edge.
+        # ToDo: this really should be based on phi rather than on z though, because as epiboly progresses,
+        #  the difference in z becomes smaller and smaller, and less relevant.
+        pos: tf.fVector3
+        leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
+        leading_edge_recruitment_zone: float = cfg.leading_edge_recruitment_limit * LeadingEdge.radius
+        if recruit.position.z() > leading_edge_baseline + leading_edge_recruitment_zone:
+            return 0, 0
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
         # (instead of simply breaking those extra bonds, like before, which led to problems).
