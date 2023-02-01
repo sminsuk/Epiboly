@@ -479,17 +479,17 @@ def initialize_embryo() -> None:
         vx.save_screenshot("Escapers removed")
 
     show_is_equilibrated_message()
-    # add_interior_bonds()
-    # initialize_leading_edge_bending_resistance()
+    add_interior_bonds()
+    initialize_leading_edge_bending_resistance()
 
-    # ################# Test ##################
-    # Free-runnning equilibration without interior bonds.
-    # Instead of add_interior_bonds() and bending_resistance() (comment out the calls above),
-    # DESTROY the ring bonds
-    bhandle: tf.BondHandle
-    for bhandle in tf.BondHandle.items():
-        bhandle.destroy()
-    # ############## End of test ##############
+    # # ################# Test ##################
+    # # Free-runnning equilibration without interior bonds.
+    # # Instead of add_interior_bonds() and bending_resistance() (comment out the calls above),
+    # # DESTROY the ring bonds
+    # bhandle: tf.BondHandle
+    # for bhandle in tf.BondHandle.items():
+    #     bhandle.destroy()
+    # # ############## End of test ##############
 
 def new_initialize_embryo() -> None:
     """Based on the experiments done in alt_initialize_embryo(), but with the development scaffolding removed
@@ -532,20 +532,20 @@ def new_initialize_embryo() -> None:
     # Repeat the filtering, to trim "escaped" interior particles that end up below the leading edge:
     filter_evl_to_animal_cap(leading_edge_z)
     
-    # add_interior_bonds()
-    # equilibrate(10)  # Happens quickly, once bonds are added
+    add_interior_bonds()
+    equilibrate(10)  # Happens quickly, once bonds are added
     
-    # ################# Test ##################
-    # Free-runnning equilibration without interior bonds.
-    # Instead of add_interior_bonds() (comment out the calls above),
-    # DESTROY the ring bonds and Angles.
-    angle: tf.AngleHandle
-    bhandle: tf.BondHandle
-    for angle in tf.AngleHandle.items():
-        angle.destroy()
-    for bhandle in tf.BondHandle.items():
-        bhandle.destroy()
-    # ############## End of test ##############
+    # # ################# Test ##################
+    # # Free-runnning equilibration without interior bonds.
+    # # Instead of add_interior_bonds() (comment out the calls above),
+    # # DESTROY the ring bonds and Angles.
+    # angle: tf.AngleHandle
+    # bhandle: tf.BondHandle
+    # for angle in tf.AngleHandle.items():
+    #     angle.destroy()
+    # for bhandle in tf.BondHandle.items():
+    #     bhandle.destroy()
+    # # ############## End of test ##############
     
     unfreeze_leading_edge()
     equilibrate(10)
@@ -597,28 +597,28 @@ def alt_initialize_embryo() -> None:
     filter_evl_to_animal_cap(leading_edge_z)
     tf.show()
     
-    # print("Removed escapers, now adding interior bonds")
-    # add_interior_bonds()
-    # tf.show()
-    # print("Added interior bonds, now equilibrating a bit more (10)")
-    # equilibrate(10)  # Happens quickly, once bonds are added
-    # show()
-    # print("Equilibrated with bonds and still frozen in z, now unfreezing and letting the edge relax (10)")
-
-    # ################# Test ##################
-    # Free-runnning equilibration without interior bonds.
-    # Instead of add_interior_bonds() (comment out the calls above),
-    # DESTROY the ring bonds and Angles.
-    print("Removed escapers, now ELIMINATING bonds")
-    angle: tf.AngleHandle
-    bhandle: tf.BondHandle
-    for angle in tf.AngleHandle.items():
-        angle.destroy()
-    for bhandle in tf.BondHandle.items():
-        bhandle.destroy()
+    print("Removed escapers, now adding interior bonds")
+    add_interior_bonds()
     tf.show()
-    print("Eliminated bonds, now unfreezing and letting the edge relax (10)")
-    # ############## End of test ##############
+    print("Added interior bonds, now equilibrating a bit more (10)")
+    equilibrate(10)  # Happens quickly, once bonds are added
+    show()
+    print("Equilibrated with bonds and still frozen in z, now unfreezing and letting the edge relax (10)")
+
+    # # ################# Test ##################
+    # # Free-runnning equilibration without interior bonds.
+    # # Instead of add_interior_bonds() (comment out the calls above),
+    # # DESTROY the ring bonds and Angles.
+    # print("Removed escapers, now ELIMINATING bonds")
+    # angle: tf.AngleHandle
+    # bhandle: tf.BondHandle
+    # for angle in tf.AngleHandle.items():
+    #     angle.destroy()
+    # for bhandle in tf.BondHandle.items():
+    #     bhandle.destroy()
+    # tf.show()
+    # print("Eliminated bonds, now unfreezing and letting the edge relax (10)")
+    # # ############## End of test ##############
     
     unfreeze_leading_edge()
     equilibrate(10)
