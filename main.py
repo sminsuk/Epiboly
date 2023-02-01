@@ -85,12 +85,8 @@ else:
     def sim_finished() -> bool:
         return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
     
-    # failsafe maximum; remember this is steps, not exported images.
-    # (Number of exported images = steps / screenshot_export_interval)
-    # A good value for quick smoke-test runs where you want the sim to run to completion quickly, is 50-100
-    max_steps: int = 13000  # enough to capture a full epiboly, determined by trial and error
-    
-    for step in range(max_steps + 1):
+    # For quick test runs where the script (but not epiboly) completes quickly, try "for step in range(50)"
+    while True:
         if sim_finished():
             break
         tf.step()
