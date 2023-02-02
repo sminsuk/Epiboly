@@ -25,6 +25,7 @@ if is_interactive():
     print("Interactive module imported!")
 
 print(f"tissue-forge version = {tf.version.version}")
+print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
 
 dyn.initialize_master_event()
