@@ -296,28 +296,27 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
 
 def paint_neighbors():
     """Test of neighbors() functionality by painting neighbors different colors"""
-    # Get all the small particles. There should be about 700, and 55, respectively. Note
+    # Get the two sets of particles. There should be about 2200, and a bit over 100, respectively. Note
     # these two lists are live. Instead of assigning to a variable, make a new list from each of them,
     # that's not live? Thought it might make a difference in memory management. Doesn't seem to help, though.
-    littles = tf.ParticleList(Little.items())
-    edge_lords = tf.ParticleList(LeadingEdge.items())
-    print("littles, edge_lords contain:", len(littles), len(edge_lords))
-    print(littles.thisown)
+    little_particles = tf.ParticleList(Little.items())
+    edge_particles = tf.ParticleList(LeadingEdge.items())
+    print("little, edge particles contain:", len(little_particles), len(edge_particles))
+    print(little_particles.thisown)
     
-    littles_step = round(len(littles) / 7)  # pick about 8 interior particles
-    edge_step = round(len(edge_lords) / 5)  # pick about 6 edge particles
+    little_step = round(len(little_particles) / 15)
+    edge_step = round(len(edge_particles) / 10)
     
     found_color = tfu.white
     neighbor_color = tfu.gray
     found_particles = []
     # Iterate over each list with a step, to pick a small subset of particles
-    for i in range(0, len(littles), littles_step):
-        found_particles.append(littles.item(i))
+    for i in range(0, len(little_particles), little_step):
+        found_particles.append(little_particles.item(i))
     
-    for i in range(0, len(edge_lords), edge_step):
-        found_particles.append(edge_lords.item(i))
+    for i in range(0, len(edge_particles), edge_step):
+        found_particles.append(edge_particles.item(i))
     
-    tested = False
     for p in found_particles:
         
         # Set color on particle
