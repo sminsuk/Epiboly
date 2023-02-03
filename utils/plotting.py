@@ -58,11 +58,14 @@ def show_graph() -> None:
 
     _timestep += 1
     
-def save_graph() -> None:
+def save_graph(end: Optional[bool] = None) -> None:
     if _fig:
         # i.e., only if init_graph() was ever run
         total_evl_cells: int = len(Little.items()) + len(LeadingEdge.items())
-        filename: str = f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}"
+        filename: str = ""
+        if end is not None:
+            filename += "End. " if end else "Start. "
+        filename += f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}"
         filename += f" ({cfg.num_spherical_positions} + {cfg.num_leading_edge_points})"
         filename += ".png"
         filepath: str = os.path.join(vx.sim_root(), filename)

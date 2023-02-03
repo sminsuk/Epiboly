@@ -35,10 +35,15 @@ epu.reset_camera()
 # setup.initialize_embryo()       # the old one
 setup.new_initialize_embryo()   # the new one under development
 
+# Call now so I at least get the graph for equilibration if I later abort execution;
+# then again at the end so I get the whole thing if the script completes.
+plot.save_graph(end=False)
+
 # toggle_visibility()
 # toggle_visibility()
 dyn.execute_repeatedly(tasks=[
         {"invoke": vx.save_screenshot_repeatedly},
+        {"invoke": plot.show_graph},
         {"invoke": mt.apply_even_tangent_forces,
          "args": {"total_force": 375}
          },
@@ -50,6 +55,7 @@ if cfg.windowed_mode:
     tf.show()
     dyn.execute_repeatedly(tasks=[
             {"invoke": vx.save_screenshot_repeatedly},
+            {"invoke": plot.show_graph},
             {"invoke": mt.apply_even_tangent_forces,
              "args": {"total_force": 375}
              },
@@ -92,7 +98,7 @@ else:
             break
         tf.step()
 
-plot.save_graph()
+plot.save_graph(end=True)
 vx.make_movie()
 
 # Only after making the movie, so that these stills won't be included
