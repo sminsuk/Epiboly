@@ -387,17 +387,21 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         assert edge_angle_potential is not None, f"Failed harmonic_angle potential, k={k}, theta0={theta0}, tol={tol}"
 
         if add:
-            assert len(p_becoming.angles) == 0, f"Particle {p_becoming.id} already is part of leading edge!"
+            assert len(p_becoming.angles) == 0, f"Recruited particle (id={p_becoming.id}) already has" \
+                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
             exchange_particles(a1, bonded_p=p2, new_p=p_becoming, potential=edge_angle_potential)
             exchange_particles(a2, bonded_p=p1, new_p=p_becoming, potential=edge_angle_potential)
             tf.Angle.create(edge_angle_potential, p1, p_becoming, p2)
-            assert len(p_becoming.angles) == 3, f"Particle {p_becoming.id} didn't end up with 3 Angle Bonds on it!"
+            assert len(p_becoming.angles) == 3, f"Recruited particle (id={p_becoming.id}) ended up with" \
+                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
         else:
-            assert len(p_becoming.angles) == 3, f"Particle {p_becoming.id} is not a leading edge particle!"
+            assert len(p_becoming.angles) == 3, f"Particle becoming internal (id={p_becoming.id}) starting with" \
+                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
             exchange_particles(a1, bonded_p=p_becoming, new_p=p2, potential=edge_angle_potential)
             exchange_particles(a2, bonded_p=p_becoming, new_p=p1, potential=edge_angle_potential)
             p_becoming.angles[0].destroy()
-            assert len(p_becoming.angles) == 0, f"Particle {p_becoming.id} still has some Angle Bonds left on it!"
+            assert len(p_becoming.angles) == 0, f"Particle becoming internal (id={p_becoming.id}) ended up with" \
+                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
 
     def attempt_become_internal(p: tf.ParticleHandle) -> int:
         """For LeadingEdge particles only. Become internal, and let its two bonded leading edge neighbors
