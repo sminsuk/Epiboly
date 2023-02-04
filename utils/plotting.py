@@ -67,6 +67,7 @@ def save_graph(end: Optional[bool] = None) -> None:
             filename += "End. " if end else "Start. "
         filename += f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}"
         filename += f" ({cfg.num_spherical_positions} + {cfg.num_leading_edge_points})"
+        filename += f", external = {cfg.yolk_cortical_tension}"
         filename += ".png"
         filepath: str = os.path.join(vx.sim_root(), filename)
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")

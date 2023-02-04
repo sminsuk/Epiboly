@@ -20,6 +20,10 @@ show_equilibration: bool = False
 # instead use the setter in module video_export, which owns it. To disable screenshot export, set to 0.
 screenshot_export_interval: int = 10
 
+# Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
+# Angle bonds cause instability and big waviness in the leading edge
+angle_bonds_enabled: bool = True
+
 # Just while determining empirically, the right number of interior particles to use.
 # If there are too many, with frozen LeadingEdge, they'll pop past. If too few,
 # they'll never fill the space no matter how long they equilibrate. Once the right
@@ -43,7 +47,7 @@ harmonic_spring_constant: float = 12.0
 harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
 harmonic_angle_spring_constant: float = 3.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
-angle_bonds_enabled: bool = True
+yolk_cortical_tension: float = 200    # was 375 for full epiboly
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
