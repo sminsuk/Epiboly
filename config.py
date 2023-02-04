@@ -39,9 +39,9 @@ num_spherical_positions: int = 4950
 
 # Some items for Potential- and Bond-making:
 harmonic_repulsion_spring_constant: float = 5.0
-harmonic_spring_constant: float = 7.0
-harmonic_edge_spring_constant: float = 7.0  # (for the Bonds)
-harmonic_angle_spring_constant: float = 4.0  # (for the Angles)
+harmonic_spring_constant: float = 12.0
+harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
+harmonic_angle_spring_constant: float = 3.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 angle_bonds_enabled: bool = True
 
