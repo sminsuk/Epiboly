@@ -374,7 +374,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return
         
         assert len(p1.angles) == 3 and len(p2.angles) == 3,\
-            f"Particles {p1.id}, {p2.id} have {len(p1.angles)}, {len(p2.angles)} Angles, respectively"
+            f"While {'joining' if add else 'leaving'} the leading edge, " \
+            f"particles {p1.id}, {p2.id} have {len(p1.angles)}, {len(p2.angles)} Angles, respectively (should have 3)."\
+            f" p_becoming (id={p_becoming.id}) has {len(p_becoming.angles)} Angles (should have {0 if add else 3})."
         a1: tf.AngleHandle = get_pivot_angle(p1)
         a2: tf.AngleHandle = get_pivot_angle(p2)
         assert a1, f"Particle {p1.id} has no pivot Angle!"
