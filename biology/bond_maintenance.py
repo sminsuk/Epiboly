@@ -495,6 +495,10 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # # of this, or understand why it would be impacted by particle size, so probably will just
         # # stick with the old way, below. That way is based on a multiple of radius, and still works
         # # robustly even after the particle size change.
+        # # Also, deprecated because now I'm disabling Angle bonds while tuning setup and equilibration,
+        # # and this method never worked in the absence of Angle bonds. Algorithm used here needs to work
+        # # the same while tuning as in the regular sim, so really can't use this version anymore.
+        # # Keeping this comment only until I do the final needed fix below.
         # if cfg.angle_bonds_enabled:
         #     recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
         #     if recruit_angle < cfg.leading_edge_recruitment_min_angle:
@@ -505,7 +509,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # but we can at least prevent by a rule. Disallow recruitment if the recruited particle is too far from
         # the leading edge.
         # ToDo: this really should be based on phi rather than on z though, because as epiboly progresses,
-        #  the difference in z becomes smaller and smaller, and less relevant.
+        #  the difference in z becomes smaller and smaller, and less relevant. (Once that has been done and
+        #  validated, finally remove altogether the alternative method above.)
         pos: tf.fVector3
         leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
         leading_edge_recruitment_zone: float = cfg.leading_edge_recruitment_limit * LeadingEdge.radius
