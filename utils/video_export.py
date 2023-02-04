@@ -220,14 +220,20 @@ def make_movie() -> None:
 
     with os.scandir(_image_path) as dir_entries_it:
         dir_entries_chron: list[os.DirEntry] = sorted(dir_entries_it, key=lambda entry: entry.stat().st_mtime_ns)
-    image_filenames = [entry.path
+    image_filepaths = [entry.path
                        for entry in dir_entries_chron
                        if entry.name.endswith(".jpg")]
-    print(f"Assembling movie from {len(image_filenames)} images")
-    clip = movieclip.ImageSequenceClip(image_filenames, fps=24)
+    print(f"Assembling movie from {len(image_filepaths)} images")
+    clip = movieclip.ImageSequenceClip(image_filepaths, fps=24)
 
     # Save the movie clip using the directory name also as the movie name, and save it to that same directory
     clip.write_videofile(os.path.join(_image_path, _image_dir + ".mp4"))
+    
+    # Discard all the exported image files except the final one
+    image_filepaths.pop()   # remove final item
+    print(f"\nRemoving {len(image_filepaths)} images...")
+    for path in image_filepaths:
+        os.remove(path)
 
     # Notes on codec and file type:
     # .mp4 (defaults to codec "libx264"): looks okay; quality not as good as the jpg files it's made from;
