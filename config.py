@@ -38,8 +38,8 @@ angle_bonds_enabled: bool = True
 epiboly_initial_percentage: int = 43     # real value for the misnomer "30% epiboly")
 
 # How many leading edge and interior cells to make
-num_leading_edge_points: int = 105
-num_spherical_positions: int = 4950
+num_leading_edge_points: int = 110
+num_spherical_positions: int = 5000
 
 # Some items for Potential- and Bond-making:
 harmonic_repulsion_spring_constant: float = 5.0
@@ -47,7 +47,7 @@ harmonic_spring_constant: float = 12.0
 harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
 harmonic_angle_spring_constant: float = 3.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
-yolk_cortical_tension: float = 200    # was 375 for full epiboly
+yolk_cortical_tension: float = 120    # was 375 for full epiboly
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
