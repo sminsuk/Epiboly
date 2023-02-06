@@ -14,7 +14,7 @@ def remove_tangent_forces() -> None:
         p.force_init = [0, 0, 0]
     print("Tangent forces removed")
 
-def apply_even_tangent_forces(total_force: int) -> None:
+def apply_even_tangent_forces() -> None:
     """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
     
     To apply force evenly, must take into account not only the variation in density around the marginal ring, but
@@ -32,6 +32,8 @@ def apply_even_tangent_forces(total_force: int) -> None:
         theta, phi = epu.embryo_coords(p)
         return ParticleData(p, theta, phi)
     
+    total_force: int = cfg.yolk_cortical_tension + cfg.external_force
+
     p: tf.ParticleHandle
     particle_data_list: list[ParticleData] = [get_particle_data(p) for p in LeadingEdge.items()]
     sorted_on_theta: list[ParticleData] = sorted(particle_data_list, key=lambda data: data.theta)

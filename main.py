@@ -46,9 +46,7 @@ plot.save_graph(end=False)
 dyn.execute_repeatedly(tasks=[
         {"invoke": vx.save_screenshot_repeatedly},
         {"invoke": plot.show_graph},
-        {"invoke": mt.apply_even_tangent_forces,
-         "args": {"total_force": cfg.yolk_cortical_tension}
-         },
+        {"invoke": mt.apply_even_tangent_forces},
         {"invoke": bonds.maintain_bonds},
         ])
 
@@ -58,9 +56,7 @@ if cfg.windowed_mode:
     dyn.execute_repeatedly(tasks=[
             {"invoke": vx.save_screenshot_repeatedly},
             {"invoke": plot.show_graph},
-            {"invoke": mt.apply_even_tangent_forces,
-             "args": {"total_force": cfg.yolk_cortical_tension}
-             },
+            {"invoke": mt.apply_even_tangent_forces},
             {"invoke": bonds.maintain_bonds,
              "args": {
                       #     ###For making/breaking algorithm:

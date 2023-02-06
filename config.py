@@ -40,7 +40,15 @@ harmonic_spring_constant: float = 12.0
 harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
 harmonic_angle_spring_constant: float = 3.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
-yolk_cortical_tension: float = 120    # was 375 for full epiboly
+
+# Vegetalward forces applied to LeadingEdge. Probably will later want to change these dynamically,
+# but these are good initial values. These are highly dependent on the particle radius, spring constants, etc.,
+# so have to be tuned accordingly if those change.
+# yolk_cortical_tension: force generated within the yolk, balancing out the EVL internal tension
+#   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
+# external_force: additional force applied to drive epiboly.
+yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
+external_force: int = 0   # +255 to produce full epiboly
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
