@@ -41,6 +41,9 @@ epiboly_initial_percentage: int = 43     # real value for the misnomer "30% epib
 num_leading_edge_points: int = 110
 num_spherical_positions: int = 5000
 
+# Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
+min_neighbor_initial_distance_factor: float = 1.5
+
 # Some items for Potential- and Bond-making:
 harmonic_repulsion_spring_constant: float = 5.0
 harmonic_spring_constant: float = 12.0
@@ -56,6 +59,7 @@ stopping_condition_phi: float = math.pi * 0.95
 
 # For neighbor count criterion. Pre-energy-calculation limits.
 # (If exceeded, don't bother calculating energy, just reject the change.)
+# (min, also for initialization: ensure this constraint from beginning)
 min_neighbor_count: int = 3
 max_edge_neighbor_count: int = 3
 

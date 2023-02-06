@@ -113,11 +113,11 @@ def find_neighbors(p: tf.ParticleHandle, distance_factor: float = 1.5, sort: boo
     return neighbors
 
 def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
-                             distance_factor: float = 1.5, sort: bool = False) -> list[tf.ParticleHandle]:
+                             distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
     """Not quite the inverse of particleHandle.getBondedNeighbors()
     
     phandle: particleHandle
-    distance_factor: when multiplied by the particle radius, gives the distance to search.
+    distance_factor: search out to this multiple of radius
     sort: if True, return results ordered by increasing distance from p.
     returns: list of neighbors, using one of the neighbor algorithms in this module, but excluding any that
         the particle is already bonded to.
@@ -141,15 +141,21 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
                             if neighbor.id not in my_bonded_neighbor_ids]
     return non_bonded_neighbors
 
-def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
-                                    ptypes: list[tf.ParticleType] = None) -> Optional[tf.ParticleHandle]:
-    """Use an iterative approach to search over larger and larger distances until you find a non-bonded neighbor
+def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
+                                     ptypes: list[tf.ParticleType] = None,
+                                     min_neighbors: int = 1,
+                                     min_distance: float = 1.0) -> list[tf.ParticleHandle]:
+    """Use an iterative approach to search over larger and larger distances until you find enough non-bonded neighbors
     
     ptypes: list of allowed particle types to search for
+    min_neighbors: search until at least this many are found
+    min_distance: search out to at least this multiple of radius
+    Starts the search at the specified distance, and proceeds outward until the specified number of neighbors is found.
+    Thus, the returned list will satisfy both minimums.
     
-    Can return None (hence "Optional" in typing of function return value), but
+    Can return empty list if none found, but
     with this iterative approach to distance_factor, it seems this never happens.
-    You can always find a nearest non-bonded neighbor, long before hitting the max allowable distance.
+    You can always find non-bonded neighbors, long before hitting the max allowable distance.
     """
     ptype: tf.ParticleType
     if ptypes is None:
@@ -159,10 +165,10 @@ def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
     start: float = time.perf_counter()
 
     neighbors: list[tf.ParticleHandle] = []
-    distance_factor: float = 1
+    distance_factor: float = min_distance
     # Huge maximum that should never be reached, just insurance against a weird infinite loop:
     max_distance_factor: float = cfg.max_potential_cutoff / Little.radius
-    while not neighbors and distance_factor < max_distance_factor:
+    while len(neighbors) < min_neighbors and distance_factor < max_distance_factor:
         # Get all neighbors not already bonded to, within the given radius. (There may be none.)
         neighbors = get_non_bonded_neighbors(phandle, distance_factor)
         
@@ -182,10 +188,21 @@ def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
     # (no loop) with a distance_factor of 5. Probably there is an optimum that could be discovered with more
     # careful peformance profiling.
     
-    nearest_neighbor: tf.ParticleHandle = min(neighbors, key=lambda neighbor: phandle.distance(neighbor), default=None)
     elapsed: float = time.perf_counter() - start
     # print(f"Neighbor-finding time = {elapsed}, final distance_factor = {distance_factor}")
 
+    return neighbors
+
+def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
+                                    ptypes: list[tf.ParticleType] = None) -> Optional[tf.ParticleHandle]:
+    """Find the nearest non-bonded neighbor
+    
+    Can return None (hence "Optional" in typing of function return value), but
+    with the iterative approach to search distance, it seems this never happens.
+    You can always find a nearest non-bonded neighbor, long before hitting the max allowable distance.
+    """
+    neighbors: list[tf.ParticleHandle] = get_nearest_non_bonded_neighbors(phandle, ptypes, min_neighbors=1)
+    nearest_neighbor: tf.ParticleHandle = min(neighbors, key=lambda neighbor: phandle.distance(neighbor), default=None)
     return nearest_neighbor
 
 def get_shared_bonded_neighbors(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.ParticleHandle]:
