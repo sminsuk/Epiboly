@@ -6,8 +6,7 @@ import config as cfg
 
 from biology import bond_maintenance as bonds,\
     microtubules as mt
-from control_flow import dynamics as dyn, \
-    exec_tests as xt
+from control_flow import dynamics as dyn
 import setup_and_equilibrate as setup
 from utils import epiboly_utils as epu,\
     plotting as plot,\
@@ -78,6 +77,9 @@ if cfg.windowed_mode:
             ])
     # mt.remove_tangent_forces()
     
+    # ### Note, this block can go, but am just keeping it for the comment about irun(), to remind me,
+    # ### in case I ever get to where I actually have interactive execution available and working.
+    # ### the is_equilibrated() function was already eliminated, in fact that whole module was.
     # tf.step()
     # while not xt.is_equilibrated(epsilon=0.01):
     #     # print("stepping!")

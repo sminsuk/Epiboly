@@ -8,8 +8,7 @@ from epiboly_init import Little, Big, LeadingEdge   # Tissue Forge initializatio
 import config as cfg
 
 from biology import bond_maintenance as bonds
-from control_flow import dynamics as dyn, \
-    exec_tests as xt
+from control_flow import dynamics as dyn
 from utils import tf_utils as tfu,\
     epiboly_utils as epu,\
     global_catalogs as gc,\
@@ -405,9 +404,6 @@ def show_equilibrating_message() -> None:
     else:
         print("Equilibrating...")
         
-def show_is_equilibrated_message() -> None:
-    print(f"Leading edge is {'' if xt.leading_edge_is_equilibrated() else 'not '}equilibrated")
-        
 def equilibrate(duration: float) -> None:
     if cfg.show_equilibration and cfg.windowed_mode:
         # User must quit the simulator after each equilibration step (each of the multiple launches of the
@@ -481,7 +477,6 @@ def initialize_embryo() -> None:
     if cfg.show_equilibration:
         vx.save_screenshot("Escapers removed")
 
-    show_is_equilibrated_message()
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
 
@@ -552,7 +547,6 @@ def new_initialize_embryo() -> None:
     
     unfreeze_leading_edge()
     equilibrate(10)
-    show_is_equilibrated_message()
 
 def show() -> None:
     """Call during development and testing, immediately after calling equilibrate()
@@ -626,7 +620,6 @@ def alt_initialize_embryo() -> None:
     unfreeze_leading_edge()
     equilibrate(10)
     show()
-    show_is_equilibrated_message()
     print("Edge relaxed, now letting 'er rip (" + tfu.bluecolor + "Goal: " + tfu.endcolor
           + "Should not expand more, if well-equilibrated and cell count and radius are correct!)")
     
