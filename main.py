@@ -1,5 +1,6 @@
 """Epiboly simulation"""
 import os.path
+import sys
 
 import tissue_forge as tf
 import config as cfg
@@ -24,6 +25,20 @@ if is_interactive():
     from control_flow.interactive import *
     print("Interactive module imported!")
 
+# Force debugger usage. When I have breakpoints set to try and catch an intermittent bug,
+# I tend to forget to run it in the debugger and just hit "run" instead, and don't notice
+# until it's too late. Uncomment the following to make the script refuse to run except in
+# the debugger:
+# if sys.gettrace() is None:
+#     # The debugger is not running
+#     exit_msg: str = """    ###################################################################
+#     ###                                                             ###
+#     ###   Oops! Please start over and use the debugger this time!   ###
+#     ###                                                             ###
+#     ###################################################################
+#     """
+#     sys.exit(exit_msg)
+    
 print(f"tissue-forge version = {tf.version.version}")
 print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
