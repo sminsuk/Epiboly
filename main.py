@@ -113,6 +113,10 @@ else:
     while True:
         if sim_finished():
             break
+        if dyn.event_exception_was_thrown():
+            # Could sys.exit() here (it works here, just not inside a TF event invoke method), but even better,
+            # do any final graphing and movie making and THEN exit. The main thing is to get out of the loop.
+            break
         tf.step()
 
 plot.save_graph(end=True)

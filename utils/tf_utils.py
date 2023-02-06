@@ -118,6 +118,13 @@ def exception_handler():
             # but at least you can cancel the event instead of calling a broken event repeatedly
             event.remove()
             
+            # That stops custom events, but it won't stop the script (and even calling sys.exit() won't work
+            # from here), and it won't stop TF timestepping. To do that, set a global signal so that the main script
+            # (outside this invoke method) can exit for you. (Only works with tf.step(), not tf.show(); check
+            # the signal in a loop between calls to tf.step(), and take appropriate action if detected.)
+            global some_flag
+            some_flag = True
+            
             # TF documentation says invoke_method should return 1 on error. Unclear whether this has any effect.
             return 1
         return 0

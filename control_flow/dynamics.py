@@ -73,10 +73,20 @@ def master_event_method(evt: tf.event.Event) -> int:
             tfu.exception_handler()
             # python won't exit, so at least cancel the event instead of calling a broken event repeatedly
             evt.remove()
+            # That stops custom events, but it won't stop the script (and even calling sys.exit() won't work
+            # from here), and it won't stop TF timestepping. To do that, set a signal so that the main script
+            # (outside this invoke method) can exit for us. (Only works with tf.step(), not tf.show(); check
+            # the signal in a loop between calls to tf.step(), and take appropriate action if detected.)
+            global _exit_signal
+            _exit_signal = True
             # TF docs say to do this on error, unclear if it has any effect
             return 1
     
     return 0
+
+_exit_signal: bool = False
+def event_exception_was_thrown() -> bool:
+    return _exit_signal
 
 def initialize_master_event() -> None:
     """Sets up to invoke events once per timestep.
