@@ -317,16 +317,23 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         return 0
     
     def test_ring_is_fucked_up():
-        """For debugging. Stop at the breakpoint and examine these values."""
+        """For debugging. Set breakpoints at the indicated locations. Stop there and examine these values."""
         particles: list[tf.ParticleHandle] = [p for p in LeadingEdge.items()]
         neighbor_lists: list[list[tf.ParticleHandle]] = [p.getBondedNeighbors() for p in particles]
         leading_edge_neighbor_lists: list[list[tf.ParticleHandle]] = (
                 [[n for n in neighbor_list if n.type_id == LeadingEdge.id]
                  for neighbor_list in neighbor_lists])
         leading_edge_counts: list[int] = [len(neighbor_list) for neighbor_list in leading_edge_neighbor_lists]
-        fuckedness: list[bool] = [length != 2 for length in leading_edge_counts]
-        if any(fuckedness):
+        neighbor_fuckedness: list[bool] = [length != 2 for length in leading_edge_counts]
+        if any(neighbor_fuckedness):
+            # At least one LeadingEdge particle doesn't have exactly two LeadingEdge neighbors, as it should
             break_point = 0
+        angle_lists: list[list[tf.AngleHandle]] = [p.angles for p in particles]
+        angle_counts: list[int] = [len(angle_list) for angle_list in angle_lists]
+        angle_fuckedness: list[bool] = [length != 3 for length in angle_counts]
+        if any(angle_fuckedness):
+            # At least one LeadingEdge particle doesn't have exactly three Angle bonds, as it should
+            break_point = 1
         return
     
     def remodel_angles(p1: tf.ParticleHandle, p2: tf.ParticleHandle, p_becoming: tf.ParticleHandle, add: bool) -> None:
@@ -448,7 +455,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
 
             remodel_angles(neighbor1, neighbor2, p_becoming=p, add=False)
 
-            # test_ring_is_fucked_up()
+            test_ring_is_fucked_up()
             return 1
         return 0
     
@@ -549,7 +556,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             
             remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
             
-            # test_ring_is_fucked_up()
+            test_ring_is_fucked_up()
             return 1, 1 + len(saturated_internal_neighbors)
         return 0, 0
 
