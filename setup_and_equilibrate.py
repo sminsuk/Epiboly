@@ -489,6 +489,67 @@ def initialize_embryo() -> None:
     #     bhandle.destroy()
     # # ############## End of test ##############
 
+def unified_initialize_embryo() -> None:
+    """Based on new_initialize_embryo(), but with a new approach: start all forces at once
+    
+    Unfreeze the ring before adding any bonds, and let it equilibrate for 10; also, don't add the Angle bonds
+    until after this equilibration is over.
+    
+    Then add the bonds, and start the bond update rules, as well as the external force, all at the same time,
+    with no intervening equilibration. (I.e., add the bonds, then segue directly into the sim proper.)
+    
+    Intended to run from main, but can also run from the development code down below: set cfg.show_equilibration=False
+    """
+    setup_global_potentials()
+    show_equilibrating_message()
+    
+    big_particle: tf.ParticleHandle = Big([5, 5, 5])
+    big_particle.frozen = True
+    initialize_bonded_edge()
+    freeze_leading_edge_z(True)
+    
+    screenshot_true_zero()
+    initialize_movie_export()
+    
+    equilibrate(100)
+    freeze_leading_edge_completely()
+    leading_edge_z: float = LeadingEdge.items()[0].position.z()
+    move_ring_z(destination=9.8)
+    initialize_full_sphere_evl_cells()
+    equilibrate(100)
+    filter_evl_to_animal_cap(leading_edge_z)
+    move_ring_z(destination=leading_edge_z)
+    freeze_leading_edge_z(True)
+    
+    # # This was temporary camera manipulation to get a good shot of the instability bug. Still need it?
+    # vx.save_screenshot("Capture the gap before moving the camera")
+    # tf.system.camera_view_top()   # one or the other, top() or reset()
+    # tf.system.camera_reset()
+    # tf.system.camera_zoom_to(-13)
+    
+    equilibrate(100)
+    # Repeat the filtering, to trim "escaped" interior particles that end up below the leading edge:
+    filter_evl_to_animal_cap(leading_edge_z)
+    
+    unfreeze_leading_edge()
+    equilibrate(10)
+
+    add_interior_bonds()
+    initialize_leading_edge_bending_resistance()
+    # equilibrate(10)  # Now none at all for this
+    
+    # # ################# Test ##################
+    # # Free-runnning equilibration without interior bonds.
+    # # Instead of add_interior_bonds() (comment out the calls above),
+    # # DESTROY the ring bonds and Angles.
+    # angle: tf.AngleHandle
+    # bhandle: tf.BondHandle
+    # for angle in tf.AngleHandle.items():
+    #     angle.destroy()
+    # for bhandle in tf.BondHandle.items():
+    #     bhandle.destroy()
+    # # ############## End of test ##############
+    
 def new_initialize_embryo() -> None:
     """Based on the experiments done in alt_initialize_embryo(), but with the development scaffolding removed
     
