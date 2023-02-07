@@ -99,7 +99,7 @@ def _timestring() -> str:
     # (i.e., suitable for directory or file name)
     return local.strftime("%Y-%m-%d %I-%M-%S %p %Z")
 
-def _init_screenshots() -> None:
+def init_screenshots() -> None:
     """
     Set up directories for all image output: root directory for all output from the current script, ever;
     and a subdirectory for all output of the CURRENT RUN of the current script.
@@ -269,6 +269,3 @@ def make_movie_in_post(directory_name: str) -> None:
 if __name__ == "__main__":
     # Be sure to supply the directory name before running this
     make_movie_in_post(directory_name="Directory name goes here")
-else:
-    _init_screenshots()
-

@@ -42,6 +42,7 @@ if is_interactive():
 print(f"tissue-forge version = {tf.version.version}")
 print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
+vx.init_screenshots()
 logFilePath: str = os.path.join(vx.sim_root(), "Epiboly.log")
 tf.Logger.enableFileLogging(fileName=logFilePath, level=tf.Logger.ERROR)
 
