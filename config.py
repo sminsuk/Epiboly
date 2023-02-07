@@ -21,7 +21,7 @@ show_equilibration: bool = False
 screenshot_export_interval: int = 10
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
-# Angle bonds cause instability and big waviness in the leading edge
+# and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)
 angle_bonds_enabled: bool = True
 
 # real value for the misnomer "30% epiboly")
@@ -38,7 +38,7 @@ min_neighbor_initial_distance_factor: float = 1.5
 harmonic_repulsion_spring_constant: float = 5.0
 harmonic_spring_constant: float = 12.0
 harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
-harmonic_angle_spring_constant: float = 3.0  # (for the Angles)
+harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
 # Vegetalward forces applied to LeadingEdge. Probably will later want to change these dynamically,
@@ -48,7 +48,7 @@ harmonic_angle_tolerance: float = 0.008 * math.pi
 #   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
 # external_force: additional force applied to drive epiboly.
 yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
-external_force: int = 0   # +255 to produce full epiboly
+external_force: int = 255   # +255 to produce full epiboly
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
