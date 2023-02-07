@@ -107,9 +107,12 @@ if cfg.windowed_mode:
     vx.save_screenshot("Final")
 else:
     def sim_finished() -> bool:
+        # Choose one:
+        # Truncated run with provided duration:
+        # return tf.Universe.time > 310 + 40  # 310 for equilibration (fast), + more (slow; ~25 per hour on old Mac)
+        # Full epiboly:
         return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
     
-    # For quick test runs where the script (but not epiboly) completes quickly, try "for step in range(50)"
     while True:
         if sim_finished():
             break
