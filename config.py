@@ -15,9 +15,9 @@ windowed_mode: bool = False
 # useful in windowed mode to set True during development so I can see what I'm doing; otherwise leave as False.
 show_equilibration: bool = False
 
-# Number of timesteps between screenshots. User configurable here at load time. Can also be adjusted dynamically
-# at run time (only to adjust the value, not to enable/disable), but callers should never set this directly;
-# instead use the setter in module video_export, which owns it. To disable screenshot export, set to 0.
+# Number of timesteps between screenshots. User configurable here at load time (set to 0 to disable screenshot export).
+# Can also be adjusted dynamically at run time (only to adjust the value, not to enable/disable), but callers should
+# never set this directly; instead use the setter in module video_export, which owns it.
 screenshot_export_interval: int = 10
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
@@ -27,7 +27,7 @@ angle_bonds_enabled: bool = True
 # real value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
 
-# How many leading edge and interior cells to make
+# How many leading edge and interior cells to make (for entire sphere, prior to filtering out the ones below the edge)
 num_leading_edge_points: int = 110
 num_spherical_positions: int = 5000
 
