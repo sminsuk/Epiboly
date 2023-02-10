@@ -388,17 +388,19 @@ def screenshot_true_zero() -> None:
     if cfg.show_equilibration and vx.screenshot_export_enabled() and not cfg.windowed_mode:
         vx.save_screenshot("Timestep true zero")
         
-def initialize_movie_export() -> None:
-    """If exporting screenshots for video including equilibration, create a task list for that.
+def initialize_export_tasks() -> None:
+    """If exporting plots and or screenshots for video, including equilibration, create a task list for that.
     
     This will override the task list for the running Universe.time readout at the bottom of the console, but
     the latter won't be needed because we'll be showing the image filenames, which also include Universe.time.
     """
-    if cfg.show_equilibration and vx.screenshot_export_enabled():
-        vx.set_screenshot_export_interval(25)
-        dyn.execute_repeatedly(tasks=[{"invoke": vx.save_screenshot_repeatedly},
-                                      {"invoke": plot.show_graph}
-                                      ])
+    if cfg.show_equilibration:
+        task_list: list[dyn.Task] = [{"invoke": plot.show_graph}]
+        if vx.screenshot_export_enabled():
+            vx.set_screenshot_export_interval(25)
+            task_list.append({"invoke": vx.save_screenshot_repeatedly})
+            
+        dyn.execute_repeatedly(tasks=task_list)
 
 def show_equilibrating_message() -> None:
     if cfg.windowed_mode and not cfg.show_equilibration:
@@ -469,7 +471,7 @@ def initialize_embryo() -> None:
     show_equilibrating_message()
     initialize_particles()
     screenshot_true_zero()
-    initialize_movie_export()
+    initialize_export_tasks()
     equilibrate_to_leading_edge()
     
     # Various refactorings aside, one functional change to fix this older version of the algorithm:
@@ -511,7 +513,7 @@ def unified_initialize_embryo() -> None:
     freeze_leading_edge_z(True)
     
     screenshot_true_zero()
-    initialize_movie_export()
+    initialize_export_tasks()
     
     equilibrate(100)
     freeze_leading_edge_completely()
@@ -570,7 +572,7 @@ def new_initialize_embryo() -> None:
     freeze_leading_edge_z(True)
     
     screenshot_true_zero()
-    initialize_movie_export()
+    initialize_export_tasks()
     
     equilibrate(40)
     initialize_leading_edge_bending_resistance()
@@ -695,6 +697,7 @@ if __name__ == "__main__":
     def show_utime() -> None:
         print(f"\rUniverse.time = {round(tf.Universe.time, 2)}", end="")
     
+    tfu.init_export()
     vx.init_screenshots()
     epu.reset_camera()
     dyn.initialize_master_event()
