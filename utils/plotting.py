@@ -17,19 +17,27 @@ import matplotlib.pyplot as plt
 from epiboly_init import LeadingEdge, Little
 import config as cfg
 import utils.epiboly_utils as epu
-import utils.video_export as vx
+import utils.tf_utils as tfu
 
 _phi: list[float] = []
 _timesteps: list[int] = []
 _timestep: int = 0
 _fig: Optional[Figure] = None
 _ax: Optional[Axes] = None
+_plot_path: str
 
 def _init_graph() -> None:
-    global _fig, _ax
+    """Initialize matplotlib and also a subdirectory in which to put the saved plots
+    
+    tfu.init_export() should have been run before running this, to create the parent directories.
+    """
+    global _fig, _ax, _plot_path
     
     _fig, _ax = plt.subplots()
     _ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
+    
+    _plot_path = os.path.join(tfu.export_path(), "Plots")
+    os.makedirs(_plot_path)
 
 def show_graph() -> None:
     global _timestep
@@ -69,7 +77,7 @@ def save_graph(end: Optional[bool] = None) -> None:
         filename += f" ({cfg.num_spherical_positions} + {cfg.num_leading_edge_points})"
         filename += f", external = {cfg.yolk_cortical_tension}"
         filename += ".png"
-        filepath: str = os.path.join(vx.sim_root(), filename)
+        filepath: str = os.path.join(_plot_path, filename)
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")
         
 # At import time: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.

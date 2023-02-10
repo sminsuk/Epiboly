@@ -5,7 +5,6 @@ All export functions are no-ops unless export has been enabled in config.py
 StackOverflow: https://stackoverflow.com/a/62434934
 Documentation of MoviePy: https://zulko.github.io/moviepy/index.html
 """
-from datetime import datetime, timezone
 import math
 import os
 
@@ -91,43 +90,18 @@ def _automated_camera_rotate() -> None:
         tf.system.camera_rotate_up()
         _test_when_to_finish_rotation()
     
-def _timestring() -> str:
-    # timezone-aware local time in local timezone:
-    local: datetime = datetime.now(timezone.utc).astimezone()
-    
-    # 12-hr clock, with am/pm and timezone, and no colons, e.g. '2023-01-07 12-50-35 AM PST'
-    # (i.e., suitable for directory or file name)
-    return local.strftime("%Y-%m-%d %I-%M-%S %p %Z")
-
 def init_screenshots() -> None:
     """
-    Set up directories for all image output: root directory for all output from the current script, ever;
-    and a subdirectory for all output of the CURRENT RUN of the current script.
-
-    Maybe ToDo: output a text file to that directory? With lots of metadata. DateTime, params, etc.?
-    ToDo: in fact, maybe output the console, to capture any errors, etc.? Important for automated runs.
+    Set up subdirectory for all screenshot and movie output
+    
+    tfu.init_export() should have been run before running this, to create the parent directories.
     """
-    global _image_dir, _image_path
+    global _image_path
     if not screenshot_export_enabled():
         return
     
-    # one directory for all TF output from this script, ever:
-    image_root = os.path.expanduser("~/TissueForge_image_export/")
-    
-    # subdirectory with unique name for all output of the current run:
-    _image_dir = _timestring()
-    
-    # full path to that directory
-    _image_path = os.path.join(image_root, _image_dir)
-    
-    # Creates the parent directory if it doesn't yet exist; and the subdirectory UNLESS it already exists:
+    _image_path = os.path.join(tfu.export_path(), "Screenshots")
     os.makedirs(_image_path)
-    
-def sim_root() -> str:
-    """Make _image_path available to the rest of the app, as a central destination for other types
-    of output as well, like MatPlatLib saved plots. ToDo: Should probably refactor this somewhere else.
-    """
-    return _image_path
     
 def _export_screenshot(filename: str) -> None:
     """Note, in system.screenshot(), bgcolor (and decorate) args only work in windowless mode."""
@@ -185,7 +159,6 @@ def save_screenshot_repeatedly() -> None:
     
     _current_screenshot_timestep += 1
 
-_image_dir: str
 _image_path: str
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
@@ -214,7 +187,7 @@ def screenshot_export_enabled() -> bool:
     """Convenience function. Interpret screenshot_export_interval as flag for whether export is enabled"""
     return cfg.screenshot_export_interval != 0
 
-def make_movie() -> None:
+def make_movie(filename: str = None) -> None:
     if not screenshot_export_enabled():
         return
 
@@ -225,9 +198,12 @@ def make_movie() -> None:
                        if entry.name.endswith(".jpg")]
     print(f"Assembling movie from {len(image_filepaths)} images")
     clip = movieclip.ImageSequenceClip(image_filepaths, fps=24)
-
-    # Save the movie clip using the directory name also as the movie name, and save it to that same directory
-    clip.write_videofile(os.path.join(_image_path, _image_dir + ".mp4"))
+    
+    # Save the clip using tfu.export_directory() also as the movie name, and save it to the Screenshots subdirectory
+    # (Or, if filename was provided, then __name__ == "__main__", see below.)
+    if filename is None:
+        filename = tfu.export_directory()
+    clip.write_videofile(os.path.join(_image_path, filename + ".mp4"))
     
     # Discard all the exported image files except the final one
     image_filepaths.pop()   # remove final item
@@ -260,12 +236,11 @@ def make_movie() -> None:
     #       the default. Bigger, but this is still tiny compared to what you get from the MacOS video capture.)
     
 def make_movie_in_post(directory_name: str) -> None:
-    global _image_dir, _image_path
-    image_root = os.path.expanduser("~/TissueForge_image_export/")
-    _image_dir = directory_name
-    _image_path = os.path.join(image_root, _image_dir)
-    make_movie()
+    global _image_path
+    _image_path = os.path.join(tfu.export_path(directory_name), "Screenshots")
+    make_movie(directory_name)
 
 if __name__ == "__main__":
-    # Be sure to supply the directory name before running this
+    # Be sure to supply the directory name before running this.
+    # This is the parent directory with the datetime in the name, not the "Screenshots" subdirectory
     make_movie_in_post(directory_name="Directory name goes here")

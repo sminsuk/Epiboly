@@ -10,6 +10,7 @@ from biology import bond_maintenance as bonds,\
 from control_flow import dynamics as dyn
 import setup_and_equilibrate as setup
 from utils import epiboly_utils as epu,\
+    tf_utils as tfu,\
     plotting as plot,\
     video_export as vx
 
@@ -42,8 +43,9 @@ if is_interactive():
 print(f"tissue-forge version = {tf.version.version}")
 print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
+tfu.init_export()
 vx.init_screenshots()
-logFilePath: str = os.path.join(vx.sim_root(), "Epiboly.log")
+logFilePath: str = os.path.join(tfu.export_path(), "Epiboly.log")
 tf.Logger.enableFileLogging(fileName=logFilePath, level=tf.Logger.ERROR)
 
 dyn.initialize_master_event()

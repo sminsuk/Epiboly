@@ -2,14 +2,69 @@
 
 These are general purpose utility functions for Tissue Forge, not specific to any particular simulation.
 """
+from datetime import datetime, timezone
 import math
 import numpy as np
+import os
 import sys
 import traceback
 from typing import Optional
 
 from utils import global_catalogs as gc
 import tissue_forge as tf
+
+_epiboly_root: str = "TissueForge_export"
+_export_dir: Optional[str] = None
+
+def init_export() -> None:
+    """Set up directories for all exported output: root directory for all output from the current script, ever;
+    and a subdirectory for all output of the CURRENT RUN of the current script.
+    
+    Maybe ToDo: output a text file to that directory? With lots of metadata. DateTime, params, etc.? Better: use logging
+    """
+
+    def timestring() -> str:
+        # timezone-aware local time in local timezone:
+        local: datetime = datetime.now(timezone.utc).astimezone()
+    
+        # 12-hr clock, with am/pm and timezone, and no colons, e.g. '2023-01-07 12-50-35 AM PST'
+        # (i.e., suitable for directory or file name)
+        return local.strftime("%Y-%m-%d %I-%M-%S %p %Z")
+
+    global _export_dir
+
+    # subdirectory with unique name for all output of the current run:
+    _export_dir = timestring()
+
+    # full path to that directory
+    export_path = os.path.join(os.path.expanduser("~"), _epiboly_root, _export_dir)
+
+    # Creates the user's unique TF export directory if it doesn't yet exist;
+    # and the subdirectory for the current run if it doesn't yet exist (it shouldn't):
+    os.makedirs(export_path)
+
+def epiboly_root() -> str:
+    """Make _epiboly_root available globally (read-only)
+    
+    Currently only needed for making movies after the fact. The rest of the time, use export_path()
+    """
+    return _epiboly_root
+
+def export_directory() -> str:
+    """Make just the directory name itself available (read-only). Useful for modules to use in filenames"""
+    return _export_dir
+
+def export_path(directory_name: str = None) -> str:
+    """Provide the full path to the root directory for all types of output exported
+    during the current run (e.g., images, MatPlatLib plots, saved simulation state).
+    
+    To access a previously generated directory (i.e., after the program quits or crashes), provide a directory name
+    to get the path to that directory. This should be the main directory with the datetime in the name, not any
+    subdirectory.
+    """
+    if directory_name is None:
+        directory_name = _export_dir
+    return os.path.join(os.path.expanduser("~"), _epiboly_root, directory_name)
 
 def cartesian_from_spherical(sphere_vec):
     """Given a vector in spherical coords (with angles in radians), return the cartesian equivalent.
