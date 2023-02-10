@@ -343,6 +343,8 @@ def initialize_leading_edge_bending_resistance() -> None:
         tf.Angle.create(edge_angle_potential, before_previous_particle, previous_particle, particle)
         before_previous_particle = previous_particle
         previous_particle = particle
+        
+    # bonds.test_ring_is_fucked_up()
 
 def initialize_particles() -> None:
     big_particle: tf.ParticleHandle = Big([5, 5, 5])
