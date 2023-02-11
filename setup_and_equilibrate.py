@@ -307,7 +307,7 @@ def initialize_bonded_edge():
             # print("binding particles with thetas:",
             #       math.degrees(theta(previous_particle)),
             #       math.degrees(theta(particle)))
-            gc.make_bond(small_small_attraction_bonded, previous_particle, particle, r0)
+            gc.create_bond(small_small_attraction_bonded, previous_particle, particle, r0)
             previous_particle = particle
             
     leading_edge_phi = create_ring()
@@ -340,7 +340,7 @@ def initialize_leading_edge_bending_resistance() -> None:
     previous_particle = sorted_particles[-1]  # last one
     before_previous_particle = sorted_particles[-2]  # 2nd-to-last
     for particle in sorted_particles:
-        tf.Angle.create(edge_angle_potential, before_previous_particle, previous_particle, particle)
+        gc.create_angle(edge_angle_potential, before_previous_particle, previous_particle, particle)
         before_previous_particle = previous_particle
         previous_particle = particle
         

@@ -39,7 +39,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
                                                     k=k,
                                                     max=cfg.max_potential_cutoff
                                                     )
-    handle: tf.BondHandle = gc.make_bond(potential, p1, p2, r0)
+    handle: tf.BondHandle = gc.create_bond(potential, p1, p2, r0)
 
     if verbose:
         distance: float = p1.distance(p2)
@@ -308,7 +308,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if accept(p, other_p, breaking=True):
             if verbose:
                 print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
-            gc.break_bond(bhandle)
+            gc.destroy_bond(bhandle)
             return 1
         return 0
     
@@ -341,6 +341,23 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         
         p1 and p2 flank p_becoming, which is either entering (add == True) or leaving (add == False) the leading edge.
         """
+        def cleanup(p: tf.ParticleHandle) -> None:
+            """This is to deal with a TF bug which randomly creates garbage AngleHandles out of thin air.
+            
+            If this particle has any such Angles on it, destroy them. Unclear whether they cause any damage to
+            the sim, but, they certainly cause my asserts to trigger and they shouldn't be here. After this,
+            the asserts shouldn't fire anymore unless my own code is doing something wrong.
+            
+            Use TF native destroy(), not my gc.destroy_angle(), because these are already not in the global
+            catalog, hence can't be del'ed.
+            """
+            angle: tf.AngleHandle
+            false_angles: list[tf.AngleHandle] = [angle for angle in p.angles
+                                                  if angle.id not in gc.angles_by_id]
+            for angle in false_angles:
+                print(f"Destroying false angle (id={angle.id}) on particle {p.id}, leaving {len(p.angles) - 1}")
+                angle.destroy()
+        
         def get_pivot_angle(p: tf.ParticleHandle) -> Optional[tf.AngleHandle]:
             """Return the particle's pivot Angle (the Angle that has this particle as the CENTER particle) - if any"""
             angle: tf.AngleHandle
@@ -377,11 +394,15 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                 new_outer_p1 = old_outer_p1
                 new_outer_p2 = new_p
 
-            tf.Angle.create(potential, new_outer_p1, center_p, new_outer_p2)
-            angle.destroy()
+            gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
+            gc.destroy_angle(angle)
 
         if not cfg.angle_bonds_enabled:
             return
+        
+        cleanup(p1)
+        cleanup(p2)
+        cleanup(p_becoming)
         
         assert len(p1.angles) == 3 and len(p2.angles) == 3,\
             f"While {'joining' if add else 'leaving'} the leading edge, " \
@@ -403,7 +424,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
             exchange_particles(a1, bonded_p=p2, new_p=p_becoming, potential=edge_angle_potential)
             exchange_particles(a2, bonded_p=p1, new_p=p_becoming, potential=edge_angle_potential)
-            tf.Angle.create(edge_angle_potential, p1, p_becoming, p2)
+            gc.create_angle(edge_angle_potential, p1, p_becoming, p2)
             assert len(p_becoming.angles) == 3, f"Recruited particle (id={p_becoming.id}) ended up with" \
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
         else:
@@ -411,7 +432,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
             exchange_particles(a1, bonded_p=p_becoming, new_p=p2, potential=edge_angle_potential)
             exchange_particles(a2, bonded_p=p_becoming, new_p=p1, potential=edge_angle_potential)
-            p_becoming.angles[0].destroy()
+            gc.destroy_angle(p_becoming.angles[0])
             assert len(p_becoming.angles) == 0, f"Particle becoming internal (id={p_becoming.id}) ended up with" \
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
 
@@ -548,10 +569,10 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                                      if phandle.type_id == Little.id
                                                                      if too_many_edge_neighbors(phandle)]
             for phandle in saturated_internal_neighbors:
-                gc.break_bond(tfu.bond_between(recruit, phandle))
             # test_ring_is_fucked_up()
+                gc.destroy_bond(tfu.bond_between(recruit, phandle))
             
-            gc.break_bond(tfu.bond_between(p, other_leading_edge_p))
+            gc.destroy_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(LeadingEdge)
             recruit.style.color = LeadingEdge.style.color
             recruit.style.visible = True
@@ -618,7 +639,7 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
                 be if the force is released.
         """
         # Because existing bonds can't be modified, we destroy it and replace it with a new one, with new properties
-        gc.break_bond(bhandle)
+        gc.destroy_bond(bhandle)
         
         delta_r0: float
         saturation_distance: float = relaxation_saturation_factor * Little.radius
@@ -637,7 +658,7 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
                                                         k=k,
                                                         max=cfg.max_potential_cutoff
                                                         )
-        gc.make_bond(potential, p1, p2, new_r0)
+        gc.create_bond(potential, p1, p2, new_r0)
     
     assert 0 <= viscosity <= 1, "viscosity out of bounds"
     assert relaxation_saturation_factor > 0, "relaxation_saturation_factor out of bounds"
