@@ -112,9 +112,12 @@ else:
     def sim_finished() -> bool:
         # Choose one:
         # Truncated run with provided duration:
-        # return tf.Universe.time > 310 + 40  # 310 for equilibration (fast), + more (slow; ~25 per hour on old Mac)
+        # return tf.Universe.time > 310 + 0.01  # 310 for equilibration (fast), + more (slow; ~25 per hour on old Mac)
         # Full epiboly:
-        return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
+        # return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
+
+        # 310 + 0.01 would be ONE timestep, but not good enough: thousands of executions. Want to profile just one.
+        return bonds.profile_finished()
     
     while True:
         if sim_finished():

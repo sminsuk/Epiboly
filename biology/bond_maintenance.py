@@ -287,11 +287,17 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                           f" {p1current_count} and {p2current_count} bonds")
                 return False
 
+    @profile
     def attempt_break_bond(p: tf.ParticleHandle) -> int:
         """For internal, break any bond; for leading edge, break any bond to an internal particle
         
         returns: number of bonds broken
         """
+        # profiling: just run this once; mprof output might be easier to understand:
+        global _profiled_break
+        if _profiled_break:
+            return 0
+        
         bhandle: tf.BondHandle
         breakable_bonds: list[tf.BondHandle] = p.bonds
         if p.type_id == LeadingEdge.id:
@@ -306,18 +312,25 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         bhandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
         if accept(p, other_p, breaking=True):
+            _profiled_break = True
             if verbose:
                 print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
             gc.destroy_bond(bhandle)
             return 1
         return 0
     
+    @profile
     def attempt_make_bond(p: tf.ParticleHandle) -> int:
         """For internal, bond to the closest unbonded neighbor (either type); for leading edge, bond to
         the closest unbonded *internal* neighbor only.
         
         returns: number of bonds created
         """
+        # profiling: just run this once; mprof output might be easier to understand:
+        global _profiled_make
+        if _profiled_make:
+            return 0
+
         other_p: tf.ParticleHandle
         if p.type_id == LeadingEdge.id:
             # Don't make a bond between two LeadingEdge particles
@@ -332,6 +345,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                 print("Can't make bond: No particles available")
             return 0
         if accept(p, other_p, breaking=False):
+            _profiled_make = True
             _make_bond(p, other_p, verbose=verbose)
             return 1
         return 0
@@ -436,6 +450,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             assert len(p_becoming.angles) == 0, f"Particle becoming internal (id={p_becoming.id}) ended up with" \
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
 
+    @profile
     def attempt_become_internal(p: tf.ParticleHandle) -> int:
         """For LeadingEdge particles only. Become internal, and let its two bonded leading edge neighbors
         bond to one another.
@@ -443,6 +458,11 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         This MAKES a bond.
         returns: number of bonds created
         """
+        # profiling: just run this once; mprof output might be easier to understand:
+        global _profiled_become
+        if _profiled_become:
+            return 0
+
         # #### Bypass:
         # return attempt_make_bond(p)
         
@@ -468,6 +488,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 0
         
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
+            _profiled_become = True
             # test_ring_is_fucked_up()
             _make_bond(neighbor1, neighbor2, verbose=verbose)
             p.become(Little)
@@ -482,6 +503,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 1
         return 0
     
+    @profile
     def attempt_recruit_from_internal(p: tf.ParticleHandle) -> tuple[int, int]:
         """For LeadingEdge particles only. Break the bond with one bonded leading edge neighbor, but only
         if there is an internal particle bonded to both of them. That internal particle becomes leading edge.
@@ -490,6 +512,11 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         This BREAKS a bond.
         returns: number of bonds that became edge, number of bonds broken
         """
+        # profiling: just run this once; mprof output might be easier to understand:
+        global _profiled_recruit
+        if _profiled_recruit:
+            return 0, 0
+
         # #### Bypass:
         # return 0, attempt_break_bond(p)
         
@@ -564,6 +591,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             def too_many_edge_neighbors(p: tf.ParticleHandle) -> bool:
                 return nbrs.count_neighbors_of_type(p, ptype=LeadingEdge) >= cfg.max_edge_neighbor_count
                 
+            _profiled_recruit = True
             phandle: tf.ParticleHandle
             saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle for phandle in recruit.getBondedNeighbors()
                                                                      if phandle.type_id == Little.id
@@ -723,3 +751,11 @@ def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
     # the recoil after disabling the external force seems like still too much.
     #
     # To be revisited later after I reconsider/retool the particle diffusion algorithm.
+
+_profiled_break: bool = False
+_profiled_make: bool = False
+_profiled_recruit: bool = False
+_profiled_become: bool = False
+
+def profile_finished() -> bool:
+    return _profiled_become and _profiled_recruit and _profiled_make and _profiled_break
