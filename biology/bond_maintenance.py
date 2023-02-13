@@ -468,17 +468,17 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 0
         
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
-            # test_ring_is_fucked_up()
+            test_ring_is_fucked_up()
             _make_bond(neighbor1, neighbor2, verbose=verbose)
             p.become(Little)
             p.style.color = Little.style.color
             p.style.visible = gc.visibility_state
             p.force_init = [0, 0, 0]
 
-            # test_ring_is_fucked_up()
+            test_ring_is_fucked_up()
             remodel_angles(neighbor1, neighbor2, p_becoming=p, add=False)
 
-            # test_ring_is_fucked_up()
+            test_ring_is_fucked_up()
             return 1
         return 0
     
@@ -569,8 +569,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                                      if phandle.type_id == Little.id
                                                                      if too_many_edge_neighbors(phandle)]
             for phandle in saturated_internal_neighbors:
-            # test_ring_is_fucked_up()
                 gc.destroy_bond(tfu.bond_between(recruit, phandle))
+            test_ring_is_fucked_up()
             
             gc.destroy_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(LeadingEdge)
@@ -580,7 +580,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             
             remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
             
-            # test_ring_is_fucked_up()
+            test_ring_is_fucked_up()
             return 1, 1 + len(saturated_internal_neighbors)
         return 0, 0
 

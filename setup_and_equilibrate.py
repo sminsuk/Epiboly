@@ -339,12 +339,24 @@ def initialize_leading_edge_bending_resistance() -> None:
     # Now they can just be processed in the order in which they are in the list
     previous_particle = sorted_particles[-1]  # last one
     before_previous_particle = sorted_particles[-2]  # 2nd-to-last
+    print("Before the loop:")
+    p: tf.ParticleHandle
+    for p in sorted_particles:
+        print(f"{len(p.angles):>2}", end="")
+    print("\nEntering loop:")
     for particle in sorted_particles:
+        for p in sorted_particles:
+            print(f"{len(p.angles):>2}", end="")
+        print()
         gc.create_angle(edge_angle_potential, before_previous_particle, previous_particle, particle)
         before_previous_particle = previous_particle
         previous_particle = particle
-        
-    # bonds.test_ring_is_fucked_up()
+    print("After exiting loop:")
+    for p in sorted_particles:
+        print(f"{len(p.angles):>2}", end="")
+    print()
+    
+    bonds.test_ring_is_fucked_up()
 
 def initialize_particles() -> None:
     big_particle: tf.ParticleHandle = Big([5, 5, 5])

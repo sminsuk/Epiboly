@@ -126,7 +126,7 @@ else:
         tf.step()
 
 # troubleshooting: call this one final time without having to be triggered by an edge transformation event.
-# bonds.test_ring_is_fucked_up()
+bonds.test_ring_is_fucked_up()
 
 plot.save_graph(end=True)
 vx.make_movie()
