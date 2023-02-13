@@ -569,8 +569,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                                      if phandle.type_id == Little.id
                                                                      if too_many_edge_neighbors(phandle)]
             for phandle in saturated_internal_neighbors:
-            # test_ring_is_fucked_up()
                 gc.destroy_bond(tfu.bond_between(recruit, phandle))
+            # test_ring_is_fucked_up()
             
             gc.destroy_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(LeadingEdge)
