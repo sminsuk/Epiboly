@@ -95,6 +95,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     k_edge_neighbor_count, k_edge_angle: same, for the leading-edge transformations, so they can be tuned separately.
     """
 
+    # @profile
     def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool, becoming: bool = False) -> bool:
         """Decide whether the bond between these two particles may be made/broken
         
@@ -287,14 +288,14 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                           f" {p1current_count} and {p2current_count} bonds")
                 return False
 
-    @profile
+    # @profile
     def attempt_break_bond(p: tf.ParticleHandle) -> int:
         """For internal, break any bond; for leading edge, break any bond to an internal particle
         
         returns: number of bonds broken
         """
         # profiling: just run this once; mprof output might be easier to understand:
-        global _profiled_break
+        # global _profiled_break
         if _profiled_break:
             return 0
         
@@ -311,7 +312,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # select one at random to break:
         bhandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
-        _profiled_break = True
+        # _profiled_break = True
         if accept(p, other_p, breaking=True):
             # _profiled_break = True
             if verbose:
@@ -320,7 +321,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 1
         return 0
     
-    @profile
+    # @profile
     def attempt_make_bond(p: tf.ParticleHandle) -> int:
         """For internal, bond to the closest unbonded neighbor (either type); for leading edge, bond to
         the closest unbonded *internal* neighbor only.
@@ -452,7 +453,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             assert len(p_becoming.angles) == 0, f"Particle becoming internal (id={p_becoming.id}) ended up with" \
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
 
-    @profile
+    # @profile
     def attempt_become_internal(p: tf.ParticleHandle) -> int:
         """For LeadingEdge particles only. Become internal, and let its two bonded leading edge neighbors
         bond to one another.
@@ -461,7 +462,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         returns: number of bonds created
         """
         # profiling: just run this once; mprof output might be easier to understand:
-        global _profiled_become
+        # global _profiled_become
         if _profiled_become:
             return 0
 
@@ -489,7 +490,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # the operation. (Of course, embryo_phi() also uses trig, but at least tf handles it in C++.)
             return 0
 
-        _profiled_become = True
+        # _profiled_become = True
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
             # _profiled_become = True
             # test_ring_is_fucked_up()
@@ -506,7 +507,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 1
         return 0
     
-    @profile
+    # @profile
     def attempt_recruit_from_internal(p: tf.ParticleHandle) -> tuple[int, int]:
         """For LeadingEdge particles only. Break the bond with one bonded leading edge neighbor, but only
         if there is an internal particle bonded to both of them. That internal particle becomes leading edge.
@@ -516,7 +517,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         returns: number of bonds that became edge, number of bonds broken
         """
         # profiling: just run this once; mprof output might be easier to understand:
-        global _profiled_recruit
+        # global _profiled_recruit
         if _profiled_recruit:
             return 0, 0
 
@@ -586,7 +587,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if num_bonds_to_leading_edge > 2:
             return 0, 0
 
-        _profiled_recruit = True
+        # _profiled_recruit = True
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
             # In case recruit is bonded to an *internal* particle that already has the maximum edge bonds,
             # break the bond with that particle. Recruit will become LeadingEdge, which means bonded neighbors
@@ -717,6 +718,7 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
             
             relax_bond(bhandle, r0, r, viscosity, p1, p2)
             
+@profile
 def _move_toward_open_space(k_particle_diffusion: float) -> None:
     """Prevent gaps from opening up by giving particles a nudge to move toward open space.
     
@@ -732,7 +734,8 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
             # open space. Particularly particles immediately after transforming from edge to internal type.
             phandle.force_init = [0, 0, 0]
         else:
-            bonded_neighbor_positions: tuple[tf.fVector3] = phandle.getBondedNeighbors().positions
+            bonded_neighbor_positions: list[tf.fVector3] = \
+                [neighbor.position for neighbor in phandle.getBondedNeighbors()]
             vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
             centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
             force: tf.fVector3 = (phandle.position - centroid) * k_particle_diffusion
@@ -756,10 +759,10 @@ def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
     #
     # To be revisited later after I reconsider/retool the particle diffusion algorithm.
 
-_profiled_break: bool = False
+_profiled_break: bool = True
 _profiled_make: bool = False
-_profiled_recruit: bool = False
-_profiled_become: bool = False
+_profiled_recruit: bool = True
+_profiled_become: bool = True
 
 def profile_finished() -> bool:
     return _profiled_become and _profiled_recruit and _profiled_make and _profiled_break

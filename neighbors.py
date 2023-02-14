@@ -133,6 +133,7 @@ def bonds_to_neighbors_of_type(p: tf.ParticleHandle, ptype: tf.ParticleType) -> 
 def count_neighbors_of_type(p: tf.ParticleHandle, ptype: tf.ParticleType) -> int:
     return len(bonds_to_neighbors_of_type(p, ptype))
 
+# @profile
 def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                  extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
     """Get bonded neighbors, ordered according to their relative angles, so that iterating over the result
@@ -194,8 +195,23 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
         # It does not matter what order you traverse these. The existing order is fine.
         return list(neighbors)
 
+    # neighbor_unit_vectors: list[tf.fVector3] = [(position - p.position).normalized()
+    #                                             for position in neighbors.positions]
+    # ########### Experiment 1 in profiling - break down the above line in pieces:
+    # positions: list[tf.fVector3] = neighbors.positions
+    # p_position = p.position
+    # neighbor_unit_vectors: list[tf.fVector3] = [(position - p_position).normalized()
+    #                                             for position in positions]
+    # ########### Experiment 2: don't use ParticleList.positions
+    # positions: list[tf.fVector3] = [neighbor.position for neighbor in neighbors]
+    # p_position = p.position
+    # neighbor_unit_vectors: list[tf.fVector3] = [(position - p_position).normalized()
+    #                                             for position in positions]
+    # ########### Experiment 3: put it back together (a little bit, otherwise appalling to read):
+    positions: list[tf.fVector3] = [neighbor.position for neighbor in neighbors]
     neighbor_unit_vectors: list[tf.fVector3] = [(position - p.position).normalized()
-                                                for position in neighbors.positions]
+                                                for position in positions]
+    # ########### End experiment
     reference_vector: tf.fVector3 = neighbor_unit_vectors[0]
     # Note: speed-ups I tried, all skipping the function call and doing the work right here instead:
     # 1) control: do it here with a single list comprehension (just no func call overhead);
