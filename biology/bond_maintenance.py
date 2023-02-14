@@ -311,8 +311,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # select one at random to break:
         bhandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
+        _profiled_break = True
         if accept(p, other_p, breaking=True):
-            _profiled_break = True
+            # _profiled_break = True
             if verbose:
                 print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
             gc.destroy_bond(bhandle)
@@ -344,8 +345,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             if verbose:
                 print("Can't make bond: No particles available")
             return 0
+        _profiled_make = True
         if accept(p, other_p, breaking=False):
-            _profiled_make = True
+            # _profiled_make = True
             _make_bond(p, other_p, verbose=verbose)
             return 1
         return 0
@@ -486,9 +488,10 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # but I don't know how to detect the difference without using slow trigonometry; so for now just reject
             # the operation. (Of course, embryo_phi() also uses trig, but at least tf handles it in C++.)
             return 0
-        
+
+        _profiled_become = True
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
-            _profiled_become = True
+            # _profiled_become = True
             # test_ring_is_fucked_up()
             _make_bond(neighbor1, neighbor2, verbose=verbose)
             p.become(Little)
@@ -583,6 +586,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if num_bonds_to_leading_edge > 2:
             return 0, 0
 
+        _profiled_recruit = True
         if accept(p, other_leading_edge_p, breaking=True, becoming=True):
             # In case recruit is bonded to an *internal* particle that already has the maximum edge bonds,
             # break the bond with that particle. Recruit will become LeadingEdge, which means bonded neighbors
@@ -591,7 +595,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             def too_many_edge_neighbors(p: tf.ParticleHandle) -> bool:
                 return nbrs.count_neighbors_of_type(p, ptype=LeadingEdge) >= cfg.max_edge_neighbor_count
                 
-            _profiled_recruit = True
+            # _profiled_recruit = True
             phandle: tf.ParticleHandle
             saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle for phandle in recruit.getBondedNeighbors()
                                                                      if phandle.type_id == Little.id
