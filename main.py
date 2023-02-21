@@ -111,10 +111,15 @@ if cfg.windowed_mode:
 else:
     def sim_finished() -> bool:
         # Choose one:
+        
         # Truncated run with provided duration:
-        # return tf.Universe.time > 310 + 40  # 310 for equilibration (fast), + more (slow; ~25 per hour on old Mac)
+        # 310 for equilibration (fast, a couple minutes)
+        # plus more (slow; ~30 per hour on old Mac)
+        # (310 + 150 gets a clean exit before the memory crash)
+        return tf.Universe.time > 310 + 150
+        
         # Full epiboly:
-        return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
+        # return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
     
     while True:
         if sim_finished():
