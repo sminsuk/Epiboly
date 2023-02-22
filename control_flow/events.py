@@ -1,4 +1,4 @@
-"""Set up dynamical changes to the system.
+"""Set up tissue-forge events to handle dynamical changes to the system.
 
 Creates a master invoke_method that is executed on each repeated event invocation. By default, it does nothing,
 until execute_repeatedly() is called, creating a task list.

@@ -7,7 +7,7 @@ import config as cfg
 
 from biology import bond_maintenance as bonds,\
     microtubules as mt
-from control_flow import dynamics as dyn
+from control_flow import events
 import setup_and_equilibrate as setup
 from utils import epiboly_utils as epu,\
     tf_utils as tfu,\
@@ -48,7 +48,7 @@ vx.init_screenshots()
 logFilePath: str = os.path.join(tfu.export_path(), "Epiboly.log")
 tf.Logger.enableFileLogging(fileName=logFilePath, level=tf.Logger.ERROR)
 
-dyn.initialize_master_event()
+events.initialize_master_event()
 epu.reset_camera()
 
 # Choose one:
@@ -62,7 +62,7 @@ plot.save_graph(end=False)
 
 # toggle_visibility()
 # toggle_visibility()
-dyn.execute_repeatedly(tasks=[
+events.execute_repeatedly(tasks=[
         {"invoke": vx.save_screenshot_repeatedly},
         {"invoke": plot.show_graph},
         {"invoke": mt.apply_even_tangent_forces},
@@ -72,7 +72,7 @@ dyn.execute_repeatedly(tasks=[
 vx.set_screenshot_export_interval()
 if cfg.windowed_mode:
     tf.show()
-    dyn.execute_repeatedly(tasks=[
+    events.execute_repeatedly(tasks=[
             {"invoke": vx.save_screenshot_repeatedly},
             {"invoke": plot.show_graph},
             {"invoke": mt.apply_even_tangent_forces},
@@ -124,7 +124,7 @@ else:
     while True:
         if sim_finished():
             break
-        if dyn.event_exception_was_thrown():
+        if events.event_exception_was_thrown():
             # Could sys.exit() here (it works here, just not inside a TF event invoke method), but even better,
             # do any final graphing and movie making and THEN exit. The main thing is to get out of the loop.
             break

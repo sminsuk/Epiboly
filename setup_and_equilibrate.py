@@ -8,7 +8,7 @@ from epiboly_init import Little, Big, LeadingEdge   # Tissue Forge initializatio
 import config as cfg
 
 from biology import bond_maintenance as bonds
-from control_flow import dynamics as dyn
+from control_flow import events
 from utils import tf_utils as tfu,\
     epiboly_utils as epu,\
     global_catalogs as gc,\
@@ -395,12 +395,12 @@ def initialize_export_tasks() -> None:
     the latter won't be needed because we'll be showing the image filenames, which also include Universe.time.
     """
     if cfg.show_equilibration:
-        task_list: list[dyn.Task] = [{"invoke": plot.show_graph}]
+        task_list: list[events.Task] = [{"invoke": plot.show_graph}]
         if vx.screenshot_export_enabled():
             vx.set_screenshot_export_interval(25)
             task_list.append({"invoke": vx.save_screenshot_repeatedly})
             
-        dyn.execute_repeatedly(tasks=task_list)
+        events.execute_repeatedly(tasks=task_list)
 
 def show_equilibrating_message() -> None:
     if cfg.windowed_mode and not cfg.show_equilibration:
@@ -700,8 +700,8 @@ if __name__ == "__main__":
     tfu.init_export()
     vx.init_screenshots()
     epu.reset_camera()
-    dyn.initialize_master_event()
-    dyn.execute_repeatedly(tasks=[{"invoke": show_utime}])
+    events.initialize_master_event()
+    events.execute_repeatedly(tasks=[{"invoke": show_utime}])
     
     # ***** Choose one: *****
     # initialize_embryo()         # to run the old one and make sure I haven't broken the sim during W.I.P.
