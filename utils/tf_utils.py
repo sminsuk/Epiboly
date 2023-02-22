@@ -13,8 +13,8 @@ from typing import Optional
 from utils import global_catalogs as gc
 import tissue_forge as tf
 
-_epiboly_root: str = "TissueForge_export"
-_export_dir: Optional[str] = None
+_tf_export_root: str = "TissueForge_export"
+_current_export_dir: Optional[str] = None
 
 def init_export() -> None:
     """Set up directories for all exported output: root directory for all output from the current script, ever;
@@ -31,31 +31,21 @@ def init_export() -> None:
         # (i.e., suitable for directory or file name)
         return local.strftime("%Y-%m-%d %I-%M-%S %p %Z")
 
-    global _export_dir
+    global _current_export_dir
 
     # subdirectory with unique name for all output of the current run:
-    _export_dir = timestring()
-
-    # full path to that directory
-    export_path = os.path.join(os.path.expanduser("~"), _epiboly_root, _export_dir)
+    _current_export_dir = timestring()
 
     # Creates the user's unique TF export directory if it doesn't yet exist;
     # and the subdirectory for the current run if it doesn't yet exist (it shouldn't):
-    os.makedirs(export_path)
-
-def epiboly_root() -> str:
-    """Make _epiboly_root available globally (read-only)
-    
-    Currently only needed for making movies after the fact. The rest of the time, use export_path()
-    """
-    return _epiboly_root
+    os.makedirs(export_path())
 
 def export_directory() -> str:
     """Make just the directory name itself available (read-only). Useful for modules to use in filenames"""
-    return _export_dir
+    return _current_export_dir
 
 def export_path(directory_name: str = None) -> str:
-    """Provide the full path to the root directory for all types of output exported
+    """Provide the full path to the subdirectory for all types of output exported
     during the current run (e.g., images, MatPlatLib plots, saved simulation state).
     
     To access a previously generated directory (i.e., after the program quits or crashes), provide a directory name
@@ -63,8 +53,8 @@ def export_path(directory_name: str = None) -> str:
     subdirectory.
     """
     if directory_name is None:
-        directory_name = _export_dir
-    return os.path.join(os.path.expanduser("~"), _epiboly_root, directory_name)
+        directory_name = _current_export_dir
+    return os.path.join(os.path.expanduser("~"), _tf_export_root, directory_name)
 
 def cartesian_from_spherical(sphere_vec):
     """Given a vector in spherical coords (with angles in radians), return the cartesian equivalent.
