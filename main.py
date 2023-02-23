@@ -5,14 +5,15 @@ import sys
 import tissue_forge as tf
 import config as cfg
 
-from biology import bond_maintenance as bonds,\
-    microtubules as mt
-from control_flow import events
+import biology.bond_maintenance as bonds
+import biology.microtubules as mt
+import control_flow.events as events
 import setup_and_equilibrate as setup
-from utils import epiboly_utils as epu,\
-    tf_utils as tfu,\
-    plotting as plot,\
-    video_export as vx
+import utils.epiboly_utils as epu
+import utils.plotting as plot
+import utils.sim_state_export as state
+import utils.tf_utils as tfu
+import utils.video_export as vx
 
 from control_flow.interactive import is_interactive, toggle_visibility
 if is_interactive():
@@ -45,6 +46,7 @@ print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
 tfu.init_export()
 vx.init_screenshots()
+state.init_export()
 logFilePath: str = os.path.join(tfu.export_path(), "Epiboly.log")
 tf.Logger.enableFileLogging(fileName=logFilePath, level=tf.Logger.ERROR)
 
@@ -60,6 +62,10 @@ setup.unified_initialize_embryo()   # Start all bond activites all at once
 # then again at the end so I get the whole thing if the script completes.
 plot.save_graph(end=False)
 
+# Call now so that state is exported after setup/equilibration but before any update events;
+# then again at the end so I get the final state if the script completes.
+state.export("Timestep true zero")
+
 # toggle_visibility()
 # toggle_visibility()
 events.execute_repeatedly(tasks=[
@@ -67,6 +73,7 @@ events.execute_repeatedly(tasks=[
         {"invoke": plot.show_graph},
         {"invoke": mt.apply_even_tangent_forces},
         {"invoke": bonds.maintain_bonds},
+        {"invoke": state.export_repeatedly},
         ])
 
 vx.set_screenshot_export_interval()
@@ -89,6 +96,7 @@ if cfg.windowed_mode:
                       # "viscosity": 0.001
                       }
              },
+            {"invoke": state.export_repeatedly},
             ])
     # mt.remove_tangent_forces()
     
@@ -134,6 +142,7 @@ else:
 # bonds.test_ring_is_fucked_up()
 
 plot.save_graph(end=True)
+state.export("Final")
 vx.make_movie()
 
 # Only after making the movie, so that these stills won't be included

@@ -15,6 +15,9 @@ windowed_mode: bool = False
 # useful in windowed mode to set True during development so I can see what I'm doing; otherwise leave as False.
 show_equilibration: bool = False
 
+# Number of timesteps between sim state exports. Set to 0 to disable export.
+sim_state_export_interval: int = 500
+
 # Number of timesteps between screenshots. User configurable here at load time (set to 0 to disable screenshot export).
 # Can also be adjusted dynamically at run time (only to adjust the value, not to enable/disable), but callers should
 # never set this directly; instead use the setter in module video_export, which owns it.

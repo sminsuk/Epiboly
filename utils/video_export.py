@@ -110,7 +110,7 @@ def init_screenshots() -> None:
 def _export_screenshot(filename: str) -> None:
     """Note, in system.screenshot(), bgcolor (and decorate) args only work in windowless mode."""
     path: str = os.path.join(_image_path, filename)
-    print(f"Saving file to '{path}'")
+    print(f"Saving screenshot to '{path}'")
     result: int = tf.system.screenshot(path, bgcolor=[0, 0, 0])
     if result != 0:
         print(tfu.bluecolor + f"Something went wrong with screenshot export, result code = {result}" + tfu.endcolor)
