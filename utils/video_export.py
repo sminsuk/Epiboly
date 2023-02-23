@@ -156,7 +156,7 @@ def save_screenshot_repeatedly() -> None:
     # (in windowless mode only) by calling a one-off save_screenshot() before calling tf.step().
     
     elapsed: int = _current_screenshot_timestep - _previous_screenshot_timestep
-    if elapsed % cfg.screenshot_export_interval == 0:
+    if elapsed % _screenshot_export_interval == 0:
         _previous_screenshot_timestep = _current_screenshot_timestep
         save_screenshot("")  # just timestep as filename
         _automated_camera_rotate()
@@ -167,28 +167,34 @@ _image_path: str
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 
-def set_screenshot_export_interval(interval: int = 10) -> None:
-    """Safely set screenshot interval
+# module's copy can be adjusted dynamically
+_screenshot_export_interval: int = cfg.screenshot_export_interval
+
+def set_screenshot_export_interval(interval: int = None) -> None:
+    """Set module current value of screenshot interval
     
     (Interval may need to change during the simulation.)
-    Call with no arg to reset to the default value (e.g. after changing it temporarily)
+    Call with no arg to reset to the cfg value (e.g. after changing module value temporarily)
     
     Enabling/disabling screenshots happens at launch and can't be changed thereafter. Thus:
-    if disabled (stored interval == 0), then caller may not change it.
-    if enabled (stored interval > 0), then caller may not change it to 0.
+    if disabled (cfg interval == 0), then caller may not enable it.
+    if enabled (cfg interval > 0), then caller may not change module current value to 0.
     
     But, remember that once enabled, export can still be turned on and off on the fly by changing whether
     "save_screenshot_repeatedly" is included in the task list for repeated events.
     """
+    global _screenshot_export_interval
     if screenshot_export_enabled():
+        if interval is None:
+            interval = cfg.screenshot_export_interval
         if interval > 0:
-            cfg.screenshot_export_interval = interval
+            _screenshot_export_interval = interval
             print(f"Screenshot export interval set to {interval} timesteps")
         else:
             print(tfu.bluecolor + "Warning: screenshot export cannot be disabled after initialization" + tfu.endcolor)
 
 def screenshot_export_enabled() -> bool:
-    """Convenience function. Interpret screenshot_export_interval as flag for whether export is enabled"""
+    """Convenience function. Interpret cfg.screenshot_export_interval as flag for whether export is enabled"""
     return cfg.screenshot_export_interval != 0
 
 def make_movie(filename: str = None) -> None:

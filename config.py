@@ -12,15 +12,14 @@ windowed_mode: bool = False
 # Whether to show the equilibration steps.
 # In windowless mode, whether to include them in any exported screenshots;
 # in windowed mode, whether to show them in the simulator window (and any exported screenshots), or hide in tf.step();
-# useful in windowed mode to set True during development so I can see what I'm doing; otherwise leave as False.
+# useful to set True during development so I can see what I'm doing; otherwise leave as False.
 show_equilibration: bool = False
 
 # Number of timesteps between sim state exports. Set to 0 to disable export.
 sim_state_export_interval: int = 500
 
-# Number of timesteps between screenshots. User configurable here at load time (set to 0 to disable screenshot export).
-# Can also be adjusted dynamically at run time (only to adjust the value, not to enable/disable), but callers should
-# never set this directly; instead use the setter in module video_export, which owns it.
+# Number of timesteps between screenshots. Set to 0 to disable screenshot export.
+# If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 screenshot_export_interval: int = 10
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
