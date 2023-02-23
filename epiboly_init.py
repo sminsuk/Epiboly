@@ -23,18 +23,25 @@ class BigType(tf.ParticleTypeSpec):
 class LeadingEdgeType(LittleType):
     pass
 
+Little: tf.ParticleType
+Big: tf.ParticleType
+LeadingEdge: tf.ParticleType
+
 ########
-# In order to have my ParticleType instances also be globally available, I have to initialize 
+# In order to have my ParticleType instances also be globally available, I have to initialize
 # Tissue Forge before instantiating them, so that has to be done here as well.
 
-_window_size: list[int] = [800, 600]    # [800, 600] is default; [1200, 900] is nice and big for presentations
-_dim = [10., 10., 10.]
-# Cutoff = largest potential.max in the sim, so that all necessary potentials will be evaluated:
-tf.init(dim=_dim, windowless=not cfg.windowed_mode, window_size=_window_size)  # , cutoff = 2)
-
-Little: tf.ParticleType = LittleType.get()
-Big: tf.ParticleType = BigType.get()
-LeadingEdge: tf.ParticleType = LeadingEdgeType.get()
-
-Little.style.color = tfu.cornflower_blue
-LeadingEdge.style.color = tfu.gold
+if cfg.initialization_directory_name:
+    pass
+else:
+    _window_size: list[int] = [800, 600]    # [800, 600] is default; [1200, 900] is nice and big for presentations
+    _dim = [10., 10., 10.]
+    # Cutoff = largest potential.max in the sim, so that all necessary potentials will be evaluated:
+    tf.init(dim=_dim, windowless=not cfg.windowed_mode, window_size=_window_size)  # , cutoff = 2)
+    
+    Little = LittleType.get()
+    Big = BigType.get()
+    LeadingEdge = LeadingEdgeType.get()
+    
+    Little.style.color = tfu.cornflower_blue
+    LeadingEdge.style.color = tfu.gold

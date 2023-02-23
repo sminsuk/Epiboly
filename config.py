@@ -4,6 +4,11 @@ Flags and magic numbers, especially ones used in more than one place.
 """
 import math
 
+# For normal initialization, leave blank. To start from a previously exported state, provide the
+# directory name of the export. This is the parent directory with the datetime in the name. Script
+# will search in the "Sim_state" subdirectory to find the most recent export, and start with that.
+initialization_directory_name: str = ""
+
 # Whether to use TF windowless mode, in which the simulation is driven only by
 # tf.step() and never tf.show(), and no graphics are displayed.
 # But name this flag as a positive rather than a negative, to avoid confusing double negatives ("not windowless").
