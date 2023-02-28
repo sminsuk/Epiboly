@@ -26,6 +26,10 @@ _fig: Optional[Figure] = None
 _ax: Optional[Axes] = None
 _plot_path: str
 
+# in case sim is ended and restarted from exported data, for now will just output a new, numbered plot,
+# rather than trying to sew it all together into one plot.
+_plot_num: int = 1
+
 def _init_graph() -> None:
     """Initialize matplotlib and also a subdirectory in which to put the saved plots
     
@@ -70,7 +74,7 @@ def save_graph(end: Optional[bool] = None) -> None:
     if _fig:
         # i.e., only if init_graph() was ever run
         total_evl_cells: int = len(Little.items()) + len(LeadingEdge.items())
-        filename: str = ""
+        filename: str = f"{_plot_num}. "
         if end is not None:
             filename += "End. " if end else "Start. "
         filename += f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}"
@@ -80,6 +84,19 @@ def save_graph(end: Optional[bool] = None) -> None:
         filepath: str = os.path.join(_plot_path, filename)
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")
         
+def get_state() -> dict:
+    """ For now, in composite runs, just produce multiple graphs, each numbered
+    
+    Fancier alternative, if needed, will be to try to get a nice graph of the whole composite run,
+    which would involve saving all the accumulated graph data.
+    """
+    return {"plotnum": _plot_num}
+
+def set_state(d: dict) -> None:
+    """Saved value was from an earlier plot, so increment it for the new plot"""
+    global _plot_num
+    _plot_num = d["plotnum"] + 1
+    
 # At import time: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
 # Note to self: do I need to make sure interactive is off, when I'm in windowless mode? That would be
 # necessary for true automation, but would be nice to run windowless manually and still see the plots.
