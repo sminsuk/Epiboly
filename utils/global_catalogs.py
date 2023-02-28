@@ -63,4 +63,44 @@ def destroy_angle(angle_handle: tf.AngleHandle) -> None:
     del angles_by_id[angle_handle.id]
     angle_handle.destroy()
     
+def initialize_state() -> None:
+    """Recreates the global catalogs based on imported data from a previous run
+    
+    bonds_by_id: this only contains r0 for all the bonds, which CANNOT be recreated after an export/import,
+    because in v. 0.0.1, r0 can't be read out of the bonds. If absolutely necessary, I could export these values
+    and then re-import them, but it's not worth it right now because it's only used for the relaxation feature,
+    which I'm currently not using. So skip it for now, and if I turn relaxation on, this will fail.
+    
+    However, still need to create a dict full of dummy values, so that when existing bonds are destroyed, their
+    entry can be destroyed too.
+    
+    angles_by_id: similarly, we need the values so that angles can be destroyed. But also, see clean_state()
+    
+    particles_by_id: this needs to be reconstituted based on the imported particles. Note that their ids won't
+    be the same as when they were saved, nor will their ParticleHandles, but we don't need the old ones and
+    can simply retrieve new ones.
+    """
+    # dummy values for bonds because we can't discover r0
+    for bhandle in tf.BondHandle.items():
+        bond_values: BondData = {"r0": -1}
+        bonds_by_id[bhandle.id] = bond_values
+        
+    for handle in tf.AngleHandle.items():
+        angles_by_id[handle.id] = handle.id
+        
+    for phandle in tf.Universe.particles:
+        particle_values: ParticleData = {"handle": phandle}
+        particles_by_id[phandle.id] = particle_values
+        
+def clean_state() -> None:
+    """Clean out all anomalous Angle bonds at once
+    
+    Because of the bug that required this dict to exist in the first place, we need a function to purge any
+    anomalous angles that should not exist, BEFORE saving simulation state.
+    """
+    angle: tf.AngleHandle
+    for angle in tf.AngleHandle.items():
+        if angle.active and angle.id not in angles_by_id:
+            angle.destroy()
+
 visibility_state: bool = True

@@ -3,6 +3,7 @@ import os.path
 import sys
 
 import tissue_forge as tf
+import epiboly_init
 import config as cfg
 
 import biology.bond_maintenance as bonds
@@ -44,7 +45,13 @@ if is_interactive():
 print(f"tissue-forge version = {tf.version.version}")
 print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
-tfu.init_export()
+
+if cfg.initialization_directory_name:
+    epiboly_init.init_from_import(state.sim_state_subdirectory())
+    state.import_additional_state(epiboly_init.latest_extra_state_path)
+else:
+    epiboly_init.init()
+
 vx.init_screenshots()
 state.init_export()
 logFilePath: str = os.path.join(tfu.export_path(), "Epiboly.log")
@@ -53,18 +60,19 @@ tf.Logger.enableFileLogging(fileName=logFilePath, level=tf.Logger.ERROR)
 events.initialize_master_event()
 epu.reset_camera()
 
-# Choose one:
-# setup.initialize_embryo()       # the old one
-# setup.new_initialize_embryo()   # the new one under development
-setup.unified_initialize_embryo()   # Start all bond activites all at once
-
-# Call now so I at least get the graph for equilibration if I later abort execution;
-# then again at the end so I get the whole thing if the script completes.
-plot.save_graph(end=False)
-
-# Call now so that state is exported after setup/equilibration but before any update events;
-# then again at the end so I get the final state if the script completes.
-state.export("Timestep true zero")
+if not cfg.initialization_directory_name:
+    # Choose one:
+    # setup.initialize_embryo()       # the old one
+    # setup.new_initialize_embryo()   # the new one under development
+    setup.unified_initialize_embryo()   # Start all bond activites all at once
+    
+    # Call now so I at least get the graph for equilibration if I later abort execution;
+    # then again at the end so I get the whole thing if the script completes.
+    plot.save_graph(end=False)
+    
+    # Call now so that state is exported after setup/equilibration but before any update events;
+    # then again at the end so I get the final state if the script completes.
+    state.export("Timestep true zero")
 
 # toggle_visibility()
 # toggle_visibility()

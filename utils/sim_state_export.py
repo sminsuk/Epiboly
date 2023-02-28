@@ -7,6 +7,7 @@ import os
 
 import tissue_forge as tf
 import config as cfg
+import utils.global_catalogs as gc
 import utils.plotting as plot
 import utils.tf_utils as tfu
 
@@ -14,7 +15,12 @@ _state_export_path: str
 _state_export_interval: int = 0
 _previous_export_timestep: int = 0
 _current_export_timestep: int = 0
+_sim_state_subdirectory: str = "Sim_state"
 
+def sim_state_subdirectory() -> str:
+    """Return subdirectory to be used when saved state is reloaded"""
+    return _sim_state_subdirectory
+    
 def init_export() -> None:
     """
     Set up subdirectory for all simulation state output
@@ -29,8 +35,8 @@ def init_export() -> None:
     if not export_enabled():
         return
     
-    _state_export_path = os.path.join(tfu.export_path(), "Sim_state")
-    os.makedirs(_state_export_path)
+    _state_export_path = os.path.join(tfu.export_path(), _sim_state_subdirectory)
+    os.makedirs(_state_export_path, exist_ok=True)
 
 def export_enabled() -> bool:
     """Convenience function. Interpret _state_export_interval as flag for whether export is enabled"""
@@ -62,6 +68,13 @@ def _export_additional_state(filename: str) -> None:
     with open(path, mode="w") as fp:
         json.dump(export_dict, fp)
 
+def import_additional_state(import_path: str) -> None:
+    import_dict: dict
+    with open(import_path) as fp:
+        import_dict = json.load(fp)
+    
+    plot.set_state(import_dict["plot"])
+    
 def _export_state(filename: str) -> None:
     path: str = os.path.join(_state_export_path, filename)
     print(f"Saving complete simulation state to '{path}'")
@@ -85,7 +98,10 @@ def export(filename: str, show_timestep: bool = True) -> None:
     elif show_timestep:
         filename += "; " + suffix
     
-    _export_state(filename + ".json")
+    # Before we export, make sure the state is clean. (Hopefully won't be needed after bugfix in future version.)
+    gc.clean_state()
+    
+    _export_state(filename + "_state.json")
     _export_additional_state(filename + "_extra.json")
 
 def export_repeatedly() -> None:

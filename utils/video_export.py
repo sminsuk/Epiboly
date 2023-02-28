@@ -105,7 +105,7 @@ def init_screenshots() -> None:
         return
     
     _image_path = os.path.join(tfu.export_path(), "Screenshots")
-    os.makedirs(_image_path)
+    os.makedirs(_image_path, exist_ok=True)
     
 def _export_screenshot(filename: str) -> None:
     """Note, in system.screenshot(), bgcolor (and decorate) args only work in windowless mode."""

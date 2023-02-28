@@ -16,9 +16,13 @@ import tissue_forge as tf
 _tf_export_root: str = "TissueForge_export"
 _current_export_dir: Optional[str] = None
 
-def init_export() -> None:
+def init_export(directory_name: str = None) -> None:
     """Set up directories for all exported output: root directory for all output from the current script, ever;
     and a subdirectory for all output of the CURRENT RUN of the current script.
+    
+    To access a previously generated directory (i.e., after the program quits or crashes), provide a directory name
+    to get the path to that directory. This should be the main directory with the datetime in the name, not any
+    subdirectory.
     
     Maybe ToDo: output a text file to that directory? With lots of metadata. DateTime, params, etc.? Better: use logging
     """
@@ -33,12 +37,16 @@ def init_export() -> None:
 
     global _current_export_dir
 
-    # subdirectory with unique name for all output of the current run:
-    _current_export_dir = timestring()
-
-    # Creates the user's unique TF export directory if it doesn't yet exist;
-    # and the subdirectory for the current run if it doesn't yet exist (it shouldn't):
-    os.makedirs(export_path())
+    if directory_name is None:
+        # subdirectory with unique name for all output of the current run:
+        _current_export_dir = timestring()
+    
+        # Creates the user's unique TF export directory if it doesn't yet exist;
+        # and the subdirectory for the current run if it doesn't yet exist (it shouldn't):
+        os.makedirs(export_path())
+    else:
+        # Continuing where we left off, in a directory that already exists from a previous run
+        _current_export_dir = directory_name
 
 def export_directory() -> str:
     """Make just the directory name itself available (read-only). Useful for modules to use in filenames"""

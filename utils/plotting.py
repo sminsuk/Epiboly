@@ -41,7 +41,7 @@ def _init_graph() -> None:
     _ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
     
     _plot_path = os.path.join(tfu.export_path(), "Plots")
-    os.makedirs(_plot_path)
+    os.makedirs(_plot_path, exist_ok=True)
 
 def show_graph() -> None:
     global _timestep
