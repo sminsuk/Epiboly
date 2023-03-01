@@ -10,6 +10,7 @@ import config as cfg
 import utils.global_catalogs as gc
 import utils.plotting as plot
 import utils.tf_utils as tfu
+import utils.video_export as vx
 
 _state_export_path: str
 _state_export_interval: int = 0
@@ -45,8 +46,7 @@ def export_enabled() -> bool:
 def _export_additional_state(filename: str) -> None:
     """Export other info that this script maintains, not known to Tissue Forge
     
-    WIP: not sure how much of this I'll need. Save one item right now, just to get the infrastructure
-    working. Then add more as needed.
+    WIP: May need to add additional state later, as needed.
     
     Modules that have even a little bit of state that would need to be explicitly saved in order to recover it:
     - plotting
@@ -61,19 +61,23 @@ def _export_additional_state(filename: str) -> None:
     # an existing graph with a newer better one with more data in it.)
     plot.save_graph()
 
-    export_dict: dict = {"plot": plot.get_state(),
+    export_dict: dict = {"self": get_state(),
+                         "plot": plot.get_state(),
+                         "vx": vx.get_state(),
                          }
     
     path: str = os.path.join(_state_export_path, filename)
     with open(path, mode="w") as fp:
-        json.dump(export_dict, fp)
+        json.dump(export_dict, fp, indent=2)
 
 def import_additional_state(import_path: str) -> None:
     import_dict: dict
     with open(import_path) as fp:
         import_dict = json.load(fp)
     
+    set_state(import_dict["self"])
     plot.set_state(import_dict["plot"])
+    vx.set_state(import_dict["vx"])
     
 def _export_state(filename: str) -> None:
     path: str = os.path.join(_state_export_path, filename)
@@ -120,3 +124,26 @@ def export_repeatedly() -> None:
         export("")  # just timestep as filename
     
     _current_export_timestep += 1
+
+def get_state() -> dict:
+    """We not only take care of exporting/importing extra (non-TF) state from other modules, but also from this one!
+
+    We are keeping track of the timing of our exports, so this module is itself stateful, so that needs to
+    be exported along with all the rest, in order to pick up the export timing where we left off.
+    """
+    return {"previous_step": _previous_export_timestep,
+            "current_step": _current_export_timestep}
+
+def set_state(d: dict) -> None:
+    """Reconstitute state from what was saved.
+    
+    In this case, we increment _current because at the moment of export, it hadn't yet incremented (see
+    export_repeatedly()), but now we've experienced an additional timestep.
+    
+    Compare vx, where the opposite is true. There, save_screenshot_repeatedly always completes, so at
+    the moment of state export, its corresponding _current variable has already pre-incremented for the
+    next timestep.
+    """
+    global _previous_export_timestep, _current_export_timestep
+    _previous_export_timestep = d["previous_step"]
+    _current_export_timestep = d["current_step"] + 1

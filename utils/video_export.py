@@ -197,6 +197,34 @@ def screenshot_export_enabled() -> bool:
     """Convenience function. Interpret cfg.screenshot_export_interval as flag for whether export is enabled"""
     return cfg.screenshot_export_interval != 0
 
+def get_state() -> dict:
+    """generate state to be saved to disk
+    
+    For now, in composite runs, just try to pick up the screenshot timing where we left off.
+
+    Could add: camera position and angle, in case camera no longer at the default position.
+    
+    Other aspects of state should automatically reconstitute themselves pretty well:
+    _image_path, _rotation_started, _rotation_finished
+    """
+    return {"previous_step": _previous_screenshot_timestep,
+            "current_step": _current_screenshot_timestep}
+
+def set_state(d: dict) -> None:
+    """Reconstitute state from what was saved.
+
+    In this case, we do not need to increment _current, because save_screenshot_repeatedly pre-increments it to
+    represent the *next* timestep. (Compare the comparable function in sim_state_export, where the opposite is true.)
+    
+    ToDo: Maybe automatically delete, or hide away, all the screenshots that were saved *after* the final
+     state export? (Because screenshots happen much more frequently than state exports.) So that those won't
+     get included in the movie. They will all be regenerated during the resumed simulation. For now, I'll
+     need to remove them manually before the movie gets compiled.
+    """
+    global _previous_screenshot_timestep, _current_screenshot_timestep
+    _previous_screenshot_timestep = d["previous_step"]
+    _current_screenshot_timestep = d["current_step"]
+
 def make_movie(filename: str = None) -> None:
     if not screenshot_export_enabled():
         return
