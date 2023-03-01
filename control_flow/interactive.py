@@ -1,7 +1,7 @@
 """Functions available to be called while script is running, from jupyter cells, ipython cmd line, etc."""
 from IPython import get_ipython
 
-from epiboly_init import Little, LeadingEdge
+import epiboly_globals as g
 from utils import global_catalogs as gc
 
 # Sometimes I still run from Jupyter and not from ipython, so set these to False.
@@ -18,7 +18,7 @@ def toggle_visibility():
     global vis_toggle_allowed
     if vis_toggle_allowed:
         gc.visibility_state = not gc.visibility_state
-        for p in Little.items():
+        for p in g.Little.items():
             p.style.visible = gc.visibility_state
     else:
         print("First invoke, outside Jupyter call twice")
@@ -32,13 +32,13 @@ def toggle_radius():
     resuming, or might affect the simulation"""
     global rad_toggle_allowed
     if rad_toggle_allowed:
-        threshold = Little.radius / 2
-        tiny_radius = Little.radius / 5
-        for p in Little.items():
+        threshold = g.Little.radius / 2
+        tiny_radius = g.Little.radius / 5
+        for p in g.Little.items():
             if p.radius > threshold:
                 p.radius = tiny_radius
             else:
-                p.radius = Little.radius
+                p.radius = g.Little.radius
     else:
         print("First invoke, outside Jupyter call twice")
         rad_toggle_allowed = True
@@ -58,9 +58,9 @@ def count_bonds():
         histogram[key] = histogram[key] + 1    
 
     histogram = {}
-    for p in Little.items():
+    for p in g.Little.items():
         add_to_histogram(p)
-    for p in LeadingEdge.items():
+    for p in g.LeadingEdge.items():
         add_to_histogram(p)
     print(histogram)
     

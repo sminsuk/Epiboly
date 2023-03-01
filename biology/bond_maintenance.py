@@ -5,7 +5,7 @@ import time
 from typing import Optional
 
 import tissue_forge as tf
-from epiboly_init import Little, LeadingEdge
+import epiboly_globals as g
 import config as cfg
 from utils import tf_utils as tfu,\
     epiboly_utils as epu,\
@@ -14,7 +14,7 @@ from utils import tf_utils as tfu,\
 import neighbors as nbrs
 
 def is_edge_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> bool:
-    return p1.type_id == p2.type_id == LeadingEdge.id
+    return p1.type_id == p2.type_id == g.LeadingEdge.id
 
 def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
     """Return a potential tailored to these 2 particles
@@ -34,7 +34,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
     
     # r0: float = p1.distance(p2)
-    r0: float = 2 * Little.radius
+    r0: float = 2 * g.Little.radius
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=k,
                                                     max=cfg.max_potential_cutoff
@@ -44,7 +44,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
     if verbose:
         distance: float = p1.distance(p2)
         print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id},",
-              f"distance = (radius * {distance/Little.radius})")
+              f"distance = (radius * {distance/g.Little.radius})")
         # p1.style.color = tfu.gray   # testing
         # p2.style.color = tfu.white  # testing
 
@@ -65,14 +65,14 @@ def harmonic_angle_equilibrium_value() -> float:
     # dynamically updated to be that precise. If the number of particles changes, they'll "try" to reach a target angle
     # that is not quite right, but will be opposed by the same force acting on the neighbor particles, so hopefully
     # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
-    return math.pi - (cfg.two_pi / len(LeadingEdge.items()))
+    return math.pi - (cfg.two_pi / len(g.LeadingEdge.items()))
 
 def test_ring_is_fucked_up():
     """For debugging. Set breakpoints at the indicated locations. Stop there and examine these values."""
-    particles: list[tf.ParticleHandle] = [p for p in LeadingEdge.items()]
+    particles: list[tf.ParticleHandle] = [p for p in g.LeadingEdge.items()]
     neighbor_lists: list[list[tf.ParticleHandle]] = [p.getBondedNeighbors() for p in particles]
     leading_edge_neighbor_lists: list[list[tf.ParticleHandle]] = (
-            [[n for n in neighbor_list if n.type_id == LeadingEdge.id]
+            [[n for n in neighbor_list if n.type_id == g.LeadingEdge.id]
              for neighbor_list in neighbor_lists])
     leading_edge_counts: list[int] = [len(neighbor_list) for neighbor_list in leading_edge_neighbor_lists]
     neighbor_fuckedness: list[bool] = [length != 2 for length in leading_edge_counts]
@@ -114,8 +114,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     
             # Simple for now, but this will probably get more complex later. I think LeadingEdge target count
             # needs to gradually increase as edge approaches vegetal pole, because of the geometry (hence float).
-            p1target_count: float = (6 if p1.type_id == Little.id else 4)
-            p2target_count: float = (6 if p2.type_id == Little.id else 4)
+            p1target_count: float = (6 if p1.type_id == g.Little.id else 4)
+            p2target_count: float = (6 if p2.type_id == g.Little.id else 4)
     
             p1current_energy: float = (p1current_count - p1target_count) ** 2
             p2current_energy: float = (p2current_count - p2target_count) ** 2
@@ -256,16 +256,16 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         p2current_count: int = len(p2.bonds)
         if breaking and (p1current_count <= cfg.min_neighbor_count or
                          p2current_count <= cfg.min_neighbor_count):
-            if verbose:     # and p1.type_id == LeadingEdge.id and p2.type_id == LeadingEdge.id:
+            if verbose:     # and p1.type_id == g.LeadingEdge.id and p2.type_id == g.LeadingEdge.id:
                 print(f"Rejecting break because particles have {p1current_count} and {p2current_count} bonds")
             return False
         
         # Internal particles may not acquire more than a maximum threshold of bonds to the leading edge
         if p1.type_id != p2.type_id and not breaking:
             phandle: tf.ParticleHandle
-            p_internal: tf.ParticleHandle = p1 if p1.type_id == Little.id else p2
+            p_internal: tf.ParticleHandle = p1 if p1.type_id == g.Little.id else p2
             edge_neighbor_count: int = len([phandle for phandle in p_internal.getBondedNeighbors()
-                                            if phandle.type_id == LeadingEdge.id])
+                                            if phandle.type_id == g.LeadingEdge.id])
             if edge_neighbor_count >= cfg.max_edge_neighbor_count:
                 if verbose:
                     print(f"Rejecting new bond between internal and leading edge because internal particle"
@@ -282,7 +282,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             if random.random() < probability:
                 return True
             else:
-                if verbose:     # and p1.type_id == LeadingEdge.id and p2.type_id == LeadingEdge.id:
+                if verbose:     # and p1.type_id == g.LeadingEdge.id and p2.type_id == g.LeadingEdge.id:
                     print(f"Rejecting {'break' if breaking else 'make'} because unfavorable; particles have"
                           f" {p1current_count} and {p2current_count} bonds")
                 return False
@@ -294,10 +294,10 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         """
         bhandle: tf.BondHandle
         breakable_bonds: list[tf.BondHandle] = p.bonds
-        if p.type_id == LeadingEdge.id:
+        if p.type_id == g.LeadingEdge.id:
             # Don't break bond between two LeadingEdge particles
             breakable_bonds = [bhandle for bhandle in breakable_bonds
-                               if tfu.other_particle(p, bhandle).type_id == Little.id]
+                               if tfu.other_particle(p, bhandle).type_id == g.Little.id]
         if not breakable_bonds:
             # can be empty if p is a LeadingEdge particle and is *only* bonded to other LeadingEdge particles
             return 0
@@ -319,11 +319,11 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         returns: number of bonds created
         """
         other_p: tf.ParticleHandle
-        if p.type_id == LeadingEdge.id:
+        if p.type_id == g.LeadingEdge.id:
             # Don't make a bond between two LeadingEdge particles
-            other_p = nbrs.get_nearest_non_bonded_neighbor(p, [Little])
+            other_p = nbrs.get_nearest_non_bonded_neighbor(p, [g.Little])
         else:
-            other_p = nbrs.get_nearest_non_bonded_neighbor(p, [Little, LeadingEdge])
+            other_p = nbrs.get_nearest_non_bonded_neighbor(p, [g.Little, g.LeadingEdge])
         
         if not other_p:
             # Possible in theory, but with the iterative approach to distance_factor, it seems this never happens.
@@ -452,7 +452,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         neighbor2: tf.ParticleHandle
         
         bonded_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
-                                                     if phandle.type_id == LeadingEdge.id]
+                                                     if phandle.type_id == g.LeadingEdge.id]
         assert len(bonded_neighbors) == 2, f"Leading edge particle {p.id} has {len(bonded_neighbors)}" \
                                            f" leading edge neighbors??? Should always be exactly 2!"
         
@@ -470,8 +470,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
             # test_ring_is_fucked_up()
             _make_bond(neighbor1, neighbor2, verbose=verbose)
-            p.become(Little)
-            p.style.color = Little.style.color
+            p.become(g.Little)
+            p.style.color = g.Little.style.color
             p.style.visible = gc.visibility_state
             p.force_init = [0, 0, 0]
 
@@ -495,7 +495,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         
         # #### Actual implementation:
         leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
-                                                           if phandle.type_id == LeadingEdge.id]
+                                                           if phandle.type_id == g.LeadingEdge.id]
         assert len(leading_edge_neighbors) == 2, f"Leading edge particle {p.id} has {len(leading_edge_neighbors)}" \
                                                  f" leading edge neighbors??? Should always be exactly 2!"
         
@@ -545,14 +545,14 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         #  the difference in z becomes smaller and smaller, and less relevant. (Once that has been done and
         #  validated, finally remove altogether the alternative method above.)
         pos: tf.fVector3
-        leading_edge_baseline: float = min([pos.z() for pos in LeadingEdge.items().positions])
-        leading_edge_recruitment_zone: float = cfg.leading_edge_recruitment_limit * LeadingEdge.radius
+        leading_edge_baseline: float = min([pos.z() for pos in g.LeadingEdge.items().positions])
+        leading_edge_recruitment_zone: float = cfg.leading_edge_recruitment_limit * g.LeadingEdge.radius
         if recruit.position.z() > leading_edge_baseline + leading_edge_recruitment_zone:
             return 0, 0
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
         # (instead of simply breaking those extra bonds, like before, which led to problems).
-        num_bonds_to_leading_edge: int = nbrs.count_neighbors_of_type(recruit, ptype=LeadingEdge)
+        num_bonds_to_leading_edge: int = nbrs.count_neighbors_of_type(recruit, ptype=g.LeadingEdge)
         if num_bonds_to_leading_edge > 2:
             return 0, 0
 
@@ -562,19 +562,19 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # will get an additional bond to the edge. So, if internal neighbor is already bonded to the maximum,
             # we should not make one more such bond, so delete it.
             def too_many_edge_neighbors(p: tf.ParticleHandle) -> bool:
-                return nbrs.count_neighbors_of_type(p, ptype=LeadingEdge) >= cfg.max_edge_neighbor_count
+                return nbrs.count_neighbors_of_type(p, ptype=g.LeadingEdge) >= cfg.max_edge_neighbor_count
                 
             phandle: tf.ParticleHandle
             saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle for phandle in recruit.getBondedNeighbors()
-                                                                     if phandle.type_id == Little.id
+                                                                     if phandle.type_id == g.Little.id
                                                                      if too_many_edge_neighbors(phandle)]
             for phandle in saturated_internal_neighbors:
                 gc.destroy_bond(tfu.bond_between(recruit, phandle))
             # test_ring_is_fucked_up()
             
             gc.destroy_bond(tfu.bond_between(p, other_leading_edge_p))
-            recruit.become(LeadingEdge)
-            recruit.style.color = LeadingEdge.style.color
+            recruit.become(g.LeadingEdge)
+            recruit.style.color = g.LeadingEdge.style.color
             recruit.style.visible = True
             recruit.force_init = [0, 0, 0]  # remove particle diffusion force
             
@@ -597,13 +597,13 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     p: tf.ParticleHandle
     
     start = time.perf_counter()
-    for p in Little.items():
+    for p in g.Little.items():
         if random.random() < 0.5:
             total_bonded += attempt_make_bond(p)
         else:
             total_broken += attempt_break_bond(p)
         
-    for p in LeadingEdge.items():
+    for p in g.LeadingEdge.items():
         ran: float = random.random()
         if ran < 0.25:
             total_bonded += attempt_make_bond(p)
@@ -642,7 +642,7 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
         gc.destroy_bond(bhandle)
         
         delta_r0: float
-        saturation_distance: float = relaxation_saturation_factor * Little.radius
+        saturation_distance: float = relaxation_saturation_factor * g.Little.radius
         if r > r0 + saturation_distance:
             delta_r0 = viscosity * saturation_distance
         elif r < r0 - saturation_distance:
@@ -693,9 +693,9 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
     to internal particles.
     """
     phandle: tf.ParticleHandle
-    for phandle in Little.items():
+    for phandle in g.Little.items():
         neighbor: tf.ParticleHandle
-        if any([neighbor.type_id == LeadingEdge.id for neighbor in phandle.getBondedNeighbors()]):
+        if any([neighbor.type_id == g.LeadingEdge.id for neighbor in phandle.getBondedNeighbors()]):
             # Can't add diffusion force for particles bound to leading edge, or they'll go careening into that
             # open space. Particularly particles immediately after transforming from edge to internal type.
             phandle.force_init = [0, 0, 0]

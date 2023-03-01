@@ -14,7 +14,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 
-from epiboly_init import LeadingEdge, Little
+import epiboly_globals as g
 import config as cfg
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
@@ -46,7 +46,7 @@ def _init_graph() -> None:
 def show_graph() -> None:
     global _timestep
     
-    if LeadingEdge.items()[0].frozen_z:
+    if g.LeadingEdge.items()[0].frozen_z:
         # During the z-frozen phase of equilibration, don't even increment _timestep, so that once
         # we start graphing, it will start at time 0, representing the moment when the leading edge
         # becomes free to move.
@@ -73,11 +73,11 @@ def show_graph() -> None:
 def save_graph(end: Optional[bool] = None) -> None:
     if _fig:
         # i.e., only if init_graph() was ever run
-        total_evl_cells: int = len(Little.items()) + len(LeadingEdge.items())
+        total_evl_cells: int = len(g.Little.items()) + len(g.LeadingEdge.items())
         filename: str = f"{_plot_num}. "
         if end is not None:
             filename += "End. " if end else "Start. "
-        filename += f"Num cells = {total_evl_cells}; radius = {round(Little.radius, 2)}"
+        filename += f"Num cells = {total_evl_cells}; radius = {round(g.Little.radius, 2)}"
         filename += f" ({cfg.num_spherical_positions} + {cfg.num_leading_edge_points})"
         filename += f", external = {cfg.yolk_cortical_tension} + {cfg.external_force}"
         filename += ".png"

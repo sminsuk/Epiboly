@@ -5,9 +5,9 @@ import time
 from typing import Optional
 
 import tissue_forge as tf
+import epiboly_globals as g
 from utils import tf_utils as tfu
 import config as cfg
-from epiboly_init import Little, LeadingEdge, Big
 
 def find_neighbors(p: tf.ParticleHandle, distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
     """Find neighbors of particle p
@@ -16,7 +16,7 @@ def find_neighbors(p: tf.ParticleHandle, distance_factor: float, sort: bool = Fa
     sort: if True, return results ordered by increasing distance from p.
     """
     # Get all the particles within the threshold distance of p.
-    neighbors = p.neighbors(distance_factor * p.radius, [].extend([Little, LeadingEdge]))
+    neighbors = p.neighbors(distance_factor * p.radius, [].extend([g.Little, g.LeadingEdge]))
     if sort:
         neighbors = sorted(neighbors, key=lambda neighbor: neighbor.distance(p))
     return neighbors
@@ -67,7 +67,7 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     """
     ptype: tf.ParticleType
     if ptypes is None:
-        ptypes = [LeadingEdge, Little]
+        ptypes = [g.LeadingEdge, g.Little]
     type_ids: list[int] = [ptype.id for ptype in ptypes]
 
     start: float = time.perf_counter()
@@ -75,7 +75,7 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     neighbors: list[tf.ParticleHandle] = []
     distance_factor: float = min_distance
     # Huge maximum that should never be reached, just insurance against a weird infinite loop:
-    max_distance_factor: float = cfg.max_potential_cutoff / Little.radius
+    max_distance_factor: float = cfg.max_potential_cutoff / g.Little.radius
     while len(neighbors) < min_neighbors and distance_factor < max_distance_factor:
         # Get all neighbors not already bonded to, within the given radius. (There may be none.)
         neighbors = get_non_bonded_neighbors(phandle, distance_factor)
@@ -174,7 +174,7 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                 # < 0: vector angle > pi/2; particle on the opposite side from reference_cross;
                 return cfg.two_pi - theta
     
-        big_particle: tf.ParticleHandle = Big.items()[0]
+        big_particle: tf.ParticleHandle = g.Big.items()[0]
         normal_vector: tf.fVector3 = p.position - big_particle.position
         reference_cross: tf.fVector3 = tfu.cross(reference_vector, normal_vector)
         corrected_angles: list[float] = [corrected_angle(theta, neighbor_unit_vectors[i], reference_cross)
@@ -224,8 +224,8 @@ def paint_neighbors():
     # Get the two sets of particles. There should be about 2200, and a bit over 100, respectively. Note
     # these two lists are live. Instead of assigning to a variable, make a new list from each of them,
     # that's not live? Thought it might make a difference in memory management. Doesn't seem to help, though.
-    little_particles = tf.ParticleList(Little.items())
-    edge_particles = tf.ParticleList(LeadingEdge.items())
+    little_particles = tf.ParticleList(g.Little.items())
+    edge_particles = tf.ParticleList(g.LeadingEdge.items())
     print("little, edge particles contain:", len(little_particles), len(edge_particles))
     print(little_particles.thisown)
     

@@ -22,7 +22,7 @@ if is_interactive():
     # (ToDo: see if this is still true, now that I got rid of "import *".)
     # I guess because it thinks it's redundant; something about the "import *".
     # Doing it here prevents that. And this is only needed in interactive sessions.
-    # (Edit: um, none of that is relevant anymore, after refactoring; no more epiboly_init here.
+    # (Edit: um, none of that is relevant anymore, after refactoring; no more vars from epiboly_init here.
     # But keep this comment for history until the whole interactivity mess gets resolved.)
     # (ToDo: also, turns out is_interactive() functionality is now provided in tf, I can probably lose mine.)
     from control_flow.interactive import *
@@ -47,8 +47,7 @@ print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
 
 if cfg.initialization_directory_name:
-    epiboly_init.init_from_import(state.sim_state_subdirectory())
-    state.import_additional_state(epiboly_init.latest_extra_state_path)
+    epiboly_init.init_from_import()
 else:
     epiboly_init.init()
 
@@ -60,6 +59,7 @@ tf.Logger.enableFileLogging(fileName=logFilePath, level=tf.Logger.ERROR)
 events.initialize_master_event()
 epu.reset_camera()
 
+# Setup and equilibration – unless importing saved state from a prior run
 if not cfg.initialization_directory_name:
     # Choose one:
     # setup.initialize_embryo()       # the old one

@@ -413,7 +413,7 @@ def _test_harmonic_angle() -> None:
     disappear eventually.)
     
     My theta0 is defined in bond_maintenance.harmonic_angle_equilibrium_value(); it equals
-    math.pi - (two_pi / len(LeadingEdge.items())). I.e. ranging from just below 180°, down to, say,
+    math.pi - (two_pi / len(g.LeadingEdge.items())). I.e. ranging from just below 180°, down to, say,
     145° when there are 10 particles left in the ring. So I need those higher values of theta0 to work.
     
     Can I improve this behavior by tweaking other params? I'd like to keep k=5 for now if I can.

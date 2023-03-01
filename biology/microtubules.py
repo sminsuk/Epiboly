@@ -3,14 +3,14 @@ from dataclasses import dataclass
 import math
 
 import tissue_forge as tf
-from epiboly_init import LeadingEdge
+import epiboly_globals as g
 import config as cfg
 from utils import tf_utils as tfu,\
     epiboly_utils as epu
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""
-    for p in LeadingEdge.items():
+    for p in g.LeadingEdge.items():
         p.force_init = [0, 0, 0]
     print("Tangent forces removed")
 
@@ -35,7 +35,7 @@ def apply_even_tangent_forces() -> None:
     total_force: int = cfg.yolk_cortical_tension + cfg.external_force
 
     p: tf.ParticleHandle
-    particle_data_list: list[ParticleData] = [get_particle_data(p) for p in LeadingEdge.items()]
+    particle_data_list: list[ParticleData] = [get_particle_data(p) for p in g.LeadingEdge.items()]
     sorted_on_theta: list[ParticleData] = sorted(particle_data_list, key=lambda data: data.theta)
 
     # First loop: collect (and sum) all the weights
