@@ -62,8 +62,8 @@ def _export_additional_state(filename: str) -> None:
     plot.save_graph()
 
     export_dict: dict = {"self": get_state(),
-                         "plot": plot.get_state(),
                          "vx": vx.get_state(),
+                         "plot": plot.get_state(),
                          }
     
     path: str = os.path.join(_state_export_path, filename)

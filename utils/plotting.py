@@ -85,17 +85,30 @@ def save_graph(end: Optional[bool] = None) -> None:
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")
         
 def get_state() -> dict:
-    """ For now, in composite runs, just produce multiple graphs, each numbered
+    """ In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
     
-    Fancier alternative, if needed, will be to try to get a nice graph of the whole composite run,
-    which would involve saving all the accumulated graph data.
+    Each run saves its own plot, but the data is saved as part of the state, so the next run
+    can import it and graph all the way from Timestep 0. Thus you get separate plots showing
+    what was the state at the end of each run, but the final plot contains everything.
+    (Note to self, once I'm confident of this, I can get rid of _plot_num; then each run will
+    use the same filename and there will only be ONE plot.)
     """
-    return {"plotnum": _plot_num}
+    return {"plotnum": _plot_num,
+            "timestep": _timestep,
+            "phi": _phi,
+            "timesteps": _timesteps,
+            }
 
 def set_state(d: dict) -> None:
-    """Saved value was from an earlier plot, so increment it for the new plot"""
-    global _plot_num
+    """Reconstitute state from what was saved.
+    
+    Increment _plot_num with each run to generate a new filename, hence separate plot
+    """
+    global _plot_num, _timestep, _phi, _timesteps
     _plot_num = d["plotnum"] + 1
+    _timestep = d["timestep"]
+    _phi = d["phi"]
+    _timesteps = d["timesteps"]
     
 # At import time: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
 # Note to self: do I need to make sure interactive is off, when I'm in windowless mode? That would be
