@@ -190,26 +190,29 @@ def exception_handler():
 
 # Hmm. May not need these two? At least in my own original use case, now that I know how to get a particleHandle
 # from a particle id, I may not have needed to write these.
-def bonds_between(p1, p2):
+def bonds_between(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.BondHandle]:
     """returns a list of all bonds connecting two given particles.
 
-    p1, p2: particleHandle
-    returns: list of BondHandle objects. May be empty or of any length, since multiple bonds are possible
-        between any particle pair.
+    May be empty or of any length, since multiple bonds are possible between any particle pair.
     """
-    p1p2bonds = [bond for bond in p1.bonds
-                 if p2.id in bond.parts]
+    p1p2bonds: list[tf.BondHandle]
+    if tf.version.version == "0.0.1":
+        p1p2bonds = [bond for bond in p1.bonds
+                     if p2.id in bond.parts]
+    else:
+        p1p2bonds = [bond for bond in p1.bonds
+                     if p2 in bond.parts]
+        
     return p1p2bonds
 
-def bond_between(p1, p2, verbose=True):
+def bond_between(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = True) -> Optional[tf.BondHandle]:
     """returns one bond connecting two given particles.
 
-    p1, p2: particleHandle
-    verbose: boolean. Set to False to suppress warnings. If True, warns when more than one bond found.
+    verbose: Set to False to suppress warnings. If True, warns when more than one bond found.
     returns: If there are no bonds between the two particles, returns None.
         Otherwise, returns BondHandle of the first bond found.
     """
-    p1p2bonds = bonds_between(p1, p2)
+    p1p2bonds: list[tf.BondHandle] = bonds_between(p1, p2)
     if verbose and len(p1p2bonds) > 1:
         print(bluecolor + "Warning, more than 1 bond found. To retrieve them all, use bonds_between()" + endcolor)
     return None if not p1p2bonds else p1p2bonds[0]
@@ -268,7 +271,12 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
     returns: tuple of two particleHandles
     
     future: checking .active is not supposed be needed; those are supposed to be filtered out before you see them.
-    Possibly the flag may not even be accessible in future versions.
+    The flag is not even accessible in future versions. But that's actually besides the point because
+    in future versions, bondHandle.parts DOES return partcleHandles (not in a tuple, but a ParticleList), so this
+    function won't be needed at all.
+    
+    This is now called ONLY from 0.0.1, so no need to check version here, or for this to work in later versions.
+    ToDo: when done with 0.0.1, delete this entirely
     """
     assert b.active, "Can't get particles from an inactive bond!"
     # print(f"BondHandle.id = {b.id}")
@@ -295,31 +303,35 @@ def bond_parts(b: tf.BondHandle) -> tuple[Optional[tf.ParticleHandle], Optional[
 
 def other_particle(p: tf.ParticleHandle, b: tf.BondHandle) -> tf.ParticleHandle:
     """Given a particle and one of its bonds, get the particle bonded to"""
-    if tf.version.version != "0.0.1":
-        print(f"p = {p}, type(p) = {type(p)}")
-    assert p.id in b.parts, f"Bond {b.id} does not belong to particle {p.id}"
-    id1, id2 = b.parts
-    gcdict = gc.particles_by_id
-    if tf.version.version != "0.0.1":
-        print(f"id1 = {id1}, p = {p}, p.id = {p.id}")
-    # Todo: In 0.0.2, this will crash because .parts now returns ParticleHandles, not particle ids!
-    if id1 == p.id:
-        return gcdict[id2]["handle"]
+    if tf.version.version == "0.0.1":
+        # bond.parts contains particle ids
+        assert p.id in b.parts, f"Bond {b.id} does not belong to particle {p.id}"
+        id1, id2 = b.parts
+        gcdict = gc.particles_by_id
+        if id1 == p.id:
+            return gcdict[id2]["handle"]
+        else:
+            return gcdict[id1]["handle"]
     else:
-        return gcdict[id1]["handle"]
+        # bond.parts contains ParticleHandles
+        
+        # print(f"p = {p}, type(p) = {type(p)}")
+        # print(f"b = {b}, type(b.parts) = {type(b.parts)}")
+        # Note: is this the correct way to do this? Will it check for equal ids, or equal (unreliable) handles?
+        assert p in b.parts, f"Bond {b.id} does not belong to particle {p.id}"
+        # print(f"p in b.parts: {p in b.parts}, SHOULD be True? Always")
+        # print(f"p.id in b.parts: {p.id in b.parts}, SHOULD be false because b.parts should be handles now!")
+        p1, p2 = b.parts
+        # Here, no longer need particles_by_id because I already have the handle.
+        # print(f"p1 = {p1}, type(p1) = {type(p1)}")
+        # print(f"Compare particles directly? p1 == p: {p1 == p}, p1 is p: {p1 is p}")
+        return p2 if p1 == p else p1
     
-def bond_distance(b: tf.BondHandle) -> float:
-    """"Get the distance between the two particles of a bond, i.e. the "length" of the bond
-
-    b: bondHandle of an *active* bond
-    returns: float
-    
-    future: checking .active is not supposed be needed; those are supposed to be filtered out before you see them.
-    Possibly the flag may not even be accessible in future versions.
-    """
-    p1, p2 = bond_parts(b)
-    return p1.distance(p2)
-
+# def bond_distance(b: tf.BondHandle) -> float:
+#     """"Get the distance between the two particles of a bond, i.e. the "length" of the bond"""
+#     p1, p2 = bond_parts(b)
+#     return p1.distance(p2)
+#
 def cross(v1: tf.fVector3, v2: tf.fVector3) -> tf.fVector3:
     """ToDo: Once version 0.0.2 is working, it has built-in cross!"""
     return tf.fVector3([v1.y() * v2.z() - v1.z() * v2.y(),

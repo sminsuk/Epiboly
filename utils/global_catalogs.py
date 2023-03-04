@@ -100,7 +100,10 @@ def clean_state() -> None:
     """
     angle: tf.AngleHandle
     for angle in tf.AngleHandle.items():
-        if angle.active and angle.id not in angles_by_id:
-            angle.destroy()
+        if tf.version.version != "0.0.1" or angle.active:
+            # While beta testing: Only test active in v. 0.0.1, because it's gone after that; presume True.
+            # ToDo: Once done beta testing and truly finished with 0.0.1, clean this up
+            if angle.id not in angles_by_id:
+                angle.destroy()
 
 visibility_state: bool = True

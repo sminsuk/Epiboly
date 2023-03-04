@@ -9,6 +9,18 @@ import epiboly_globals as g
 from utils import tf_utils as tfu
 import config as cfg
 
+def getBondedNeighbors(p: tf.ParticleHandle) -> tf.ParticleList:
+    """While beta testing, be able to run in either v0.0.1, or in later versions
+    
+    This method is called a LOT, so just centralize it here.
+    """
+    if tf.version.version == "0.0.1":
+        # works in 0.0.1, but in later versions has memory issues and experiences crashes
+        return p.getBondedNeighbors()
+    else:
+        # introduced (in 0.0.2, I think) to address issues, though not documented in the docs (yet?)
+        return p.bonded_neighbors
+
 def find_neighbors(p: tf.ParticleHandle, distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
     """Find neighbors of particle p
     
@@ -35,13 +47,11 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     non_bonded_neighbors: list[tf.ParticleHandle]
     
     # Who am I already bonded to?
-    if tf.version.version != "0.0.1":
-        print(f"phandle = {phandle}, len(bonds) = {len(phandle.bonds)}")
-        print(f"bond ids = {[b.id for b in phandle.bonds]}")
-        my_bonded_neighbor_ids = [neighbor.id for neighbor in phandle.bonded_neighbors]
-        print(f"result = {my_bonded_neighbor_ids}")
-    else:
-        my_bonded_neighbor_ids = [neighbor.id for neighbor in phandle.getBondedNeighbors()]
+    # if tf.version.version != "0.0.1":
+    #     print(f"phandle = {phandle}, len(bonds) = {len(phandle.bonds)}, ", end="")
+    my_bonded_neighbor_ids = [neighbor.id for neighbor in getBondedNeighbors(phandle)]
+    # if tf.version.version != "0.0.1":
+    #     print(f"len(bonded_neighbors) = {len(my_bonded_neighbor_ids)}")
 
     # Who are all my neighbors? (bonded or not)
     neighbors = find_neighbors(phandle, distance_factor, sort)
@@ -116,8 +126,8 @@ def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
 def get_shared_bonded_neighbors(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.ParticleHandle]:
     """If there are none, returns empty list"""
     phandle: tf.ParticleHandle
-    p1_ids: list[int] = [phandle.id for phandle in p1.getBondedNeighbors()]
-    shared_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p2.getBondedNeighbors()
+    p1_ids: list[int] = [phandle.id for phandle in getBondedNeighbors(p1)]
+    shared_neighbors: list[tf.ParticleHandle] = [phandle for phandle in getBondedNeighbors(p2)
                                                  if phandle.id in p1_ids]
     return shared_neighbors
 
@@ -181,7 +191,7 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                          for i, theta in enumerate(original_angles)]
         return corrected_angles
 
-    neighbors: tf.ParticleList = p.getBondedNeighbors()
+    neighbors: tf.ParticleList = getBondedNeighbors(p)
     neighbors_id_list = [neighbor.id for neighbor in neighbors]   # #### Until next release lets me fix the following
     if extra_neighbor:
         # doesn't work (until next release?)

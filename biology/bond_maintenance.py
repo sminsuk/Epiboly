@@ -70,7 +70,7 @@ def harmonic_angle_equilibrium_value() -> float:
 def test_ring_is_fucked_up():
     """For debugging. Set breakpoints at the indicated locations. Stop there and examine these values."""
     particles: list[tf.ParticleHandle] = [p for p in g.LeadingEdge.items()]
-    neighbor_lists: list[list[tf.ParticleHandle]] = [p.getBondedNeighbors() for p in particles]
+    neighbor_lists: list[tf.ParticleList] = [nbrs.getBondedNeighbors(p) for p in particles]
     leading_edge_neighbor_lists: list[list[tf.ParticleHandle]] = (
             [[n for n in neighbor_list if n.type_id == g.LeadingEdge.id]
              for neighbor_list in neighbor_lists])
@@ -243,7 +243,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             else:
                 return k_angle_energy * delta_energy_making
             
-        bonded_neighbor_ids: list[int] = [phandle.id for phandle in p2.getBondedNeighbors()]
+        bonded_neighbor_ids: list[int] = [phandle.id for phandle in nbrs.getBondedNeighbors(p2)]
         if breaking:
             assert p1.id in bonded_neighbor_ids,\
                 f"Attempting to break bond between non-bonded particles: {p1.id}, {p2.id}"
@@ -264,7 +264,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if p1.type_id != p2.type_id and not breaking:
             phandle: tf.ParticleHandle
             p_internal: tf.ParticleHandle = p1 if p1.type_id == g.Little.id else p2
-            edge_neighbor_count: int = len([phandle for phandle in p_internal.getBondedNeighbors()
+            edge_neighbor_count: int = len([phandle for phandle in nbrs.getBondedNeighbors(p_internal)
                                             if phandle.type_id == g.LeadingEdge.id])
             if edge_neighbor_count >= cfg.max_edge_neighbor_count:
                 if verbose:
@@ -361,8 +361,13 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         def get_pivot_angle(p: tf.ParticleHandle) -> Optional[tf.AngleHandle]:
             """Return the particle's pivot Angle (the Angle that has this particle as the CENTER particle) - if any"""
             angle: tf.AngleHandle
-            angles: list[tf.AngleHandle] = [angle for angle in p.angles
-                                            if p.id == angle.parts[1]]
+            angles: list[tf.AngleHandle]
+            if tf.version.version == "0.0.1":
+                angles = [angle for angle in p.angles
+                          if p.id == angle.parts[1]]
+            else:
+                angles = [angle for angle in p.angles
+                          if p == angle.parts[1]]
             assert len(angles) < 2, f"Found 2 or more pivot Angles on particle {p.id}"
             return None if not angles else angles[0]
         
@@ -373,28 +378,48 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             Conceptually, delete the old outer particle and replace it with the new one. But AngleHandle.parts is
             not writeable, so actually create a new Angle with the proper connection, then delete the old Angle.
             """
-            outer_p1id: int
-            outer_p2id: int
-            center_pid: int
-            old_outer_p1: tf.ParticleHandle
-            new_outer_p1: tf.ParticleHandle
-            center_p: tf.ParticleHandle
-            old_outer_p2: tf.ParticleHandle
-            new_outer_p2: tf.ParticleHandle
-
-            outer_p1id, center_pid, outer_p2id = angle.parts
-            center_p = gc.particles_by_id[center_pid]["handle"]
-            old_outer_p1 = gc.particles_by_id[outer_p1id]["handle"]
-            old_outer_p2 = gc.particles_by_id[outer_p2id]["handle"]
-            assert bonded_p.id in (outer_p1id, outer_p2id), f"bonded_p (id = {bonded_p.id}) is not part of this Angle!"
-            if bonded_p.id == outer_p1id:
-                new_outer_p1 = new_p
-                new_outer_p2 = old_outer_p2
+            if tf.version.version == "0.0.1":
+                outer_p1id: int
+                outer_p2id: int
+                center_pid: int
+                old_outer_p1: tf.ParticleHandle
+                new_outer_p1: tf.ParticleHandle
+                center_p: tf.ParticleHandle
+                old_outer_p2: tf.ParticleHandle
+                new_outer_p2: tf.ParticleHandle
+    
+                outer_p1id, center_pid, outer_p2id = angle.parts
+                center_p = gc.particles_by_id[center_pid]["handle"]
+                old_outer_p1 = gc.particles_by_id[outer_p1id]["handle"]
+                old_outer_p2 = gc.particles_by_id[outer_p2id]["handle"]
+                assert bonded_p.id in (outer_p1id, outer_p2id), \
+                    f"bonded_p (id = {bonded_p.id}) is not part of this Angle!"
+                if bonded_p.id == outer_p1id:
+                    new_outer_p1 = new_p
+                    new_outer_p2 = old_outer_p2
+                else:
+                    new_outer_p1 = old_outer_p1
+                    new_outer_p2 = new_p
+    
+                gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
             else:
-                new_outer_p1 = old_outer_p1
-                new_outer_p2 = new_p
+                old_outer_p1: tf.ParticleHandle
+                new_outer_p1: tf.ParticleHandle
+                center_p: tf.ParticleHandle
+                old_outer_p2: tf.ParticleHandle
+                new_outer_p2: tf.ParticleHandle
+    
+                old_outer_p1, center_p, old_outer_p2 = angle.parts
+                assert bonded_p in (old_outer_p1, old_outer_p2), f"bonded_p ({bonded_p}) is not part of this Angle!"
+                if bonded_p == old_outer_p1:
+                    new_outer_p1 = new_p
+                    new_outer_p2 = old_outer_p2
+                else:
+                    new_outer_p1 = old_outer_p1
+                    new_outer_p2 = new_p
+    
+                gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
 
-            gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
             gc.destroy_angle(angle)
 
         if not cfg.angle_bonds_enabled:
@@ -451,7 +476,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         neighbor1: tf.ParticleHandle
         neighbor2: tf.ParticleHandle
         
-        bonded_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
+        bonded_neighbors: list[tf.ParticleHandle] = [phandle for phandle in nbrs.getBondedNeighbors(p)
                                                      if phandle.type_id == g.LeadingEdge.id]
         assert len(bonded_neighbors) == 2, f"Leading edge particle {p.id} has {len(bonded_neighbors)}" \
                                            f" leading edge neighbors??? Should always be exactly 2!"
@@ -494,7 +519,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # return 0, attempt_break_bond(p)
         
         # #### Actual implementation:
-        leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in p.getBondedNeighbors()
+        leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in nbrs.getBondedNeighbors(p)
                                                            if phandle.type_id == g.LeadingEdge.id]
         assert len(leading_edge_neighbors) == 2, f"Leading edge particle {p.id} has {len(leading_edge_neighbors)}" \
                                                  f" leading edge neighbors??? Should always be exactly 2!"
@@ -565,7 +590,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                 return nbrs.count_neighbors_of_type(p, ptype=g.LeadingEdge) >= cfg.max_edge_neighbor_count
                 
             phandle: tf.ParticleHandle
-            saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle for phandle in recruit.getBondedNeighbors()
+            saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle
+                                                                     for phandle in nbrs.getBondedNeighbors(recruit)
                                                                      if phandle.type_id == g.Little.id
                                                                      if too_many_edge_neighbors(phandle)]
             for phandle in saturated_internal_neighbors:
@@ -672,12 +698,15 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
     print(f"Relaxing all {len(tf.BondHandle.items())} bonds")
     for bhandle in tf.BondHandle.items():
         # future: checking .active is not supposed to be needed; those are supposed to be filtered out before you
-        # see them. Possibly the flag may not even be accessible in future versions.
-        if bhandle.active:
+        # see them. The flag is not even accessible in future versions.
+        if tf.version.version != "0.0.1" or bhandle.active:
             assert bhandle.id in gcdict, "Bond data missing from global catalog!"
             p1: tf.ParticleHandle
             p2: tf.ParticleHandle
-            p1, p2 = tfu.bond_parts(bhandle)
+            if tf.version.version == "0.0.1":
+                p1, p2 = tfu.bond_parts(bhandle)
+            else:
+                p1, p2 = bhandle.parts
             bond_data: gc.BondData = gcdict[bhandle.id]
             r0: float = bond_data["r0"]
             # print(f"r0 = {r0}")
@@ -695,12 +724,12 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
     phandle: tf.ParticleHandle
     for phandle in g.Little.items():
         neighbor: tf.ParticleHandle
-        if any([neighbor.type_id == g.LeadingEdge.id for neighbor in phandle.getBondedNeighbors()]):
+        if any([neighbor.type_id == g.LeadingEdge.id for neighbor in nbrs.getBondedNeighbors(phandle)]):
             # Can't add diffusion force for particles bound to leading edge, or they'll go careening into that
             # open space. Particularly particles immediately after transforming from edge to internal type.
             phandle.force_init = [0, 0, 0]
         else:
-            bonded_neighbor_positions: tuple[tf.fVector3] = phandle.getBondedNeighbors().positions
+            bonded_neighbor_positions: tuple[tf.fVector3] = nbrs.getBondedNeighbors(phandle).positions
             vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
             centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
             force: tf.fVector3 = (phandle.position - centroid) * k_particle_diffusion

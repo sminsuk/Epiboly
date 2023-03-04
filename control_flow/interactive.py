@@ -1,7 +1,8 @@
 """Functions available to be called while script is running, from jupyter cells, ipython cmd line, etc."""
-from IPython import get_ipython
+# from IPython import get_ipython
 
 import epiboly_globals as g
+import neighbors as nbrs
 from utils import global_catalogs as gc
 
 # Sometimes I still run from Jupyter and not from ipython, so set these to False.
@@ -51,7 +52,7 @@ def count_bonds():
     """
 
     def add_to_histogram(p):
-        neighbors = p.getBondedNeighbors()
+        neighbors = nbrs.getBondedNeighbors(p)
         key = len(neighbors)
         if key not in histogram:
             histogram[key] = 0
@@ -67,6 +68,8 @@ def count_bonds():
 def is_interactive() -> bool:
     """See: https://stackoverflow.com/a/39662359 and https://stackoverflow.com/a/54967911 (same question,
     two relevant answers).
+    ToDo: No longer calling this, so can delete entire function. But note additional functions below
+     that I may need somewhere, if I want to use the interactive functions.
     """
     global vis_toggle_allowed, rad_toggle_allowed
     shell = get_ipython()

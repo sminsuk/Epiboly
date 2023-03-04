@@ -9,6 +9,7 @@ import config as cfg
 import biology.bond_maintenance as bonds
 import biology.microtubules as mt
 import control_flow.events as events
+from control_flow.interactive import toggle_visibility
 import setup_and_equilibrate as setup
 import utils.epiboly_utils as epu
 import utils.plotting as plot
@@ -16,8 +17,9 @@ import utils.sim_state_export as state
 import utils.tf_utils as tfu
 import utils.video_export as vx
 
-from control_flow.interactive import is_interactive, toggle_visibility
-if is_interactive():
+# from control_flow.interactive import is_interactive, toggle_visibility
+# if is_interactive():
+if tf.system.is_terminal_interactive():
     # Importing this at the global level causes PyCharm to keep deleting my epiboly_init import,
     # (ToDo: see if this is still true, now that I got rid of "import *".)
     # I guess because it thinks it's redundant; something about the "import *".

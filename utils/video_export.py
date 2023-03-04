@@ -12,6 +12,7 @@ import moviepy.video.io.ImageSequenceClip as movieclip
 
 import tissue_forge as tf
 import config as cfg
+import control_flow.events as events
 from utils import epiboly_utils as epu
 from utils import tf_utils as tfu
 
@@ -243,11 +244,13 @@ def make_movie(filename: str = None) -> None:
         filename = tfu.export_directory()
     clip.write_videofile(os.path.join(_image_path, filename + ".mp4"))
     
-    # Discard all the exported image files except the final one
-    image_filepaths.pop()   # remove final item
-    print(f"\nRemoving {len(image_filepaths)} images...")
-    for path in image_filepaths:
-        os.remove(path)
+    # Discard all the exported image files except the final one.
+    # (But not if there was an exception, because I may still need them.)
+    if not events.event_exception_was_thrown():
+        image_filepaths.pop()   # remove final item
+        print(f"\nRemoving {len(image_filepaths)} images...")
+        for path in image_filepaths:
+            os.remove(path)
 
     # Notes on codec and file type:
     # .mp4 (defaults to codec "libx264"): looks okay; quality not as good as the jpg files it's made from;
