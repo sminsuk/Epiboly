@@ -43,7 +43,7 @@ def _init_graph() -> None:
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
-def show_graph() -> None:
+def show_graph(timer_override: bool = False) -> None:
     global _timestep
     
     if g.LeadingEdge.items()[0].frozen_z:
@@ -57,7 +57,7 @@ def show_graph() -> None:
         _init_graph()
 
     # Don't need to add to the graph every timestep.
-    if _timestep % 100 == 0:
+    if _timestep % 100 == 0 or timer_override:
         phi: float = round(epu.leading_edge_mean_phi(), 4)
         print(f"Appending: {_timestep}, {phi}")
         _timesteps.append(_timestep)
@@ -73,10 +73,14 @@ def show_graph() -> None:
 def save_graph(end: Optional[bool] = None) -> None:
     if _fig:
         # i.e., only if init_graph() was ever run
+        if end:
+            # Final save, plot one final data point
+            show_graph(timer_override=True)
+            
         total_evl_cells: int = len(g.Little.items()) + len(g.LeadingEdge.items())
         filename: str = f"{_plot_num}. "
         if end is not None:
-            filename += "End. " if end else "Start. "
+            filename += f"End. Timestep = {_timestep - 1}; " if end else "Start. "
         filename += f"Num cells = {total_evl_cells}; radius = {round(g.Little.radius, 2)}"
         filename += f" ({cfg.num_spherical_positions} + {cfg.num_leading_edge_points})"
         filename += f", external = {cfg.yolk_cortical_tension} + {cfg.external_force}"
