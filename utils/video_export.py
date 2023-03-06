@@ -43,6 +43,10 @@ def final_result_screenshots() -> None:
         tf.system.camera_zoom_to(-12)
         save_screenshot("Top", show_timestep=False)
 
+        tf.system.camera_view_bottom()
+        tf.system.camera_zoom_to(-12)
+        save_screenshot("Bottom", show_timestep=False)
+
 _rotation_started: bool = False
 _rotation_finished: bool = False
 
