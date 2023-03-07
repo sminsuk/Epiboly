@@ -55,8 +55,9 @@ def _export_additional_state(filename: str) -> None:
     
     These and other modules also have state that can be reconstituted from scratch on reload
     """
-    # For now, tell plot to save a graph. Not sure I'll keep this. I'm not currently saving enough state
-    # to draw the whole graph after reload, just enough to number the sequential graphs.
+    # Tell plot to save a graph. Not exactly needed for preserving results; export saves all the graph data, so after
+    # reload, the whole graph will redraw. But this also results in the saved graph adding data points as you
+    # go, so you don't have to wait until the sim finishes, to see ti.
     # (Note these have the same filename each time, so they're not accumulating, they're conveniently replacing
     # an existing graph with a newer better one with more data in it.)
     plot.save_graph()
@@ -146,7 +147,7 @@ def get_state() -> dict:
             "current_step": _current_export_timestep}
 
 def set_state(d: dict) -> None:
-    """Reconstitute state from what was saved.
+    """Reconstitute state of module from what was saved.
     
     In this case, we increment _current because at the moment of export, it hadn't yet incremented (see
     export_repeatedly()), but now we've experienced an additional timestep.

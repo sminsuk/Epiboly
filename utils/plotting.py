@@ -104,7 +104,7 @@ def get_state() -> dict:
             }
 
 def set_state(d: dict) -> None:
-    """Reconstitute state from what was saved.
+    """Reconstitute state of module from what was saved.
     
     Increment _plot_num with each run to generate a new filename, hence separate plot
     """

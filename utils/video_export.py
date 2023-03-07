@@ -221,15 +221,10 @@ def get_state() -> dict:
             "current_step": _current_screenshot_timestep}
 
 def set_state(d: dict) -> None:
-    """Reconstitute state from what was saved.
+    """Reconstitute state of module from what was saved.
 
     In this case, we do not need to increment _current, because save_screenshot_repeatedly pre-increments it to
     represent the *next* timestep. (Compare the comparable function in sim_state_export, where the opposite is true.)
-    
-    ToDo: Maybe automatically delete, or hide away, all the screenshots that were saved *after* the final
-     state export? (Because screenshots happen much more frequently than state exports.) So that those won't
-     get included in the movie. They will all be regenerated during the resumed simulation. For now, I'll
-     need to remove them manually before the movie gets compiled.
     """
     global _previous_screenshot_timestep, _current_screenshot_timestep
     _previous_screenshot_timestep = d["previous_step"]
