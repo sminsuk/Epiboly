@@ -83,6 +83,13 @@ def _export_state(filename: str) -> None:
     path: str = os.path.join(_state_export_path, filename)
     print(f"Saving complete simulation state to '{path}'")
     tf.io.toFile(path)
+    
+def remove_all_state_exports() -> None:
+    """Exports are very large files and can be deleted if not needed"""
+    entry: os.DirEntry
+    with os.scandir(_state_export_path) as dir_entry_it:
+        for entry in dir_entry_it:
+            os.remove(entry.path)
 
 def export(filename: str, show_timestep: bool = True) -> None:
     """
@@ -104,6 +111,10 @@ def export(filename: str, show_timestep: bool = True) -> None:
     
     # Before we export, make sure the state is clean. (Hopefully won't be needed after bugfix in future version.)
     gc.clean_state()
+
+    # Remove all unneeded content of the directory before exporting more
+    if not cfg.sim_state_export_keep:
+        remove_all_state_exports()
     
     _export_state(filename + "_state.json")
     _export_additional_state(filename + "_extra.json")

@@ -23,6 +23,11 @@ show_equilibration: bool = False
 # Number of timesteps between sim state exports. Set to 0 to disable export.
 sim_state_export_interval: int = 500
 
+# Sim state exports are quite large. If Using for post-processing of entire simulation, set to True
+# to retain all exports. If using only to be able to recover from premature exit, set to False to retain
+# only the most recent export and delete the rest.
+sim_state_export_keep: bool = False
+
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 screenshot_export_interval: int = 10
