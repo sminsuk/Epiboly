@@ -7,6 +7,7 @@ import config as cfg
 import utils.global_catalogs as gc
 import utils.sim_state_export as state
 import utils.tf_utils as tfu
+import utils.video_export as vx
 
 class LittleType(tf.ParticleTypeSpec):
     mass = 15
@@ -32,23 +33,26 @@ _window_size: list[int] = [800, 600]  # [800, 600] is default; [1200, 900] is ni
 _dim = [10., 10., 10.]
 
 def init_from_import() -> None:
+    print(f"Restarting simulation \"{cfg.initialization_directory_name}\" from latest state export")
     tfu.init_export(directory_name=cfg.initialization_directory_name)
     saved_state_path: str = os.path.join(tfu.export_path(), state.sim_state_subdirectory())
+    screenshots_path: str = os.path.join(tfu.export_path(), vx.screenshots_subdirectory())
     
     # Find the latest saved state: two files
     state_entries: list[os.DirEntry] = []
     extra_state_entries: list[os.DirEntry] = []
-    entry: os.DirEntry
-    with os.scandir(saved_state_path) as dir_entries_it:
-        for entry in dir_entries_it:
-            if entry.name.endswith("_state.json"):
-                state_entries.append(entry)
-            elif entry.name.endswith("_extra.json"):
-                extra_state_entries.append(entry)
-    latest_state_path: str = max(state_entries, key=lambda entry: entry.stat().st_mtime_ns).path
-    latest_extra_state_path: str = max(extra_state_entries, key=lambda entry: entry.stat().st_mtime_ns).path
+    state_entry: os.DirEntry
+    with os.scandir(saved_state_path) as state_entries_it:
+        for state_entry in state_entries_it:
+            if state_entry.name.endswith("_state.json"):
+                state_entries.append(state_entry)
+            elif state_entry.name.endswith("_extra.json"):
+                extra_state_entries.append(state_entry)
+
+    latest_state_entry: os.DirEntry = max(state_entries, key=lambda entry: entry.stat().st_mtime_ns)
+    latest_extra_state_entry: os.DirEntry = max(extra_state_entries, key=lambda entry: entry.stat().st_mtime_ns)
     
-    tf.init(load_file=latest_state_path,
+    tf.init(load_file=latest_state_entry.path,
             dim=_dim,
             # cutoff=2,
             windowless=not cfg.windowed_mode,
@@ -59,8 +63,21 @@ def init_from_import() -> None:
     g.LeadingEdge = tf.ParticleType_FindFromName("LeadingEdgeType")
     
     gc.initialize_state()
-    state.import_additional_state(latest_extra_state_path)
+    state.import_additional_state(latest_extra_state_entry.path)
     
+    # Delete screenshots that were created *after* that last state was saved, since we'll be regenerating
+    # them and we don't want the old ones to end up in the movie.
+    unneeded_image_paths: list[str]
+    image_entry: os.DirEntry
+    with os.scandir(screenshots_path) as image_entries_it:
+        unneeded_image_paths = [image_entry.path for image_entry in image_entries_it
+                                if image_entry.stat().st_mtime_ns > latest_state_entry.stat().st_mtime_ns]
+    num_images = len(unneeded_image_paths)
+    if num_images > 0:
+        print(f"Removing {num_images} unneeded images")
+        for path in unneeded_image_paths:
+            os.remove(path)
+
 def init() -> None:
     tfu.init_export()
     

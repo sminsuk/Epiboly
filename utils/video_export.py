@@ -109,7 +109,7 @@ def init_screenshots() -> None:
     if not screenshot_export_enabled():
         return
     
-    _image_path = os.path.join(tfu.export_path(), "Screenshots")
+    _image_path = os.path.join(tfu.export_path(), _screenshots_subdirectory)
     os.makedirs(_image_path, exist_ok=True)
     
 def _export_screenshot(filename: str) -> None:
@@ -168,12 +168,17 @@ def save_screenshot_repeatedly() -> None:
     
     _current_screenshot_timestep += 1
 
+_screenshots_subdirectory: str = "Screenshots"
 _image_path: str
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 
 # module's copy can be adjusted dynamically
 _screenshot_export_interval: int = cfg.screenshot_export_interval
+
+def screenshots_subdirectory() -> str:
+    """Return subdirectory where screenshots are stored"""
+    return _screenshots_subdirectory
 
 def set_screenshot_export_interval(interval: int = None) -> None:
     """Set module current value of screenshot interval
@@ -282,7 +287,7 @@ def make_movie(filename: str = None) -> None:
     
 def make_movie_in_post(directory_name: str) -> None:
     global _image_path
-    _image_path = os.path.join(tfu.export_path(directory_name), "Screenshots")
+    _image_path = os.path.join(tfu.export_path(directory_name), _screenshots_subdirectory)
     make_movie(directory_name)
 
 if __name__ == "__main__":
