@@ -33,7 +33,7 @@ _window_size: list[int] = [800, 600]  # [800, 600] is default; [1200, 900] is ni
 _dim = [10., 10., 10.]
 
 def init_from_import() -> None:
-    print(f"Restarting simulation \"{cfg.initialization_directory_name}\" from latest state export")
+    print(f"Restarting simulation \"{cfg.initialization_directory_name}\" from latest state export...")
     tfu.init_export(directory_name=cfg.initialization_directory_name)
     saved_state_path: str = os.path.join(tfu.export_path(), state.sim_state_subdirectory())
     screenshots_path: str = os.path.join(tfu.export_path(), vx.screenshots_subdirectory())
@@ -65,18 +65,19 @@ def init_from_import() -> None:
     gc.initialize_state()
     state.import_additional_state(latest_extra_state_entry.path)
     
-    # Delete screenshots that were created *after* that last state was saved, since we'll be regenerating
-    # them and we don't want the old ones to end up in the movie.
-    unneeded_image_paths: list[str]
-    image_entry: os.DirEntry
-    with os.scandir(screenshots_path) as image_entries_it:
-        unneeded_image_paths = [image_entry.path for image_entry in image_entries_it
-                                if image_entry.stat().st_mtime_ns > latest_state_entry.stat().st_mtime_ns]
-    num_images = len(unneeded_image_paths)
-    if num_images > 0:
-        print(f"Removing {num_images} unneeded images")
-        for path in unneeded_image_paths:
-            os.remove(path)
+    if vx.screenshot_export_enabled():
+        # Delete screenshots that were created *after* that last state was saved, since we'll be regenerating
+        # them and we don't want the old ones to end up in the movie.
+        unneeded_image_paths: list[str]
+        image_entry: os.DirEntry
+        with os.scandir(screenshots_path) as image_entries_it:
+            unneeded_image_paths = [image_entry.path for image_entry in image_entries_it
+                                    if image_entry.stat().st_mtime_ns > latest_state_entry.stat().st_mtime_ns]
+        num_images = len(unneeded_image_paths)
+        if num_images > 0:
+            print(f"Removing {num_images} unneeded images")
+            for path in unneeded_image_paths:
+                os.remove(path)
 
 def init() -> None:
     tfu.init_export()
