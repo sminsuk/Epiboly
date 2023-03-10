@@ -155,7 +155,13 @@ if events.event_exception_was_thrown():
     # We're not really finished, so we want to be able to recover.
     # (It's important not to delete what has already been exported, so we have to catch this case.
     # It's not super important to export the last bit, but we might as well, because we can.)
-    state.export("Exception")
+    
+    # On second thought, maybe not. I'm getting lots of asserts with v. 0.1.0 that never happened before.
+    # Looks like Angles are getting corrupted. Don't want to reimport those broken configurations, so
+    # probably best to rewind back to a previously saved state. So, neither delete what was previously
+    # exported, nor export anything new:
+    pass
+    # state.export("Exception")
 elif cfg.sim_state_export_keep:
     # We're retaining exports for post-processing, so capture the final state.
     state.export("Final")
