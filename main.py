@@ -151,6 +151,9 @@ else:
 # troubleshooting: call this one final time without having to be triggered by an edge transformation event.
 # bonds.test_ring_is_fucked_up()
 
+# Do this before final state export so that the final graphed data point is included in the export
+plot.save_graph(end=True)
+
 if events.event_exception_was_thrown():
     # We're not really finished, so we want to be able to recover.
     # (It's important not to delete what has already been exported, so we have to catch this case.
@@ -169,7 +172,6 @@ else:
     # We're only exporting in order to recover from premature exit, but now we're done, so discard them.
     state.remove_all_state_exports()
 
-plot.save_graph(end=True)
 vx.make_movie()
 
 # Only after making the movie, so that these stills won't be included
