@@ -449,6 +449,12 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
             exchange_particles(a1, bonded_p=p2, new_p=p_becoming, potential=edge_angle_potential)
             exchange_particles(a2, bonded_p=p1, new_p=p_becoming, potential=edge_angle_potential)
+            # Trouble-shooting rare (or new with TF v 0.1.0) bug – ended up with 2 instead of 3 Angle bonds on it.
+            # This assert is excessive, can be removed once that's solved. Just want to find out, did it happen during
+            # exchange_particles(), or during gc.create_angle()? (Note, probably on the back end because TF did
+            # generate an error in the log. In which case, doesn't matter when it happened, both use tf.Angle.create())
+            assert len(p_becoming.angles) == 2, f"Recruited particle (id={p_becoming.id}) now has" \
+                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have 2!"
             gc.create_angle(edge_angle_potential, p1, p_becoming, p2)
             assert len(p_becoming.angles) == 3, f"Recruited particle (id={p_becoming.id}) ended up with" \
                                                 f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
