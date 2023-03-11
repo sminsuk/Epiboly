@@ -1,6 +1,7 @@
 """Handle the remodeling of the bond network as the tissue changes shape"""
 import math
 import random
+from statistics import fmean
 import time
 from typing import Optional
 
@@ -551,34 +552,20 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if not recruit:
             return 0, 0
 
-        # # ##### Alternative criterion for preventing runaway edge recruitment #####
-        # # For awhile this seemed like the more natural approach, and worked well, at least
-        # # when Angle bonds were included. After changing the number and size of EVL particles,
-        # # it needed adjusting (had worked with cfg.leading_edge_recruitment_min_angle = pi/3.5; now
-        # # needed to make it more stringent, with pi/2.5). But I did not really like the arbitrariness
-        # # of this, or understand why it would be impacted by particle size, so probably will just
-        # # stick with the old way, below. That way is based on a multiple of radius, and still works
-        # # robustly even after the particle size change.
-        # # Also, deprecated because now I'm disabling Angle bonds while tuning setup and equilibration,
-        # # and this method never worked in the absence of Angle bonds. Algorithm used here needs to work
-        # # the same while tuning as in the regular sim, so really can't use this version anymore.
-        # # Keeping this comment only until I do the final needed fix below.
-        # if cfg.angle_bonds_enabled:
-        #     recruit_angle: float = tfu.angle_from_particles(p1=p, p_vertex=recruit, p2=other_leading_edge_p)
-        #     if recruit_angle < cfg.leading_edge_recruitment_min_angle:
-        #         return 0, 0
-        
         # Prevent runaway edge recruitment.
         # Hoped that algorithm improvements would make this unnecessary. Would prefer to understand the cause,
         # but we can at least prevent by a rule. Disallow recruitment if the recruited particle is too far from
         # the leading edge.
-        # ToDo: this really should be based on phi rather than on z though, because as epiboly progresses,
-        #  the difference in z becomes smaller and smaller, and less relevant. (Once that has been done and
-        #  validated, finally remove altogether the alternative method above.)
-        pos: tf.fVector3
-        leading_edge_baseline: float = min([pos.z() for pos in g.LeadingEdge.items().positions])
-        leading_edge_recruitment_zone: float = cfg.leading_edge_recruitment_limit * g.LeadingEdge.radius
-        if recruit.position.z() > leading_edge_baseline + leading_edge_recruitment_zone:
+        # (Note, use of mean radius anticipates that in the near future, radii will not all be the same,
+        # after implementing cell division.)
+        leading_edge_baseline_phi: float = max(epu.embryo_phi(p), epu.embryo_phi(other_leading_edge_p))
+        mean_particle_radius: float = fmean([p.radius, other_leading_edge_p.radius, recruit.radius])
+        leading_edge_recruitment_limit_distance: float = cfg.leading_edge_recruitment_limit * mean_particle_radius
+        # ratio of any arc's length in distance units, to the radians it represents, always =
+        # full circumference of circle / radians in a full circle (i.e., 2*pi) = r
+        embryo_radius: float = g.Big.radius + mean_particle_radius
+        leading_edge_recruitment_limit_radians: float = leading_edge_recruitment_limit_distance / embryo_radius
+        if epu.embryo_phi(recruit) < leading_edge_baseline_phi + leading_edge_recruitment_limit_radians:
             return 0, 0
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this

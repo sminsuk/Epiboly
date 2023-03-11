@@ -79,7 +79,6 @@ max_edge_neighbor_count: int = 3
 target_neighbor_angle: float = math.pi / 3
 target_edge_angle: float = math.pi
 leading_edge_recruitment_limit: float = 2.0     # in number of radii
-leading_edge_recruitment_min_angle: float = math.pi / 2.5   # empirically determined
 
 # For the same reason, just some common numbers useful in a variety of contexts
 two_pi: float = math.pi * 2
