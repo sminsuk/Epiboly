@@ -117,45 +117,8 @@ def export(filename: str, show_timestep: bool = True) -> None:
     if not cfg.sim_state_export_keep:
         remove_all_state_exports()
     
-    keyboard_interrupt_occurred: bool = False
-    while True:
-        if keyboard_interrupt_occurred:
-            print("Keyboard interrupt during export of simulation state; re-trying export")
-        try:
-            _export_state(filename + "_state.json")
-            _export_additional_state(filename + "_extra.json")
-        except KeyboardInterrupt:
-            # If an exception occurs during export, then data can be corrupted or just missing entirely,
-            # and subsequent import will fail.
-            #
-            # If any other Exception than KeyboardInterrupt, don't catch it, just let it percolate up
-            # and be handled as normal. This should be a rare occurrence. (Note, if cfg.sim_state_export_keep == False,
-            # previous exports will have already been deleted, so you've got nothing. But should be protected even
-            # then, because after finally exiting the simulation stepping loop, there will be one final export.
-            # ToDo: I could fix that by not removing old exports until the current one is successful. That would
-            #  require removing all *except* the most recent, instead of the simpler "remove all" as it currently is.
-            #  But I don't think this will be an issue, for the reason stated.)
-            #
-            # But if KeyboardInterrupt, capture the fact that it happened; then repeat the export
-            # until it succeeds; and only then, raise the interrupt and exit.
-            # This only works with ^C (if running from command line) or SINGLE click of Stop button (if running
-            # in PyCharm); it does not trap ^Z (command line) or DOUBLE click of Stop button (PyCharm). That would
-            # require a different approach. If I want to revisit, see the short note here:
-            # https://docs.python.org/3/library/exceptions.html#KeyboardInterrupt and the longer one here:
-            # https://docs.python.org/3/library/signal.html#handlers-and-exceptions
-            # as well as many StackOverflow threads on KeyboardInterrupt.
-            keyboard_interrupt_occurred = True
-        else:
-            # Export succeeded
-            if keyboard_interrupt_occurred:
-                print("Export succeeded after interrupt")
-                # Raising an actual KeyboardInterrupt does not work, here – because inside TF event?
-                # So use plain Exception to trigger program exit instead. (This works because unlike
-                # KeyboardInterrupt, it will be trapped by "except Exception" in events module.)
-                raise Exception("Keyboard interrupt")
-            else:
-                # worked the first time; done with loop
-                break
+    _export_state(filename + "_state.json")
+    _export_additional_state(filename + "_extra.json")
 
 def export_repeatedly() -> None:
     """For use inside timestep events. Keeps track of export interval, and names files accordingly."""
