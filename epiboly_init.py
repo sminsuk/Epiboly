@@ -35,6 +35,7 @@ _dim = [10., 10., 10.]
 def init_from_import() -> None:
     print(f"Restarting simulation \"{cfg.initialization_directory_name}\" from latest state export...")
     tfu.init_export(directory_name=cfg.initialization_directory_name)
+    init_all_exports()
     saved_state_path: str = os.path.join(tfu.export_path(), state.sim_state_subdirectory())
     screenshots_path: str = os.path.join(tfu.export_path(), vx.screenshots_subdirectory())
     
@@ -81,6 +82,7 @@ def init_from_import() -> None:
 
 def init() -> None:
     tfu.init_export()
+    init_all_exports()
     
     # Cutoff = largest potential.max in the sim, so that all necessary potentials will be evaluated:
     tf.init(dim=_dim,
@@ -94,3 +96,9 @@ def init() -> None:
     
     g.Little.style.color = tfu.cornflower_blue
     g.LeadingEdge.style.color = tfu.gold
+
+def init_all_exports() -> None:
+    vx.init_screenshots()
+    state.init_export()
+    log_file_path: str = os.path.join(tfu.export_path(), "Epiboly.log")
+    tf.Logger.enableFileLogging(fileName=log_file_path, level=tf.Logger.ERROR)

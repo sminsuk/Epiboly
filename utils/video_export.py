@@ -163,8 +163,8 @@ def save_screenshot_repeatedly() -> None:
     elapsed: int = _current_screenshot_timestep - _previous_screenshot_timestep
     if elapsed % _screenshot_export_interval == 0:
         _previous_screenshot_timestep = _current_screenshot_timestep
-        save_screenshot("")  # just timestep as filename
         _automated_camera_rotate()
+        save_screenshot("")  # just timestep as filename
     
     _current_screenshot_timestep += 1
 
@@ -210,15 +210,23 @@ def screenshot_export_enabled() -> bool:
 def get_state() -> dict:
     """generate state to be saved to disk
     
-    For now, in composite runs, just try to pick up the screenshot timing where we left off.
-
-    Could add: camera position and angle, in case camera no longer at the default position.
+    In composite runs, pick up the screenshot timing where we left off, and restore camera position
     
     Other aspects of state should automatically reconstitute themselves pretty well:
     _image_path, _rotation_started, _rotation_finished
     """
+    center: tf.fVector3 = tf.system.camera_center()
+    zoom: float = tf.system.camera_zoom()
+    rotation: tf.fQuaternion = tf.system.camera_rotation()
+    angle: float = rotation.angle()
+    axis: tf.fVector3 = rotation.axis()
+
     return {"previous_step": _previous_screenshot_timestep,
-            "current_step": _current_screenshot_timestep}
+            "current_step": _current_screenshot_timestep,
+            "camera_center": center.as_list(),
+            "camera_zoom": zoom,
+            "camera_angle": angle,
+            "camera_axis": axis.as_list()}
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved.
@@ -229,6 +237,24 @@ def set_state(d: dict) -> None:
     global _previous_screenshot_timestep, _current_screenshot_timestep
     _previous_screenshot_timestep = d["previous_step"]
     _current_screenshot_timestep = d["current_step"]
+    
+    camera_center: tf.fVector3 = tf.fVector3(d["camera_center"])
+    camera_zoom: float = d["camera_zoom"]
+    camera_angle: float = d["camera_angle"]
+    camera_axis: tf.fVector3 = tf.fVector3(d["camera_axis"])
+    camera_rotation: tf.fQuaternion = tf.fQuaternion.rotation(camera_angle, camera_axis)
+    tf.system.camera_move_to(camera_center, camera_rotation, camera_zoom)
+    
+    # camera_move_to() doesn't actually change the camera state; it just says what it WILL move to,
+    # on the subsequent render. So we need to render right now, in order get things in sync, so that
+    # when the camera state is examined (see _test_when_to_finish_rotation()), it will be correct.
+    _export_and_delete_a_junk_screenshot()
+
+def _export_and_delete_a_junk_screenshot() -> None:
+    """The only way I know to force a render. Necessary to make recent camera changes readable."""
+    path: str = os.path.join(_image_path, "junk.jpg")
+    tf.system.screenshot(path)
+    os.remove(path)
 
 def make_movie(filename: str = None) -> None:
     if not screenshot_export_enabled():

@@ -53,16 +53,12 @@ if cfg.initialization_directory_name:
 else:
     epiboly_init.init()
 
-vx.init_screenshots()
-state.init_export()
-logFilePath: str = os.path.join(tfu.export_path(), "Epiboly.log")
-tf.Logger.enableFileLogging(fileName=logFilePath, level=tf.Logger.ERROR)
-
 events.initialize_master_event()
-epu.reset_camera()
 
 # Setup and equilibration – unless importing saved state from a prior run
 if not cfg.initialization_directory_name:
+    epu.reset_camera()
+    
     # Choose one:
     # setup.initialize_embryo()       # the old one
     # setup.new_initialize_embryo()   # the new one under development
