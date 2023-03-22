@@ -26,8 +26,9 @@ _fig: Optional[Figure] = None
 _ax: Optional[Axes] = None
 _plot_path: str
 
-# in case sim is ended and restarted from exported data, for now will just output a new, numbered plot,
-# rather than trying to sew it all together into one plot.
+# in case sim is ended and restarted from exported data, output a new plot, going back all the way
+# to the beginning, spanning all parts of the composite sim. But for now, number it and retain the
+# earlier partial plot image as well.
 _plot_num: int = 1
 
 def _init_graph() -> None:
@@ -89,7 +90,7 @@ def save_graph(end: Optional[bool] = None) -> None:
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")
         
 def get_state() -> dict:
-    """ In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
+    """In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
     
     Each run saves its own plot, but the data is saved as part of the state, so the next run
     can import it and graph all the way from Timestep 0. Thus you get separate plots showing
@@ -114,7 +115,7 @@ def set_state(d: dict) -> None:
     _phi = d["phi"]
     _timesteps = d["timesteps"]
     
-# At import time: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
+# At module import: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
 # Note to self: do I need to make sure interactive is off, when I'm in windowless mode? That would be
 # necessary for true automation, but would be nice to run windowless manually and still see the plots.
 # However, it seems like TF is suppressing that; in windowless only, the plots aren't showing up once

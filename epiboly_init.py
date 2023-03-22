@@ -5,6 +5,7 @@ import tissue_forge as tf
 import epiboly_globals as g
 import config as cfg
 import utils.global_catalogs as gc
+import utils.logging as logging
 import utils.sim_state_export as state
 import utils.tf_utils as tfu
 import utils.video_export as vx
@@ -35,7 +36,11 @@ _dim = [10., 10., 10.]
 def init_from_import() -> None:
     print(f"Restarting simulation \"{cfg.initialization_directory_name}\" from latest state export...")
     tfu.init_export(directory_name=cfg.initialization_directory_name)
-    init_all_exports()
+    
+    # These two inits only depend on the exported directory being found, by tfu.init_export(), so can do them up here.
+    vx.init_screenshots()
+    state.init_export()
+    
     saved_state_path: str = os.path.join(tfu.export_path(), state.sim_state_subdirectory())
     screenshots_path: str = os.path.join(tfu.export_path(), vx.screenshots_subdirectory())
     
@@ -66,6 +71,10 @@ def init_from_import() -> None:
     gc.initialize_state()
     state.import_additional_state(latest_extra_state_entry.path)
     
+    # This init depends on the extra state import having already happened, so
+    # can't be done until down here, after state.import_additional_state()
+    logging.init_logging()
+    
     if vx.screenshot_export_enabled():
         # Delete screenshots that were created *after* that last state was saved, since we'll be regenerating
         # them and we don't want the old ones to end up in the movie.
@@ -82,7 +91,9 @@ def init_from_import() -> None:
 
 def init() -> None:
     tfu.init_export()
-    init_all_exports()
+    vx.init_screenshots()
+    state.init_export()
+    logging.init_logging()
     
     # Cutoff = largest potential.max in the sim, so that all necessary potentials will be evaluated:
     tf.init(dim=_dim,
@@ -96,9 +107,3 @@ def init() -> None:
     
     g.Little.style.color = tfu.cornflower_blue
     g.LeadingEdge.style.color = tfu.gold
-
-def init_all_exports() -> None:
-    vx.init_screenshots()
-    state.init_export()
-    log_file_path: str = os.path.join(tfu.export_path(), "Epiboly.log")
-    tf.Logger.enableFileLogging(fileName=log_file_path, level=tf.Logger.ERROR)
