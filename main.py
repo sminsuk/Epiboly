@@ -7,6 +7,7 @@ import epiboly_init
 import config as cfg
 
 import biology.bond_maintenance as bonds
+import biology.cell_division as cd
 import biology.microtubules as mt
 import control_flow.events as events
 from control_flow.interactive import toggle_visibility
@@ -79,6 +80,7 @@ events.execute_repeatedly(tasks=[
         {"invoke": plot.show_graph},
         {"invoke": mt.apply_even_tangent_forces},
         {"invoke": bonds.maintain_bonds},
+        {"invoke": cd.cell_division},
         {"invoke": state.export_repeatedly},
         ])
 
@@ -102,6 +104,7 @@ if cfg.windowed_mode:
                       # "viscosity": 0.001
                       }
              },
+            {"invoke": cd.cell_division},
             {"invoke": state.export_repeatedly},
             ])
     # mt.remove_tangent_forces()

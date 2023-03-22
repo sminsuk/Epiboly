@@ -43,6 +43,10 @@ epiboly_initial_percentage: int = 43
 num_leading_edge_points: int = 110
 num_spherical_positions: int = 5000
 
+# Cell division rate parameters. See justification in docstring of cell_division.cell_division().
+total_epiboly_divisions: int = 7500
+expected_timesteps: int = 26000
+
 # Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5
 

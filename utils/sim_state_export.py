@@ -7,6 +7,8 @@ import os
 
 import tissue_forge as tf
 import config as cfg
+
+import biology.cell_division as cd
 import utils.global_catalogs as gc
 import utils.plotting as plot
 import utils.tf_utils as tfu
@@ -64,6 +66,7 @@ def _export_additional_state(filename: str) -> None:
 
     export_dict: dict = {"self": get_state(),
                          "vx": vx.get_state(),
+                         "cd": cd.get_state(),
                          "plot": plot.get_state(),
                          }
     
@@ -78,6 +81,7 @@ def import_additional_state(import_path: str) -> None:
     
     set_state(import_dict["self"])
     plot.set_state(import_dict["plot"])
+    cd.set_state(import_dict["cd"])
     vx.set_state(import_dict["vx"])
     
 def _export_state(filename: str) -> None:
