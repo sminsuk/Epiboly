@@ -36,6 +36,10 @@ screenshot_export_interval: int = 10
 # and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)
 angle_bonds_enabled: bool = True
 
+# Yet to be determined, whether to use this space-filling algorithm. It needs to be either abandoned or improved.
+# Currently alternating sims between having it on and off while I work on other things, and observing its behavior.
+space_filling_enabled: bool = False
+
 # real value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
 
@@ -45,7 +49,7 @@ num_spherical_positions: int = 5000
 
 # Cell division rate parameters. See justification in docstring of cell_division.cell_division().
 total_epiboly_divisions: int = 7500
-expected_timesteps: int = 26000
+expected_timesteps: int  # For now, not a constant and not used; TBD
 
 # Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5

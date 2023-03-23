@@ -7,7 +7,8 @@ import config as cfg
 
 # Initialize just once
 _generator: np.random.Generator = np.random.default_rng()
-_expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / cfg.expected_timesteps
+_expected_timesteps: int = 29000 if cfg.space_filling_enabled else 23000
+_expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / _expected_timesteps
 _cumulative_cell_divisions: int = 0
 
 def cell_division() -> None:
@@ -32,6 +33,19 @@ def cell_division() -> None:
         (Set in config.)
     7. A typical sim runs to completion in around 26000 timesteps (set in config).
     8. Expected divisions per timestep thus comes to around 0.29, on average.
+        8A. However, perhaps better to make a more tailored assumption about the number of timesteps.
+            When I ran this (with only a stub, no actual cell division, but monitoring how many divisions would
+            be triggered), in a nearly 30K-timestep run, 8682 divisions occurred. This seems like a lot.
+            Length of sim depends on whether I have the "space-filling" algorithm enabled. And whether I ultimately
+            keep that, depends at least in port on the outcome of this cell-division implementation.
+            In 4 runs with space filling DISabled, total timesteps = 21K, 22K, 21K, 28K.
+            In 4 runs with space filling ENabled (diffusion coefficient = 40), total timesteps = 28K, 27K, 29K, 32K.
+            So for now, do a calculation based on whether that is enabled or not.
+            (Idea for maybe later: make this depend on leading edge displacement per timestep, instead of on time.
+            Then it would no longer be an "expected" value, but would instead be derived from an actual on-the-fly
+            measurement representing epiboly progress. Average division rate would then drift over time, as
+            the parameter sent to the poisson function changes. This should result in a more consistent total
+            number of divisions over the course of the sim.)
     9. Use Poisson to determine how many cells will actually divide this time.
     """
     global _cumulative_cell_divisions
@@ -72,8 +86,8 @@ def _test2() -> None:
 def _test3(size: int) -> None:
     """With a larger output array, does the mean come closer to the target?
     
-    It does! I expect to call it once per timestep, so note the results with size=26000, which is
-    a typical number of timesteps in the full sim.
+    It does! I expect to call it once per timestep, so note the results with size=_expected_timesteps, which
+    represents the full sim.
     """
     lam: float = _expected_divisions_per_timestep
     results: np.ndarray = _generator.poisson(lam=lam, size=size)
@@ -85,9 +99,9 @@ def _test4() -> None:
     Just like it should! Log scale on second plot so that it's possible to see the bars for the very rare values.
     """
     lam: float = _expected_divisions_per_timestep
-    results: np.ndarray = _generator.poisson(lam=lam, size=26000)
-    print("Histogram of 26000 values; first linear, then log:")
-    print(f"max value = {max(results)}")
+    results: np.ndarray = _generator.poisson(lam=lam, size=_expected_timesteps)
+    print(f"Histogram of {_expected_timesteps} values; first linear, then log:")
+    print(f"max value = {max(results)}, total count = {sum(results)}")
     plt.hist(results,
              bins=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
              align="left",
@@ -116,8 +130,8 @@ if __name__ == '__main__':
     _test3(2000)
     _test3(2000)
     _test3(2000)
-    _test3(26000)
-    _test3(26000)
-    _test3(26000)
+    _test3(_expected_timesteps)
+    _test3(_expected_timesteps)
+    _test3(_expected_timesteps)
     print()
     _test4()

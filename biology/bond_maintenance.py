@@ -731,11 +731,12 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
 
 def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
                    k_edge_neighbor_count: float = 2, k_edge_angle: float = 2,
-                   k_particle_diffusion: float = 20,
+                   k_particle_diffusion: float = 40,  # (was 20; now experimenting with 40 vs. disabled)
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
     _make_break_or_become(k_neighbor_count, k_angle,
                           k_edge_neighbor_count, k_edge_angle, verbose=False)
-    _move_toward_open_space(k_particle_diffusion)
+    if cfg.space_filling_enabled:
+        _move_toward_open_space(k_particle_diffusion)
     _relax(relaxation_saturation_factor, viscosity)
     
     # Notes on parameters: with relaxation disabled (viscosity=0), k_particle_diffusion=20 works well.
