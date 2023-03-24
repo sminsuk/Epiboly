@@ -356,7 +356,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             false_angles: list[tf.AngleHandle] = [angle for angle in p.angles
                                                   if angle.id not in gc.angles_by_id]
             for angle in false_angles:
-                print(f"Destroying false angle (id={angle.id}) on particle {p.id}, leaving {len(p.angles) - 1}")
+                print(tfu.bluecolor +
+                      f"Destroying false angle (id={angle.id}) on particle {p.id}, leaving {len(p.angles) - 1}" +
+                      tfu.endcolor)
                 angle.destroy()
         
         def get_pivot_angle(p: tf.ParticleHandle) -> Optional[tf.AngleHandle]:

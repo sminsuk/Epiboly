@@ -29,6 +29,7 @@ Currently you can only do that if you also have the particle.type_id. Should be 
 from typing import TypedDict
 
 import tissue_forge as tf
+import tf_utils as tfu
 
 class BondData(TypedDict):
     r0: float
@@ -100,6 +101,7 @@ def clean_state() -> None:
     angle: tf.AngleHandle
     for angle in tf.AngleHandle.items():
         if angle.id not in angles_by_id:
+            print(tfu.bluecolor + f"Destroying false angle (id={angle.id})" + tfu.endcolor)
             angle.destroy()
 
 visibility_state: bool = True
