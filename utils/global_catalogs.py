@@ -9,35 +9,36 @@ Usage:
     storing anything useful. However, this is good working infrastructure, so I'm keeping it in place for
     future use.
     
-    For particles: leaving this up to the caller, since it only happens in a couple of places, and is more convenient.
-    For Bonds and Angles: use the convenience functions below.
+    Angles were added later, and that was also for a bug, which likely still exists in v0.1.0. (But that one
+    never needed actual content, just keys, as described below.) If those anomalous Angle bonds get fixed (prevented)
+    in a future release, then won't need this for Angles.
+    
+    Use the convenience functions below to create Bonds and Angles, and to add newly created Particles to the
+    catalog; and to destroy any of those. Alternatively:
+    
     Whenever creating a particle / bond / angle, add it to particles_by_id / bonds_by_id / angles_by_id, respectively
-    Whenever deleting a particle / bond / angle, delete it from those dicts
+    Whenever destroying a particle / bond / angle, delete it from those dicts
+    
     BondData currently empty.
-    AngleData doesn't even need any content: the idea is to identify anomalous Angle objects created due to a
+    ParticleData currently empty.
+    AngleData never needed any content: the idea is to identify anomalous Angle objects created due to a
         TF bug, by the fact that they are NOT in the dict. All we really need is the keys; using id as placeholder
         value. (We'll never need to look up the value.)
-    ParticleData allows to retrieve ParticleHandle from an id.
     
     Whenever a particle .becomes(LeadingEdge), set its visibility to True;
     Whenever a particle .becomes(Little) (interior particle), set its visibility according to the state flag here.
         (For now, change of state of the flag itself happens in module "interactive".)
-    
-future: if those anomalous Angle bonds get fixed (prevented) in a future release, then won't need this for Angles.
-
-future: storing particleHandles should not be necessary, as it should be possible to retrieve from particle.id.
-Currently you can only do that if you also have the particle.type_id. Should be fixed in a future release.
 """
 from typing import TypedDict
 
 import tissue_forge as tf
-import tf_utils as tfu
+import utils.tf_utils as tfu
 
 class BondData(TypedDict, total=False):
     dummy: int
 
-class ParticleData(TypedDict):
-    handle: tf.ParticleHandle
+class ParticleData(TypedDict, total=False):
+    dummy: int
 
 bonds_by_id: dict[int, BondData] = {}
 angles_by_id: dict[int, int] = {}
@@ -65,22 +66,23 @@ def destroy_angle(angle_handle: tf.AngleHandle) -> None:
     del angles_by_id[angle_handle.id]
     angle_handle.destroy()
     
+def add_particle(phandle: tf.ParticleHandle) -> None:
+    """ 'Add' rather than 'Create' because TF routines handle the creation part"""
+    particle_values: ParticleData = {}
+    particles_by_id[phandle.id] = particle_values
+
+def destroy_particle(phandle: tf.ParticleHandle) -> None:
+    del particles_by_id[phandle.id]
+    phandle.destroy()
+
 def initialize_state() -> None:
     """Recreates the global catalogs based on imported data from a previous run
     
-    bonds_by_id: this only contains r0 for all the bonds, which CANNOT be recreated after an export/import,
-    because in v. 0.0.1, r0 can't be read out of the bonds. If absolutely necessary, I could export these values
-    and then re-import them, but it's not worth it right now because it's only used for the relaxation feature,
-    which I'm currently not using. So skip it for now, and if I turn relaxation on, this will fail.
+    Currently all three dicts contain no meaninful data, but we still need to create them and fill them
+    with dummy values, so that when existing items are destroyed, their dict entries can be del'ed.
     
-    However, still need to create a dict full of keys with dummy values, so that when existing bonds are destroyed,
-    their entry can be destroyed too.
-    
-    angles_by_id: similarly, we need the keys so that angles can be destroyed. But also, see clean_state()
-    
-    particles_by_id: this needs to be reconstituted based on the imported particles. Note that their imported ids won't
-    be the same as when they were exported, nor will their ParticleHandles, but we don't need the old ones and
-    can simply retrieve new ones.
+    Note that imported particle ids won't be the same as when they were exported, but we don't need
+    the old ones and can simply retrieve new ones.
     """
     for bhandle in tf.BondHandle.items():
         bond_values: BondData = {}
@@ -90,7 +92,7 @@ def initialize_state() -> None:
         angles_by_id[handle.id] = handle.id
         
     for phandle in tf.Universe.particles:
-        particle_values: ParticleData = {"handle": phandle}
+        particle_values: ParticleData = {}
         particles_by_id[phandle.id] = particle_values
         
 def clean_state() -> None:

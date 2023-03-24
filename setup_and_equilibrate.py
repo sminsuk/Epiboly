@@ -111,8 +111,7 @@ def initialize_interior(leading_edge_phi):
     for phandle in g.Little.items():
         phandle.style = tf.rendering.Style()
         phandle.style.color = g.Little.style.color
-        particle_values: gc.ParticleData = {"handle": phandle}
-        gc.particles_by_id[phandle.id] = particle_values
+        gc.add_particle(phandle)
     
     finished = time.perf_counter()
     # print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
@@ -193,8 +192,7 @@ def initialize_full_sphere_evl_cells() -> None:
     for phandle in g.Little.items():
         phandle.style = tf.rendering.Style()
         phandle.style.color = g.Little.style.color
-        particle_values: gc.ParticleData = {"handle": phandle}
-        gc.particles_by_id[phandle.id] = particle_values
+        gc.add_particle(phandle)
     
     finished = time.perf_counter()
     # print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
@@ -209,8 +207,7 @@ def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
     vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
                                                   if phandle.position.z() < leading_edge_z]
     for phandle in vegetal_particles:
-        del gc.particles_by_id[phandle.id]
-        phandle.destroy()
+        gc.destroy_particle(phandle)
         
     print(f"{len(g.Little.items())} particles remaining")
         
@@ -280,8 +277,7 @@ def initialize_bonded_edge():
         for phandle in g.LeadingEdge.items():
             phandle.style = tf.rendering.Style()
             phandle.style.color = g.LeadingEdge.style.color
-            particle_values: gc.ParticleData = {"handle": phandle}
-            gc.particles_by_id[phandle.id] = particle_values
+            gc.add_particle(phandle)
         
         return leading_edge_phi
     
