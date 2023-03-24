@@ -362,13 +362,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         def get_pivot_angle(p: tf.ParticleHandle) -> Optional[tf.AngleHandle]:
             """Return the particle's pivot Angle (the Angle that has this particle as the CENTER particle) - if any"""
             angle: tf.AngleHandle
-            angles: list[tf.AngleHandle]
-            if tf.version.version == "0.0.1":
-                angles = [angle for angle in p.angles
-                          if p.id == angle.parts[1]]
-            else:
-                angles = [angle for angle in p.angles
-                          if p == angle.parts[1]]
+            angles: list[tf.AngleHandle] = [angle for angle in p.angles
+                                            if p == angle.parts[1]]
             assert len(angles) < 2, f"Found 2 or more pivot Angles on particle {p.id}"
             return None if not angles else angles[0]
         
@@ -379,47 +374,22 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             Conceptually, delete the old outer particle and replace it with the new one. But AngleHandle.parts is
             not writeable, so actually create a new Angle with the proper connection, then delete the old Angle.
             """
-            if tf.version.version == "0.0.1":
-                outer_p1id: int
-                outer_p2id: int
-                center_pid: int
-                old_outer_p1: tf.ParticleHandle
-                new_outer_p1: tf.ParticleHandle
-                center_p: tf.ParticleHandle
-                old_outer_p2: tf.ParticleHandle
-                new_outer_p2: tf.ParticleHandle
-    
-                outer_p1id, center_pid, outer_p2id = angle.parts
-                center_p = gc.particles_by_id[center_pid]["handle"]
-                old_outer_p1 = gc.particles_by_id[outer_p1id]["handle"]
-                old_outer_p2 = gc.particles_by_id[outer_p2id]["handle"]
-                assert bonded_p.id in (outer_p1id, outer_p2id), \
-                    f"bonded_p (id = {bonded_p.id}) is not part of this Angle!"
-                if bonded_p.id == outer_p1id:
-                    new_outer_p1 = new_p
-                    new_outer_p2 = old_outer_p2
-                else:
-                    new_outer_p1 = old_outer_p1
-                    new_outer_p2 = new_p
-    
-                gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
+            old_outer_p1: tf.ParticleHandle
+            new_outer_p1: tf.ParticleHandle
+            center_p: tf.ParticleHandle
+            old_outer_p2: tf.ParticleHandle
+            new_outer_p2: tf.ParticleHandle
+
+            old_outer_p1, center_p, old_outer_p2 = angle.parts
+            assert bonded_p in (old_outer_p1, old_outer_p2), f"bonded_p ({bonded_p}) is not part of this Angle!"
+            if bonded_p == old_outer_p1:
+                new_outer_p1 = new_p
+                new_outer_p2 = old_outer_p2
             else:
-                old_outer_p1: tf.ParticleHandle
-                new_outer_p1: tf.ParticleHandle
-                center_p: tf.ParticleHandle
-                old_outer_p2: tf.ParticleHandle
-                new_outer_p2: tf.ParticleHandle
-    
-                old_outer_p1, center_p, old_outer_p2 = angle.parts
-                assert bonded_p in (old_outer_p1, old_outer_p2), f"bonded_p ({bonded_p}) is not part of this Angle!"
-                if bonded_p == old_outer_p1:
-                    new_outer_p1 = new_p
-                    new_outer_p2 = old_outer_p2
-                else:
-                    new_outer_p1 = old_outer_p1
-                    new_outer_p2 = new_p
-    
-                gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
+                new_outer_p1 = old_outer_p1
+                new_outer_p2 = new_p
+
+            gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
 
             gc.destroy_angle(angle)
 
@@ -690,22 +660,16 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
 
     print(f"Relaxing all {len(tf.BondHandle.items())} bonds")
     for bhandle in tf.BondHandle.items():
-        # future: checking .active is not supposed to be needed; those are supposed to be filtered out before you
-        # see them. The flag is not even accessible in future versions.
-        if tf.version.version != "0.0.1" or bhandle.active:
-            assert bhandle.id in gcdict, "Bond data missing from global catalog!"
-            p1: tf.ParticleHandle
-            p2: tf.ParticleHandle
-            if tf.version.version == "0.0.1":
-                p1, p2 = tfu.bond_parts(bhandle)
-            else:
-                p1, p2 = bhandle.parts
-            bond_data: gc.BondData = gcdict[bhandle.id]
-            r0: float = bond_data["r0"]
-            # print(f"r0 = {r0}")
-            r: float = p1.distance(p2)
-            
-            relax_bond(bhandle, r0, r, viscosity, p1, p2)
+        assert bhandle.id in gcdict, "Bond data missing from global catalog!"
+        p1: tf.ParticleHandle
+        p2: tf.ParticleHandle
+        p1, p2 = bhandle.parts
+        bond_data: gc.BondData = gcdict[bhandle.id]
+        r0: float = bond_data["r0"]
+        # print(f"r0 = {r0}")
+        r: float = p1.distance(p2)
+        
+        relax_bond(bhandle, r0, r, viscosity, p1, p2)
             
 def _move_toward_open_space(k_particle_diffusion: float) -> None:
     """Prevent gaps from opening up by giving particles a nudge to move toward open space.

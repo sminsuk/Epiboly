@@ -10,16 +10,16 @@ from utils import tf_utils as tfu
 import config as cfg
 
 def getBondedNeighbors(p: tf.ParticleHandle) -> tf.ParticleList:
-    """While beta testing, be able to run in either v0.0.1, or in later versions
+    """Just a wrapper. Cruft.
     
-    This method is called a LOT, so just centralize it here.
+    Was previously used while beta testing, in order to be able to run in either v0.0.1, or in later versions.
+    It included a version test and a different syntax for the older version. Support for 0.0.1 has now been removed.
+    This is called from a LOT of places, so leaving in place, at least for now.
+    ToDO? Maybe remove opportunistically as I come across them, until they're gone.
     """
-    if tf.version.version == "0.0.1":
-        # works in 0.0.1, but in later versions has memory issues and experiences crashes
-        return p.getBondedNeighbors()
-    else:
-        # introduced (in 0.0.2, I think) to address issues, though not documented in the docs (yet?)
-        return p.bonded_neighbors
+    # Property introduced (in 0.0.2, I think), to replace function p.getBondedNeighbors(), to address issues,
+    # though not documented in the docs (yet?)
+    return p.bonded_neighbors
 
 def find_neighbors(p: tf.ParticleHandle, distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
     """Find neighbors of particle p
@@ -47,11 +47,7 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     non_bonded_neighbors: list[tf.ParticleHandle]
     
     # Who am I already bonded to?
-    # if tf.version.version != "0.0.1":
-    #     print(f"phandle = {phandle}, len(bonds) = {len(phandle.bonds)}, ", end="")
     my_bonded_neighbor_ids = [neighbor.id for neighbor in getBondedNeighbors(phandle)]
-    # if tf.version.version != "0.0.1":
-    #     print(f"len(bonded_neighbors) = {len(my_bonded_neighbor_ids)}")
 
     # Who are all my neighbors? (bonded or not)
     neighbors = find_neighbors(phandle, distance_factor, sort)

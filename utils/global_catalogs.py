@@ -41,8 +41,6 @@ angles_by_id: dict[int, int] = {}
 particles_by_id: dict[int, ParticleData] = {}
 
 def create_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHandle, r0: float) -> tf.BondHandle:
-    if tf.version.version == "0.0.1":
-        assert p1.id != p2.id, f"Bonding particle {p1.id} to itself!"
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
     bond_values: BondData = {"r0": r0}
     bonds_by_id[handle.id] = bond_values
@@ -72,13 +70,13 @@ def initialize_state() -> None:
     and then re-import them, but it's not worth it right now because it's only used for the relaxation feature,
     which I'm currently not using. So skip it for now, and if I turn relaxation on, this will fail.
     
-    However, still need to create a dict full of dummy values, so that when existing bonds are destroyed, their
-    entry can be destroyed too.
+    However, still need to create a dict full of keys with dummy values, so that when existing bonds are destroyed,
+    their entry can be destroyed too.
     
-    angles_by_id: similarly, we need the values so that angles can be destroyed. But also, see clean_state()
+    angles_by_id: similarly, we need the keys so that angles can be destroyed. But also, see clean_state()
     
-    particles_by_id: this needs to be reconstituted based on the imported particles. Note that their ids won't
-    be the same as when they were saved, nor will their ParticleHandles, but we don't need the old ones and
+    particles_by_id: this needs to be reconstituted based on the imported particles. Note that their imported ids won't
+    be the same as when they were exported, nor will their ParticleHandles, but we don't need the old ones and
     can simply retrieve new ones.
     """
     # dummy values for bonds because we can't discover r0
@@ -101,10 +99,7 @@ def clean_state() -> None:
     """
     angle: tf.AngleHandle
     for angle in tf.AngleHandle.items():
-        if tf.version.version != "0.0.1" or angle.active:
-            # While beta testing: Only test active in v. 0.0.1, because it's gone after that; presume True.
-            # ToDo: Once done beta testing and truly finished with 0.0.1, clean this up
-            if angle.id not in angles_by_id:
-                angle.destroy()
+        if angle.id not in angles_by_id:
+            angle.destroy()
 
 visibility_state: bool = True
