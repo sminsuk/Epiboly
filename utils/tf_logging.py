@@ -2,6 +2,10 @@
 
     in case sim is ended and restarted from exported data, prevent new log file from overwriting
     the old one. Keep both as sequentially numbered files.
+    
+    (Note, originally logging.py, but this caused moviepy to crash under certain circumstances
+    (apparently only when running video_export as __main__), because moviepy has its own logging.py,
+    but it loaded mine instead of its own! Renaming this module fixed it.)
 """
 import os
 

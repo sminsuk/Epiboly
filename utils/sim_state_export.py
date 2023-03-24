@@ -10,7 +10,7 @@ import config as cfg
 
 import biology.cell_division as cd
 import utils.global_catalogs as gc
-import utils.logging as logging
+import utils.tf_logging as logging
 import utils.plotting as plot
 import utils.tf_utils as tfu
 import utils.video_export as vx
