@@ -307,7 +307,7 @@ def initialize_bonded_edge():
             # print("binding particles with thetas:",
             #       math.degrees(theta(previous_particle)),
             #       math.degrees(theta(particle)))
-            gc.create_bond(small_small_attraction_bonded, previous_particle, particle, r0)
+            gc.create_bond(small_small_attraction_bonded, previous_particle, particle)
             previous_particle = particle
             
     leading_edge_phi = create_ring()

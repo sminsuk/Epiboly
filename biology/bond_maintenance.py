@@ -40,7 +40,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
                                                     k=k,
                                                     max=cfg.max_potential_cutoff
                                                     )
-    handle: tf.BondHandle = gc.create_bond(potential, p1, p2, r0)
+    handle: tf.BondHandle = gc.create_bond(potential, p1, p2)
 
     if verbose:
         distance: float = p1.distance(p2)
@@ -649,7 +649,7 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
                                                         k=k,
                                                         max=cfg.max_potential_cutoff
                                                         )
-        gc.create_bond(potential, p1, p2, new_r0)
+        gc.create_bond(potential, p1, p2)
     
     assert 0 <= viscosity <= 1, "viscosity out of bounds"
     assert relaxation_saturation_factor > 0, "relaxation_saturation_factor out of bounds"
@@ -658,16 +658,15 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
         return
     
     bhandle: tf.BondHandle
-    gcdict: dict[int, gc.BondData] = gc.bonds_by_id
+    potential: tf.Potential
 
     print(f"Relaxing all {len(tf.BondHandle.items())} bonds")
     for bhandle in tf.BondHandle.items():
-        assert bhandle.id in gcdict, "Bond data missing from global catalog!"
         p1: tf.ParticleHandle
         p2: tf.ParticleHandle
         p1, p2 = bhandle.parts
-        bond_data: gc.BondData = gcdict[bhandle.id]
-        r0: float = bond_data["r0"]
+        potential = bhandle.potential
+        r0: float = potential.r0
         # print(f"r0 = {r0}")
         r: float = p1.distance(p2)
         

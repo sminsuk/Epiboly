@@ -4,11 +4,16 @@ But, more generally, storing system state. So storing visibility here as well.
 
 Maybe put this in a class?
 Usage:
+    Note: The original uses of this structure were to store data that was not retrievable from bonds and particles
+    because of bugs in Tissue Forge. Those bugs have now been fixed. So currently these structures are not
+    storing anything useful. However, this is good working infrastructure, so I'm keeping it in place for
+    future use.
+    
     For particles: leaving this up to the caller, since it only happens in a couple of places, and is more convenient.
     For Bonds and Angles: use the convenience functions below.
     Whenever creating a particle / bond / angle, add it to particles_by_id / bonds_by_id / angles_by_id, respectively
     Whenever deleting a particle / bond / angle, delete it from those dicts
-    BondData allows to retrieve the r0 from the potential attached to a given bond
+    BondData currently empty.
     AngleData doesn't even need any content: the idea is to identify anomalous Angle objects created due to a
         TF bug, by the fact that they are NOT in the dict. All we really need is the keys; using id as placeholder
         value. (We'll never need to look up the value.)
@@ -18,10 +23,7 @@ Usage:
     Whenever a particle .becomes(Little) (interior particle), set its visibility according to the state flag here.
         (For now, change of state of the flag itself happens in module "interactive".)
     
-future: storing r0 is not supposed to be necessary, because it should be retrievable from potential object.
-Currently broken in harmonic, maybe others. May be able to do without this in future release.
-
-future: if those anomalous Angle bonds get fixed (prevented) in a future release, then won't need this.
+future: if those anomalous Angle bonds get fixed (prevented) in a future release, then won't need this for Angles.
 
 future: storing particleHandles should not be necessary, as it should be possible to retrieve from particle.id.
 Currently you can only do that if you also have the particle.type_id. Should be fixed in a future release.
@@ -31,8 +33,8 @@ from typing import TypedDict
 import tissue_forge as tf
 import tf_utils as tfu
 
-class BondData(TypedDict):
-    r0: float
+class BondData(TypedDict, total=False):
+    dummy: int
 
 class ParticleData(TypedDict):
     handle: tf.ParticleHandle
@@ -41,9 +43,9 @@ bonds_by_id: dict[int, BondData] = {}
 angles_by_id: dict[int, int] = {}
 particles_by_id: dict[int, ParticleData] = {}
 
-def create_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHandle, r0: float) -> tf.BondHandle:
+def create_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> tf.BondHandle:
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
-    bond_values: BondData = {"r0": r0}
+    bond_values: BondData = {}
     bonds_by_id[handle.id] = bond_values
     return handle
 
@@ -80,9 +82,8 @@ def initialize_state() -> None:
     be the same as when they were exported, nor will their ParticleHandles, but we don't need the old ones and
     can simply retrieve new ones.
     """
-    # dummy values for bonds because we can't discover r0
     for bhandle in tf.BondHandle.items():
-        bond_values: BondData = {"r0": -1}
+        bond_values: BondData = {}
         bonds_by_id[bhandle.id] = bond_values
         
     for handle in tf.AngleHandle.items():
