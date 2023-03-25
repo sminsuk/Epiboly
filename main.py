@@ -60,10 +60,7 @@ events.initialize_master_event()
 if not cfg.initialization_directory_name:
     epu.reset_camera()
     
-    # Choose one:
-    # setup.initialize_embryo()       # the old one
-    # setup.new_initialize_embryo()   # the new one under development
-    setup.unified_initialize_embryo()   # Start all bond activites all at once
+    setup.initialize_embryo()
     
     # Call now so I at least get the graph for equilibration if I later abort execution;
     # then again at the end so I get the whole thing if the script completes.
