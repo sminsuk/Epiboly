@@ -45,7 +45,9 @@ def cell_division() -> None:
             Then it would no longer be an "expected" value, but would instead be derived from an actual on-the-fly
             measurement representing epiboly progress. Average division rate would then drift over time, as
             the parameter sent to the poisson function changes. This should result in a more consistent total
-            number of divisions over the course of the sim.)
+            number of divisions over the course of the sim. -- Also, decoupling cell division rate from absolute
+            time, and coupling it instead to rate of leading edge advancement, would have the beneficial effect of
+            preventing division from happening when there's no external force to generate epiboly.)
     9. Use Poisson to determine how many cells will actually divide this time.
     """
     global _cumulative_cell_divisions
