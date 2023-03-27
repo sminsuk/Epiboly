@@ -88,7 +88,9 @@ def cell_division() -> None:
     for phandle in selected_particles:
         _cumulative_cell_divisions += 1
         daughter = divide(phandle)
-        print(f"New cell division (cumulative: {_cumulative_cell_divisions}), {len(daughter.bonds)} new bonds")
+        assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
+        print(f"New cell division (cumulative: {_cumulative_cell_divisions}), daughter"
+              f" id={daughter.id} ({daughter.type()}), {len(daughter.bonds)} new bonds")
 
 def get_state() -> dict:
     """generate state to be saved to disk"""

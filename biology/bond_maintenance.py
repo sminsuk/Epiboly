@@ -249,7 +249,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         bonded_neighbor_ids: list[int] = [phandle.id for phandle in nbrs.getBondedNeighbors(p2)]
         if breaking:
             assert p1.id in bonded_neighbor_ids,\
-                f"Attempting to break bond between non-bonded particles: {p1.id}, {p2.id}"
+                f"Attempting to break bond between non-bonded particles: id={p1.id} ({p1.type()})," \
+                f" id={p2.id} ({p2.type()}), particle identity = {p1 == p2}"
         else:
             assert p1.id not in bonded_neighbor_ids,\
                 f"Attempting to make bond between already bonded particles: {p1.id}, {p2.id}"
