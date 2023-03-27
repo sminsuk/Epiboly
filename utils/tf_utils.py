@@ -1,4 +1,4 @@
-"""Tissue Forge utilities
+"""tf_utils.py - Tissue Forge utilities
 
 These are general purpose utility functions for Tissue Forge, not specific to any particular simulation.
 """
@@ -150,6 +150,7 @@ endcolor = "\033[0m"
 
 # rgb colors for Style objects:
 cornflower_blue = tf.fVector3([0.12743769586086273, 0.3005438446998596, 0.8468732833862305])
+lighter_blue = tf.fVector3([0.25, 0.6, 0.8468732833862305])
 gold = tf.fVector3([1.0, 0.6795425415039062, 0.0])
 white = tf.fVector3([1.0, 1.0, 1.0])
 gray = tf.fVector3([0.5, 0.5, 0.5])

@@ -1,4 +1,4 @@
-"""Handle the remodeling of the bond network as the tissue changes shape"""
+"""bond_maintenance.py - Handle the remodeling of the bond network as the tissue changes shape"""
 import math
 import random
 from statistics import fmean
@@ -49,7 +49,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
         # p1.style.color = tfu.gray   # testing
         # p2.style.color = tfu.white  # testing
 
-def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
+def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
     # Bond to all neighbors not already bonded to
     neighbors: list[tf.ParticleHandle]
     neighbors = nbrs.get_nearest_non_bonded_neighbors(phandle,
@@ -57,7 +57,9 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> int:
                                                       min_distance=cfg.min_neighbor_initial_distance_factor)
     for neighbor in neighbors:
         _make_bond(neighbor, phandle, verbose)
-    return len(neighbors)
+        
+    assert len(phandle.bonds) >= cfg.min_neighbor_count, \
+        "Failed particle bonding: particle can't find enough nearby neighbors to bond to."
 
 def harmonic_angle_equilibrium_value() -> float:
     """A function rather than just a config constant because it depends on the number of particles in the ring"""

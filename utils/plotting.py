@@ -1,4 +1,6 @@
-"""Note to self: These StackOverflow articles made it seem like getting the plot to be non-blocking
+"""plotting.py - matplotlib plots
+
+Note to self: These StackOverflow articles made it seem like getting the plot to be non-blocking
 and continually update, live, was going to be very hard. Strangely enough, once I followed the MPL
 docs and simply turned on plt.ion(), everything just worked. I won't rule out nasty surprises in the
 future if I change something, though.
@@ -78,13 +80,10 @@ def save_graph(end: Optional[bool] = None) -> None:
             # Final save, plot one final data point
             show_graph(timer_override=True)
             
-        total_evl_cells: int = len(g.Little.items()) + len(g.LeadingEdge.items())
         filename: str = f"{_plot_num}. "
         if end is not None:
             filename += f"End. Timestep = {_timestep - 1}; " if end else "Start. "
-        filename += f"Num cells = {total_evl_cells}; radius = {round(g.Little.radius, 2)}"
-        filename += f" ({cfg.num_spherical_positions} + {cfg.num_leading_edge_points})"
-        filename += f", external = {cfg.yolk_cortical_tension} + {cfg.external_force}"
+        filename += f"Cortical tension = {cfg.yolk_cortical_tension}; external force = {cfg.external_force}"
         filename += ".png"
         filepath: str = os.path.join(_plot_path, filename)
         _fig.savefig(filepath, transparent=False, bbox_inches="tight")

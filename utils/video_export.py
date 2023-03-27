@@ -1,4 +1,4 @@
-"""Export simulation screenshots and compile them into movies
+"""video_export.py - Export simulation screenshots and compile them into movies
 
 All export functions are no-ops unless export has been enabled in config.py
 
@@ -13,8 +13,9 @@ import moviepy.video.io.ImageSequenceClip as movieclip
 import tissue_forge as tf
 import config as cfg
 import control_flow.events as events
-from utils import epiboly_utils as epu
-from utils import tf_utils as tfu
+import epiboly_globals as g
+import utils.epiboly_utils as epu
+import utils.tf_utils as tfu
 
 def final_result_screenshots() -> None:
     """If enabled, capture still images from multiple angles.
@@ -135,6 +136,7 @@ def save_screenshot(filename: str, show_timestep: bool = True) -> None:
     suffix += f"; Universe.time = {round(tf.Universe.time, 2)}"
     suffix += f"; phi = {round(epu.leading_edge_mean_phi(), 2)}"
     suffix += f"; veloc.z = {round(epu.leading_edge_velocity_z(), 4)}"
+    suffix += f"; {len(g.Little.items()) + len(g.LeadingEdge.items())} cells"
     if not filename:
         filename = suffix
     elif show_timestep:

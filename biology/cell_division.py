@@ -1,15 +1,38 @@
-"""Cell division"""
+"""cell_division.py - Cell division"""
 import matplotlib.pyplot as plt
 import numpy as np
 
 import tissue_forge as tf
+import epiboly_globals as g
+
 import config as cfg
+import biology.bond_maintenance as bonds
+import utils.global_catalogs as gc
+import utils.tf_utils as tfu
 
 # Initialize just once
 _generator: np.random.Generator = np.random.default_rng()
 _expected_timesteps: int = 29000 if cfg.space_filling_enabled else 23000
 _expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / _expected_timesteps
 _cumulative_cell_divisions: int = 0
+
+def divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
+    daughter: tf.ParticleHandle = parent.split()
+    parent.radius = g.Little.radius
+    parent.mass = g.Little.mass
+    
+    daughter.radius = parent.radius
+    daughter.mass = parent.mass
+    daughter.style = tf.rendering.Style()
+    daughter.style.color = tfu.lighter_blue     # for now, change it
+    gc.add_particle(daughter)
+
+    bond_count: int = len(daughter.bonds)
+    if bond_count > 0:
+        print(tfu.bluecolor + f"New particle has {bond_count} bonds before any have been made!" + tfu.endcolor)
+
+    bonds.make_all_bonds(daughter)
+    return daughter
 
 def cell_division() -> None:
     """Cell division
@@ -51,12 +74,21 @@ def cell_division() -> None:
     9. Use Poisson to determine how many cells will actually divide this time.
     """
     global _cumulative_cell_divisions
-    num_divisions: float = _generator.poisson(lam=_expected_divisions_per_timestep)
+    num_divisions: int = _generator.poisson(lam=_expected_divisions_per_timestep)
+    if num_divisions <= 0:
+        return
+        
+    # Select the particles to split
+    phandle: tf.ParticleHandle
     
-    # stub:
-    if num_divisions > 0:
-        _cumulative_cell_divisions += num_divisions
-        print(f"{num_divisions} cell(s) dividing. Cumulative: {_cumulative_cell_divisions}")
+    p_list: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()]
+    selected_particles: np.ndarray = _generator.choice(p_list, size=num_divisions, replace=False)
+    
+    daughter: tf.ParticleHandle
+    for phandle in selected_particles:
+        _cumulative_cell_divisions += 1
+        daughter = divide(phandle)
+        print(f"New cell division (cumulative: {_cumulative_cell_divisions}), {len(daughter.bonds)} new bonds")
 
 def get_state() -> dict:
     """generate state to be saved to disk"""

@@ -115,8 +115,6 @@ def add_interior_bonds():
     particle: tf.ParticleHandle
     for particle in g.Little.items():
         bonds.make_all_bonds(particle)
-        assert len(particle.bonds) >= cfg.min_neighbor_count,\
-            "Failed initialization: particles can't find enough nearby neighbors to bond to."
     
     print(f"Created {len(tf.BondHandle.items())} bonds.")
 
