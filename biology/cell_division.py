@@ -27,7 +27,7 @@ def divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter.style.color = tfu.lighter_blue     # for now, change it
     gc.add_particle(daughter)
 
-    bond_count: int = len(daughter.bonds)
+    bond_count: int = len(daughter.bonded_neighbors)
     if bond_count > 0:
         print(tfu.bluecolor + f"New particle has {bond_count} bonds before any have been made!" + tfu.endcolor)
 
@@ -90,7 +90,7 @@ def cell_division() -> None:
         daughter = divide(phandle)
         assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
         print(f"New cell division (cumulative: {_cumulative_cell_divisions}), daughter"
-              f" id={daughter.id} ({daughter.type()}), {len(daughter.bonds)} new bonds")
+              f" id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")
 
 def get_state() -> dict:
     """generate state to be saved to disk"""

@@ -58,7 +58,7 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
     for neighbor in neighbors:
         _make_bond(neighbor, phandle, verbose)
         
-    assert len(phandle.bonds) >= cfg.min_neighbor_count, \
+    assert len(phandle.bonded_neighbors) >= cfg.min_neighbor_count, \
         "Failed particle bonding: particle can't find enough nearby neighbors to bond to."
 
 def harmonic_angle_equilibrium_value() -> float:
@@ -109,8 +109,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             if k_neighbor_count_energy == 0:
                 return 0
             
-            p1current_count: int = len(p1.bonds)
-            p2current_count: int = len(p2.bonds)
+            p1current_count: int = len(p1.bonded_neighbors)
+            p2current_count: int = len(p2.bonded_neighbors)
             delta_count: int = -1 if breaking else 1
             p1final_count: int = p1current_count + delta_count
             p2final_count: int = p2current_count + delta_count
@@ -256,8 +256,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                 f"Attempting to make bond between already bonded particles: {p1.id}, {p2.id}"
             
         # Neither particle may go below the minimum threshold for number of bonds
-        p1current_count: int = len(p1.bonds)
-        p2current_count: int = len(p2.bonds)
+        p1current_count: int = len(p1.bonded_neighbors)
+        p2current_count: int = len(p2.bonded_neighbors)
         if breaking and (p1current_count <= cfg.min_neighbor_count or
                          p2current_count <= cfg.min_neighbor_count):
             if verbose:     # and p1.type_id == g.LeadingEdge.id and p2.type_id == g.LeadingEdge.id:
@@ -296,18 +296,16 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         
         returns: number of bonds broken
         """
-        bhandle: tf.BondHandle
-        breakable_bonds: list[tf.BondHandle] = p.bonds
-        if p.type_id == g.LeadingEdge.id:
-            # Don't break bond between two LeadingEdge particles
-            breakable_bonds = [bhandle for bhandle in breakable_bonds
-                               if tfu.other_particle(p, bhandle).type_id == g.Little.id]
+        # Don't break bond between two LeadingEdge particles
+        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
+        breakable_bonds: list[tf.BondHandle] = nbrs.bonds_to_neighbors_of_types(p, allowed_types)
+        
         if not breakable_bonds:
             # can be empty if p is a LeadingEdge particle and is *only* bonded to other LeadingEdge particles
             return 0
         
         # select one at random to break:
-        bhandle = random.choice(breakable_bonds)
+        bhandle: tf.BondHandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
         if accept(p, other_p, breaking=True):
             if verbose:
@@ -545,7 +543,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
         # (instead of simply breaking those extra bonds, like before, which led to problems).
-        num_bonds_to_leading_edge: int = nbrs.count_neighbors_of_type(recruit, ptype=g.LeadingEdge)
+        num_bonds_to_leading_edge: int = nbrs.count_neighbors_of_types(recruit, [g.LeadingEdge])
         if num_bonds_to_leading_edge > 2:
             return 0, 0
 
@@ -555,7 +553,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # will get an additional bond to the edge. So, if internal neighbor is already bonded to the maximum,
             # we should not make one more such bond, so delete it.
             def too_many_edge_neighbors(p: tf.ParticleHandle) -> bool:
-                return nbrs.count_neighbors_of_type(p, ptype=g.LeadingEdge) >= cfg.max_edge_neighbor_count
+                return nbrs.count_neighbors_of_types(p, [g.LeadingEdge]) >= cfg.max_edge_neighbor_count
                 
             phandle: tf.ParticleHandle
             saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle

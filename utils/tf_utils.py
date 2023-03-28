@@ -194,7 +194,11 @@ def exception_handler():
 def bonds_between(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.BondHandle]:
     """returns a list of all bonds connecting two given particles.
 
-    May be empty or of any length, since multiple bonds are possible between any particle pair.
+    Returned list may be empty or of any length, since multiple bonds are possible between any particle pair.
+    
+    Note: Due to a bug in TF (v. 0.1.0), p1.bonds MAY contain some phantom bonds. But because we are searching
+    for bonds between a specific pair of particles, and can select only those members of p1.bonds in which
+    p2 is confirmed to be present, this is a safe use of it.
     """
     p1p2bonds: list[tf.BondHandle]
     p1p2bonds = [bond for bond in p1.bonds

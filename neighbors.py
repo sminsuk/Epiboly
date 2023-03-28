@@ -1,4 +1,4 @@
-"""neighbors module (for now, this is based on operations within EVL)"""
+"""neighbors.py - neighbors module (for now, this is based on operations within EVL)"""
 
 import math
 import time
@@ -6,8 +6,8 @@ from typing import Optional
 
 import tissue_forge as tf
 import epiboly_globals as g
-from utils import tf_utils as tfu
 import config as cfg
+import utils.tf_utils as tfu
 
 def getBondedNeighbors(p: tf.ParticleHandle) -> tf.ParticleList:
     """Just a wrapper. Cruft.
@@ -37,7 +37,7 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
                              distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
     """Return list of neighbors, but excluding any that the particle is already bonded to
     
-    (Sort of the inverse of particleHandle.getBondedNeighbors().)
+    (Sort of the inverse of particleHandle.bonded_neighbors.)
     
     distance_factor: search out to this multiple of particle radius
     sort: return results ordered by increasing distance from particle.
@@ -131,13 +131,25 @@ def distance(p: tf.ParticleHandle, neighbor1: tf.ParticleHandle, neighbor2: tf.P
     """Get total distance of p from its two neighbors"""
     return p.distance(neighbor1) + p.distance(neighbor2)
 
-def bonds_to_neighbors_of_type(p: tf.ParticleHandle, ptype: tf.ParticleType) -> list[tf.BondHandle]:
-    bhandle: tf.BondHandle
-    return [bhandle for bhandle in p.bonds
-            if tfu.other_particle(p, bhandle).type_id == ptype.id]
+def bonds_to_neighbors_of_types(p: tf.ParticleHandle, ptypes: list[tf.ParticleType]) -> list[tf.BondHandle]:
+    """Note. As of TF v. 0.1.0, p.bonds MAY contain some phantom bonds.
+    
+    As a workaround, this code was changed from using .bonds, to the more indirect method of using
+    .bonded_neighbors, and getting the bonds from that. If only needing the length of the result and not
+    the bonds themselves, just use bonded_neighbors_of_types() instead. (I.e., use count_neighors_of_types().)
+    """
+    neighbor: tf.ParticleHandle
+    return [tfu.bond_between(p, neighbor)
+            for neighbor in bonded_neighbors_of_types(p, ptypes)]
 
-def count_neighbors_of_type(p: tf.ParticleHandle, ptype: tf.ParticleType) -> int:
-    return len(bonds_to_neighbors_of_type(p, ptype))
+def bonded_neighbors_of_types(p: tf.ParticleHandle, ptypes: list[tf.ParticleType]) -> list[tf.ParticleHandle]:
+    """This function uses p.bonded_neighbors, which is not subject to the TF phantom-bonds bug."""
+    neighbor: tf.ParticleHandle
+    return [neighbor for neighbor in p.bonded_neighbors
+            if neighbor.type() in ptypes]
+
+def count_neighbors_of_types(p: tf.ParticleHandle, ptypes: list[tf.ParticleType]) -> int:
+    return len(bonded_neighbors_of_types(p, ptypes))
 
 def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                  extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
