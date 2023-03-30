@@ -22,6 +22,7 @@ def getBondedNeighbors(p: tf.ParticleHandle) -> tf.ParticleList:
     return p.bonded_neighbors
 
 def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
+                             ptypes: list[tf.ParticleType],
                              distance_factor: float) -> list[tf.ParticleHandle]:
     """Return list of neighbors, but excluding any that the particle is already bonded to
     
@@ -33,7 +34,7 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     non_bonded_neighbors: list[tf.ParticleHandle]
     
     search_distance: float = distance_factor * phandle.radius
-    neighbors = phandle.neighbors(search_distance, types=[g.Little, g.LeadingEdge])
+    neighbors = phandle.neighbors(search_distance, ptypes)
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor not in phandle.bonded_neighbors]
     return non_bonded_neighbors
@@ -57,7 +58,6 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     ptype: tf.ParticleType
     if ptypes is None:
         ptypes = [g.LeadingEdge, g.Little]
-    type_ids: list[int] = [ptype.id for ptype in ptypes]
 
     start: float = time.perf_counter()
 
@@ -66,13 +66,8 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     # Huge maximum that should never be reached, just insurance against a weird infinite loop:
     max_distance_factor: float = cfg.max_potential_cutoff / g.Little.radius
     while len(neighbors) < min_neighbors and distance_factor < max_distance_factor:
-        # Get all neighbors not already bonded to, within the given radius. (There may be none.)
-        neighbors = get_non_bonded_neighbors(phandle, distance_factor)
-        
-        # Exclude unwanted neighbor types:
-        # (After next release, this might work without ids, just test for the type in ptypes)
-        neighbors = [neighbor for neighbor in neighbors
-                     if neighbor.type_id in type_ids]
+        # Get all neighbors not already bonded to, of the specified types, within the given radius. (There may be none.)
+        neighbors = get_non_bonded_neighbors(phandle, ptypes, distance_factor)
         
         distance_factor += 1
     
