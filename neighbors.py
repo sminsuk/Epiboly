@@ -21,38 +21,21 @@ def getBondedNeighbors(p: tf.ParticleHandle) -> tf.ParticleList:
     # though not documented in the docs (yet?)
     return p.bonded_neighbors
 
-def find_neighbors(p: tf.ParticleHandle, distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
-    """Find neighbors of particle p
-    
-    distance_factor: search out to this multiple of particle radius
-    sort: if True, return results ordered by increasing distance from p.
-    """
-    # Get all the particles within the threshold distance of p.
-    neighbors = p.neighbors(distance_factor * p.radius, [].extend([g.Little, g.LeadingEdge]))
-    if sort:
-        neighbors = sorted(neighbors, key=lambda neighbor: neighbor.distance(p))
-    return neighbors
-
 def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
-                             distance_factor: float, sort: bool = False) -> list[tf.ParticleHandle]:
+                             distance_factor: float) -> list[tf.ParticleHandle]:
     """Return list of neighbors, but excluding any that the particle is already bonded to
     
     (Sort of the inverse of particleHandle.bonded_neighbors.)
     
     distance_factor: search out to this multiple of particle radius
-    sort: return results ordered by increasing distance from particle.
     """
-    my_bonded_neighbor_ids: list[int]
-    neighbors: list[tf.ParticleHandle]
+    neighbors: tf.ParticleList
     non_bonded_neighbors: list[tf.ParticleHandle]
     
-    # Who am I already bonded to?
-    my_bonded_neighbor_ids = [neighbor.id for neighbor in getBondedNeighbors(phandle)]
-
-    # Who are all my neighbors? (bonded or not)
-    neighbors = find_neighbors(phandle, distance_factor, sort)
+    search_distance: float = distance_factor * phandle.radius
+    neighbors = phandle.neighbors(search_distance, types=[g.Little, g.LeadingEdge])
     non_bonded_neighbors = [neighbor for neighbor in neighbors
-                            if neighbor.id not in my_bonded_neighbor_ids]
+                            if neighbor not in phandle.bonded_neighbors]
     return non_bonded_neighbors
 
 def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
@@ -266,7 +249,7 @@ def paint_neighbors():
         p.style.color = found_color
         
         # Find the neighbors of this particle
-        neighbors = find_neighbors(p, distance_factor=cfg.min_neighbor_initial_distance_factor)
+        neighbors = p.neighbors(cfg.min_neighbor_initial_distance_factor)
         
         for neighbor in neighbors:
             if neighbor not in found_particles:
