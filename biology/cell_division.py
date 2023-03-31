@@ -74,6 +74,9 @@ def cell_division() -> None:
     9. Use Poisson to determine how many cells will actually divide this time.
     """
     global _cumulative_cell_divisions
+    if not cfg.cell_division_enabled:
+        return
+    
     num_divisions: int = _generator.poisson(lam=_expected_divisions_per_timestep)
     if num_divisions <= 0:
         return
@@ -89,8 +92,9 @@ def cell_division() -> None:
         _cumulative_cell_divisions += 1
         daughter = divide(phandle)
         assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
-        print(f"New cell division (cumulative: {_cumulative_cell_divisions}), daughter"
-              f" id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")
+        print(f"New cell division (cumulative: {_cumulative_cell_divisions},"
+              f" total cells: {len(g.Little.items()) + len(g.LeadingEdge.items())}),"
+              f" daughter id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")
 
 def get_state() -> dict:
     """generate state to be saved to disk"""

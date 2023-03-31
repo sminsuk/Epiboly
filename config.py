@@ -32,6 +32,8 @@ sim_state_export_keep: bool = False
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 screenshot_export_interval: int = 10
 
+cell_division_enabled: bool = True
+
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
 # and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)
 angle_bonds_enabled: bool = True
