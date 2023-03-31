@@ -62,7 +62,8 @@ def init_from_import() -> None:
             dim=_dim,
             # cutoff=2,
             windowless=not cfg.windowed_mode,
-            window_size=_window_size)
+            window_size=_window_size,
+            throw_exc=True)
     
     g.Little = tf.ParticleType_FindFromName("LittleType")
     g.Big = tf.ParticleType_FindFromName("BigType")
@@ -99,7 +100,8 @@ def init() -> None:
     tf.init(dim=_dim,
             # cutoff=2,
             windowless=not cfg.windowed_mode,
-            window_size=_window_size)
+            window_size=_window_size,
+            throw_exc=True)
     
     g.Little = LittleType.get()
     g.Big = BigType.get()
