@@ -16,16 +16,55 @@ _expected_timesteps: int = 29000 if cfg.space_filling_enabled else 23000
 _expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / _expected_timesteps
 _cumulative_cell_divisions: int = 0
 
+def adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
+    """Tissue Forge particle splitting is randomly oriented, but we need to constrain the axis to within the sheet"""
+    r1: float
+    r2: float
+    theta1: float
+    theta2: float
+    phi1: float
+    phi2: float
+    
+    # Particle rather than ParticleHandle in this case, since that's what sphericalPosition() requires
+    yolk_particle: tf.Particle = g.Big.particle(0)
+    
+    r1, theta1, phi1 = p1.sphericalPosition(particle=yolk_particle)
+    r2, theta2, phi2 = p2.sphericalPosition(particle=yolk_particle)
+    while theta1 == theta2 and phi1 == phi2:
+        # In the unlikely event that the division axis was exactly radial (relative to the yolk cell),
+        # add a small random displacement to one of the particles until the two particles are no longer
+        # aligned that way. Subsequent operation requires that there be some angle between them, to prevent
+        # them from ending up in exactly the same location.
+        magnitude: float = p1.radius / 10
+        displacement: tf.fVector3 = tf.random_unit_vector() * magnitude
+        p1.position += displacement
+        r1, theta1, phi1 = p1.sphericalPosition(particle=yolk_particle)
+        
+    if r1 != r2:
+        # Keep both particles within the layer. One is too close to the yolk center, one is too far away.
+        corrected_r = g.Big.radius + g.Little.radius
+        relative_cartesian1: tf.fVector3 = tfu.cartesian_from_spherical([corrected_r, theta1, phi1])
+        relative_cartesian2: tf.fVector3 = tfu.cartesian_from_spherical([corrected_r, theta2, phi2])
+        yolk_phandle: tf.ParticleHandle = yolk_particle.handle()
+        p1.position = yolk_phandle.position + relative_cartesian1
+        p2.position = yolk_phandle.position + relative_cartesian2
+
 def divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter: tf.ParticleHandle = parent.split()
     parent.radius = g.Little.radius
     parent.mass = g.Little.mass
+    # Note: .split() reduces mass and volume both to half the parent's original value (so radius to 1/cube_rt(2)
+    # or about 0.8), and then places the parent and the daughter next to each other, and just touching.
+    # But once you override that by changing that radius, of course you lose the "just touching". These
+    # particles will now be overlapping at first, but they'll push each other apart soon enough.
     
     daughter.radius = parent.radius
     daughter.mass = parent.mass
-    daughter.style = tf.rendering.Style()
+    daughter.style = tf.rendering.Style()       # ToDo: test, is this needed, or inherits from parent?
     daughter.style.color = tfu.lighter_blue     # for now, change it
     gc.add_particle(daughter)
+    
+    adjust_positions(parent, daughter)
 
     bond_count: int = len(daughter.bonded_neighbors)
     if bond_count > 0:
