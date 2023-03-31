@@ -54,6 +54,10 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     Can return empty list if none found, but
     with this iterative approach to distance_factor, it seems this never happens.
     You can always find non-bonded neighbors, long before hitting the max allowable distance.
+    
+    NOTE: min_neighbors may be 0. In this case we still iterate the search at least once, to satisfy
+    the distance criterion. This is the one situation in which this function may return an empty list.
+    The caller is indicating that it's okay not to find any, if there are none within min_distance.
     """
     ptype: tf.ParticleType
     if ptypes is None:
@@ -61,15 +65,18 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
 
     start: float = time.perf_counter()
 
-    neighbors: list[tf.ParticleHandle] = []
+    neighbors: list[tf.ParticleHandle]
     distance_factor: float = min_distance
     # Huge maximum that should never be reached, just insurance against a weird infinite loop:
     max_distance_factor: float = cfg.max_potential_cutoff / g.Little.radius
-    while len(neighbors) < min_neighbors and distance_factor < max_distance_factor:
+    while True:
         # Get all neighbors not already bonded to, of the specified types, within the given radius. (There may be none.)
         neighbors = get_non_bonded_neighbors(phandle, ptypes, distance_factor)
         
         distance_factor += 1
+        
+        if len(neighbors) >= min_neighbors or distance_factor > max_distance_factor:
+            break
     
     # Note on performance-tuning of this neighbor-finding algorithm, by modifying the increment on distance_factor
     # at the end of the while loop: both extremes caused significantly worse results: With increment of 19, big

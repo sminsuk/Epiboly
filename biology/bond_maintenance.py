@@ -51,9 +51,11 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
 
 def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
     # Bond to all neighbors not already bonded to
+    existing_neighbor_count: int = len(phandle.bonded_neighbors)
+    additional_neighbors_needed: int = max(cfg.min_neighbor_count - existing_neighbor_count, 0)
     neighbors: list[tf.ParticleHandle]
     neighbors = nbrs.get_nearest_non_bonded_neighbors(phandle,
-                                                      min_neighbors=cfg.min_neighbor_count,
+                                                      min_neighbors=additional_neighbors_needed,
                                                       min_distance=cfg.min_neighbor_initial_distance_factor)
     for neighbor in neighbors:
         _make_bond(neighbor, phandle, verbose)
