@@ -58,14 +58,6 @@ def _export_additional_state(filename: str) -> None:
     
     These and other modules also have state that can be reconstituted from scratch on reload
     """
-    # Tell plot to save a graph. Not exactly needed for preserving results; export saves all the graph data, so after
-    # reload, the whole graph will redraw. But this also results in the saved graph adding data points as you
-    # go, so you don't have to wait until the sim finishes, to see ti.
-    # (Note these have the same filename each time, so they're not accumulating, they're conveniently replacing
-    # an existing graph with a newer better one with more data in it.) (This comment is in regard to the initiol
-    # epiboly progress graph (phi vs timesteps), not necessarily to additional plots I may have added.)
-    plot.save_graphs()
-
     export_dict: dict = {"self": get_state(),
                          "video_export": vx.get_state(),
                          "cell_division": cd.get_state(),

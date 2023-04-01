@@ -62,10 +62,6 @@ if not cfg.initialization_directory_name:
     
     setup.initialize_embryo()
     
-    # Call now so I at least get the graph for equilibration if I later abort execution;
-    # then again at the end so I get the whole thing if the script completes.
-    plot.save_graphs(end=False)
-    
     # Call now so that state is exported after setup/equilibration but before any update events;
     # then again at the end so I get the final state if the script completes.
     state.export("Timestep true zero")
@@ -148,7 +144,7 @@ else:
 # bonds.test_ring_is_fucked_up()
 
 # Do this before final state export so that the final graphed data point is included in the export
-plot.save_graphs(end=True)
+plot.show_graphs(end=True)
 
 if events.event_exception_was_thrown():
     # We're not really finished, so we want to be able to recover.

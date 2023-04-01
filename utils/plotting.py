@@ -46,7 +46,7 @@ def _init_graphs() -> None:
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
-def show_graphs(timer_override: bool = False) -> None:
+def show_graphs(end: bool = False) -> None:
     global _timestep
     
     if g.LeadingEdge.items()[0].frozen_z:
@@ -60,7 +60,7 @@ def show_graphs(timer_override: bool = False) -> None:
         _init_graphs()
 
     # Don't need to add to the graph every timestep.
-    if _timestep % 100 == 0 or timer_override:
+    if _timestep % 100 == 0 or end:
         phi: float = round(epu.leading_edge_mean_phi(), 4)
         print(f"Appending: {_timestep}, {phi}")
         _timesteps.append(_timestep)
@@ -70,19 +70,19 @@ def show_graphs(timer_override: bool = False) -> None:
         #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
         #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
         _progress_ax.plot(_timesteps, _phi, "bo")
+        
+        # Go ahead and save every time we add to the plots. That way even in windowless mode, we can
+        # monitor the plots as they update.
+        _save_graphs(end)
 
     _timestep += 1
     
-def save_graphs(end: Optional[bool] = None) -> None:
+def _save_graphs(end: bool = False) -> None:
     if _progress_fig:
         # i.e., only if init_graph() was ever run
-        if end:
-            # Final save, plot one final data point
-            show_graphs(timer_override=True)
-            
         filename: str = f"{_plot_num}. "
-        if end is not None:
-            filename += f"End. Timestep = {_timestep - 1}; " if end else "Start. "
+        if end:
+            filename += f"End. Timestep = {_timestep - 1}; "
         filename += f"Cortical tension = {cfg.yolk_cortical_tension}; external force = {cfg.external_force}"
         filename += ".png"
         filepath: str = os.path.join(_plot_path, filename)

@@ -502,7 +502,6 @@ if __name__ == "__main__":
     # initialize_embryo()         # run initialization without pauses, as it will play when run in the sim from main
     
     if cfg.show_equilibration:
-        plot.save_graphs()
         vx.make_movie()
     
     # Only after making the movie, so that these stills won't be included
