@@ -277,7 +277,7 @@ def initialize_export_tasks() -> None:
     the latter won't be needed because we'll be showing the image filenames, which also include Universe.time.
     """
     if cfg.show_equilibration:
-        task_list: list[events.Task] = [{"invoke": plot.show_graph}]
+        task_list: list[events.Task] = [{"invoke": plot.show_graphs}]
         if vx.screenshot_export_enabled():
             vx.set_screenshot_export_interval(25)
             task_list.append({"invoke": vx.save_screenshot_repeatedly})
@@ -502,7 +502,7 @@ if __name__ == "__main__":
     # initialize_embryo()         # run initialization without pauses, as it will play when run in the sim from main
     
     if cfg.show_equilibration:
-        plot.save_graph()
+        plot.save_graphs()
         vx.make_movie()
     
     # Only after making the movie, so that these stills won't be included

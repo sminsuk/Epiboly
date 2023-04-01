@@ -64,7 +64,7 @@ if not cfg.initialization_directory_name:
     
     # Call now so I at least get the graph for equilibration if I later abort execution;
     # then again at the end so I get the whole thing if the script completes.
-    plot.save_graph(end=False)
+    plot.save_graphs(end=False)
     
     # Call now so that state is exported after setup/equilibration but before any update events;
     # then again at the end so I get the final state if the script completes.
@@ -74,7 +74,7 @@ if not cfg.initialization_directory_name:
 # toggle_visibility()
 events.execute_repeatedly(tasks=[
         {"invoke": vx.save_screenshot_repeatedly},
-        {"invoke": plot.show_graph},
+        {"invoke": plot.show_graphs},
         {"invoke": mt.apply_even_tangent_forces},
         {"invoke": bonds.maintain_bonds},
         {"invoke": cd.cell_division},
@@ -86,7 +86,7 @@ if cfg.windowed_mode:
     tf.show()
     events.execute_repeatedly(tasks=[
             {"invoke": vx.save_screenshot_repeatedly},
-            {"invoke": plot.show_graph},
+            {"invoke": plot.show_graphs},
             {"invoke": mt.apply_even_tangent_forces},
             {"invoke": bonds.maintain_bonds,
              "args": {
@@ -148,7 +148,7 @@ else:
 # bonds.test_ring_is_fucked_up()
 
 # Do this before final state export so that the final graphed data point is included in the export
-plot.save_graph(end=True)
+plot.save_graphs(end=True)
 
 if events.event_exception_was_thrown():
     # We're not really finished, so we want to be able to recover.
