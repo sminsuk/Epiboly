@@ -4,6 +4,7 @@ Protection against crash: retrieve and continue. Also for post-processing
 """
 import json
 import os
+import time
 
 import tissue_forge as tf
 import config as cfg
@@ -19,6 +20,8 @@ _state_export_path: str
 _state_export_interval: int = 0
 _previous_export_timestep: int = 0
 _current_export_timestep: int = 0
+_previous_export_seconds: float = 0.0
+_current_export_seconds: float = 0.0
 _sim_state_subdirectory: str = "Sim_state"
 
 def sim_state_subdirectory() -> str:
@@ -41,6 +44,8 @@ def init_export() -> None:
     
     _state_export_path = os.path.join(tfu.export_path(), _sim_state_subdirectory)
     os.makedirs(_state_export_path, exist_ok=True)
+    
+    _previous_export_seconds = time.time()
 
 def export_enabled() -> bool:
     """Convenience function. Interpret _state_export_interval as flag for whether export is enabled"""
@@ -123,16 +128,30 @@ def export(filename: str, show_timestep: bool = True) -> None:
 def export_repeatedly() -> None:
     """For use inside timestep events. Keeps track of export interval, and names files accordingly."""
     global _previous_export_timestep, _current_export_timestep
+    global _previous_export_seconds, _current_export_seconds
     if not export_enabled():
         return
     
-    # Note that this implementation means that the first time this function is ever called, the export
+    # Note that this implementation means that the first time this function is ever called
+    # (if retaining all timesteps, cfg.sim_state_export_keep == True), the export
     # will always take place, and will be defined (and labeled) as Timestep 0. Even if the simulation has
     # been running before that, and Universe.time > 0.
     
-    elapsed: int = _current_export_timestep - _previous_export_timestep
-    if elapsed % _state_export_interval == 0:
+    # If keeping all exports, export every n timesteps, so that intervals are regular.
+    # Otherwise (exporting for crash protection), export every 10 minutes so that no more than that is lost.
+    export_trigger: bool
+    export_time_interval: float = 10 * 60
+    if cfg.sim_state_export_keep:
+        elapsed_timesteps: int = _current_export_timestep - _previous_export_timestep
+        export_trigger = (elapsed_timesteps % _state_export_interval == 0)
+    else:
+        _current_export_seconds = time.time()
+        elapsed_time: float = _current_export_seconds - _previous_export_seconds
+        export_trigger = (elapsed_time >= export_time_interval)
+    
+    if export_trigger:
         _previous_export_timestep = _current_export_timestep
+        _previous_export_seconds += export_time_interval
         export("")  # just timestep as filename
     
     _current_export_timestep += 1
