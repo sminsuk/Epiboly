@@ -79,10 +79,11 @@ def _show_test_energy_v_distance() -> None:
         energy.append(bhandle.energy)
         potentials.append(bhandle.potential(bhandle.length))
 
+    # plot
     _energy_ax.plot(distance, energy, "bo")
     _potentials_ax.plot(distance, potentials, "ro")
 
-def _save_graph_energy_v_distance() -> None:
+    # save
     energypath: str = os.path.join(_plot_path, "Energy vs. bond distance.png")
     _energy_fig.savefig(energypath, transparent=False, bbox_inches="tight")
     potentialpath: str = os.path.join(_plot_path, "Potential vs. bond distance.png")
@@ -106,9 +107,10 @@ def _show_test_bondlengths_v_phi() -> None:
         mean_length.append(fmean([bhandle.length for bhandle in nbrs.bonds(phandle)]))
         particle_phi.append(epu.embryo_phi(phandle))
     
+    # plot
     _bond_lengths_ax.plot(particle_phi, mean_length, "bo")
 
-def _save_graph_bondlengths_v_phi() -> None:
+    # save
     if _timestep % 1000 == 0:
         bond_lengths_path: str = os.path.join(_plot_path, f"Particle mean bond lengths vs. phi, T {_timestep}.png")
         _bond_lengths_fig.savefig(bond_lengths_path, transparent=False, bbox_inches="tight")
@@ -130,9 +132,10 @@ def _show_bond_counts() -> None:
                                       (len(g.Little.items()) + len(g.LeadingEdge.items())))
     _bonds_per_particle.append(mean_bonds_per_particle)
     
+    # plot
     _bond_count_ax.plot(_timesteps, _bonds_per_particle, "bo")
     
-def _save_bond_counts() -> None:
+    # save
     bond_count_path: str = os.path.join(_plot_path, "Mean bonds per particle")
     _bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
 
@@ -161,17 +164,17 @@ def show_graphs(end: bool = False) -> None:
         #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
         _progress_ax.plot(_timesteps, _phi, "bo")
         
+        # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
+        # monitor the plot as it updates.
+        _save_progress_graph(end)
+
         # _show_test_energy_v_distance()
         _show_test_bondlengths_v_phi()
         _show_bond_counts()
         
-        # Go ahead and save every time we add to the plots. That way even in windowless mode, we can
-        # monitor the plots as they update.
-        _save_graphs(end)
-
     _timestep += 1
     
-def _save_graphs(end: bool = False) -> None:
+def _save_progress_graph(end: bool = False) -> None:
     filename: str = f"Cortical tension = {cfg.yolk_cortical_tension}; external force = {cfg.external_force}"
     filepath: str = os.path.join(_plot_path, filename + ".png")
     _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
@@ -180,10 +183,6 @@ def _save_graphs(end: bool = False) -> None:
         suffix: str = f"; Timestep = {_timestep - 1}"
         newfilepath: str = os.path.join(_plot_path, filename + suffix + ".png")
         os.rename(filepath, newfilepath)
-    
-    # _save_graph_energy_v_distance()
-    _save_graph_bondlengths_v_phi()
-    _save_bond_counts()
         
 def get_state() -> dict:
     """In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
