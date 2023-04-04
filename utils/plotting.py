@@ -10,14 +10,17 @@ https://stackoverflow.com/questions/11874767/how-do-i-plot-in-real-time-in-a-whi
 """
 
 import os
+from statistics import fmean
 from typing import Optional
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 
+import tissue_forge as tf
 import epiboly_globals as g
 import config as cfg
+import neighbors as nbrs
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
 
@@ -26,6 +29,12 @@ _timesteps: list[int] = []
 _timestep: int = 0
 _progress_fig: Optional[Figure] = None
 _progress_ax: Optional[Axes] = None
+_energy_fig: Optional[Figure] = None
+_energy_ax: Optional[Axes] = None
+_potentials_fig: Optional[Figure] = None
+_potentials_ax: Optional[Axes] = None
+_bond_lengths_fig: Optional[Figure] = None
+_bond_lengths_ax: Optional[Axes] = None
 _plot_path: str
 
 # in case sim is ended and restarted from exported data, output a new plot, going back all the way
@@ -43,8 +52,67 @@ def _init_graphs() -> None:
     _progress_fig, _progress_ax = plt.subplots()
     _progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
     
+    # _init_test_energy_v_distance()
+    _init_test_bondlengths_v_phi()
+    
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
+
+def _init_test_energy_v_distance() -> None:
+    global _energy_fig, _energy_ax, _potentials_fig, _potentials_ax
+    
+    _energy_fig, _energy_ax = plt.subplots()
+    _energy_ax.set_xlabel("particle distance")
+    _energy_ax.set_ylabel("bond energy")
+    _potentials_fig, _potentials_ax = plt.subplots()
+    _potentials_ax.set_xlabel("particle distance")
+    _potentials_ax.set_ylabel("bond potential")
+
+def _show_test_energy_v_distance() -> None:
+    """Plot energy vs length, & potential vs. length (this is to see if they are the same)"""
+    energy: list[float] = []
+    potentials: list[float] = []
+    distance: list[float] = []
+    bhandle: tf.BondHandle
+    
+    for bhandle in tf.BondHandle.items()[:100]:
+        distance.append(bhandle.length)
+        energy.append(bhandle.energy)
+        potentials.append(bhandle.potential(bhandle.length))
+
+    _energy_ax.plot(distance, energy, "bo")
+    _potentials_ax.plot(distance, potentials, "ro")
+
+def _save_graph_energy_v_distance() -> None:
+    energypath: str = os.path.join(_plot_path, "Energy vs. bond distance.png")
+    _energy_fig.savefig(energypath, transparent=False, bbox_inches="tight")
+    potentialpath: str = os.path.join(_plot_path, "Potential vs. bond distance.png")
+    _potentials_fig.savefig(potentialpath, transparent=False, bbox_inches="tight")
+
+def _init_test_bondlengths_v_phi() -> None:
+    global _bond_lengths_fig, _bond_lengths_ax
+
+    _bond_lengths_fig, _bond_lengths_ax = plt.subplots()
+    _bond_lengths_ax.set_xlabel("particle phi")
+    _bond_lengths_ax.set_ylabel("mean bond length")
+
+def _show_test_bondlengths_v_phi() -> None:
+    """Plot mean bond length of all bonds on a particle, vs. phi of the particle"""
+    bhandle: tf.BondHandle
+    phandle: tf.ParticleHandle
+    neighbor: tf.ParticleHandle
+    mean_length: list[float] = []
+    particle_phi: list[float] = []
+    for phandle in g.Little.items():
+        mean_length.append(fmean([bhandle.length for bhandle in nbrs.bonds(phandle)]))
+        particle_phi.append(epu.embryo_phi(phandle))
+    
+    _bond_lengths_ax.plot(particle_phi, mean_length, "bo")
+
+def _save_graph_bondlengths_v_phi() -> None:
+    if _timestep % 1000 == 0:
+        bond_lengths_path: str = os.path.join(_plot_path, f"Particle mean bond lengths vs. phi, T {_timestep}.png")
+        _bond_lengths_fig.savefig(bond_lengths_path, transparent=False, bbox_inches="tight")
 
 def show_graphs(end: bool = False) -> None:
     global _timestep
@@ -71,6 +139,9 @@ def show_graphs(end: bool = False) -> None:
         #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
         _progress_ax.plot(_timesteps, _phi, "bo")
         
+        # _show_test_energy_v_distance()
+        _show_test_bondlengths_v_phi()
+        
         # Go ahead and save every time we add to the plots. That way even in windowless mode, we can
         # monitor the plots as they update.
         _save_graphs(end)
@@ -87,6 +158,9 @@ def _save_graphs(end: bool = False) -> None:
         filename += ".png"
         filepath: str = os.path.join(_plot_path, filename)
         _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+        
+        # _save_graph_energy_v_distance()
+        _save_graph_bondlengths_v_phi()
         
 def get_state() -> dict:
     """In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0

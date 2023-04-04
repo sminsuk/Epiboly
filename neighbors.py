@@ -116,6 +116,14 @@ def distance(p: tf.ParticleHandle, neighbor1: tf.ParticleHandle, neighbor2: tf.P
     """Get total distance of p from its two neighbors"""
     return p.distance(neighbor1) + p.distance(neighbor2)
 
+def bonds(p: tf.ParticleHandle) -> list[tf.BondHandle]:
+    """Returns the (assumed single) bond to each bonded neighbor.
+    
+    Workaround for p.bonds, which as of TF v. 0.1.0, MAY contain phantom bonds.
+    """
+    neighbor: tf.ParticleHandle
+    return [tfu.bond_between(p, neighbor) for neighbor in p.bonded_neighbors]
+
 def bonds_to_neighbors_of_types(p: tf.ParticleHandle, ptypes: list[tf.ParticleType]) -> list[tf.BondHandle]:
     """Note. As of TF v. 0.1.0, p.bonds MAY contain some phantom bonds.
     
