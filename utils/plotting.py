@@ -40,11 +40,6 @@ _bond_count_fig: Optional[Figure] = None
 _bond_count_ax: Optional[Axes] = None
 _plot_path: str
 
-# in case sim is ended and restarted from exported data, output a new plot, going back all the way
-# to the beginning, spanning all parts of the composite sim. But for now, number it and retain the
-# earlier partial plot image as well.
-_plot_num: int = 1
-
 def _init_graphs() -> None:
     """Initialize matplotlib and also a subdirectory in which to put the saved plots
     
@@ -177,43 +172,34 @@ def show_graphs(end: bool = False) -> None:
     _timestep += 1
     
 def _save_graphs(end: bool = False) -> None:
-    if _progress_fig:
-        # i.e., only if init_graph() was ever run
-        filename: str = f"{_plot_num}. "
-        if end:
-            filename += f"End. Timestep = {_timestep - 1}; "
-        filename += f"Cortical tension = {cfg.yolk_cortical_tension}; external force = {cfg.external_force}"
-        filename += ".png"
-        filepath: str = os.path.join(_plot_path, filename)
-        _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
-        
-        # _save_graph_energy_v_distance()
-        _save_graph_bondlengths_v_phi()
-        _save_bond_counts()
+    filename: str = f"Cortical tension = {cfg.yolk_cortical_tension}; external force = {cfg.external_force}"
+    filepath: str = os.path.join(_plot_path, filename + ".png")
+    _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+    
+    if end:
+        suffix: str = f"; Timestep = {_timestep - 1}"
+        newfilepath: str = os.path.join(_plot_path, filename + suffix + ".png")
+        os.rename(filepath, newfilepath)
+    
+    # _save_graph_energy_v_distance()
+    _save_graph_bondlengths_v_phi()
+    _save_bond_counts()
         
 def get_state() -> dict:
     """In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
     
-    Each run saves its own plot, but the data is saved as part of the state, so the next run
-    can import it and graph all the way from Timestep 0. Thus you get separate plots showing
-    what was the state at the end of each run, but the final plot contains everything.
-    (Note to self, once I'm confident of this, I can get rid of _plot_num; then each run will
-    use the same filename and there will only be ONE plot.)
+    Each run saves the plot, but the data is saved as part of the state, so the next run
+    can import it and overwrite the graph, all the way from Timestep 0.
     """
-    return {"plotnum": _plot_num,
-            "timestep": _timestep,
+    return {"timestep": _timestep,
             "bond_counts": _bonds_per_particle,
             "phi": _phi,
             "timesteps": _timesteps,
             }
 
 def set_state(d: dict) -> None:
-    """Reconstitute state of module from what was saved.
-    
-    Increment _plot_num with each run to generate a new filename, hence separate plot
-    """
-    global _plot_num, _timestep, _bonds_per_particle, _phi, _timesteps
-    _plot_num = d["plotnum"] + 1
+    """Reconstitute state of module from what was saved."""
+    global _timestep, _bonds_per_particle, _phi, _timesteps
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _phi = d["phi"]
