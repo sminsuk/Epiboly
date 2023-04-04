@@ -37,19 +37,15 @@ def init_export() -> None:
     global _state_export_path, _state_export_interval
     
     # Copy cfg property to module _protected; not caller-changeable at runtime. Ignore cfg henceforth and use this.
-    _state_export_interval = cfg.sim_state_export_interval
+    _state_export_interval = cfg.sim_state_export_timestep_interval
 
-    if not export_enabled():
+    if not cfg.sim_state_export_enabled:
         return
     
     _state_export_path = os.path.join(tfu.export_path(), _sim_state_subdirectory)
     os.makedirs(_state_export_path, exist_ok=True)
     
     _previous_export_seconds = time.time()
-
-def export_enabled() -> bool:
-    """Convenience function. Interpret _state_export_interval as flag for whether export is enabled"""
-    return _state_export_interval != 0
 
 def _export_additional_state(filename: str) -> None:
     """Export other info that this script maintains, not known to Tissue Forge
@@ -105,7 +101,7 @@ def export(filename: str, show_timestep: bool = True) -> None:
     Caller provides filename (no extension). Saves as json.
     Timestep will be appended to filename unless show_timestep = False (and filename is not blank).
     """
-    if not export_enabled():
+    if not cfg.sim_state_export_enabled:
         return
     
     suffix: str = f"Timestep = {_current_export_timestep}"
@@ -129,7 +125,7 @@ def export_repeatedly() -> None:
     """For use inside timestep events. Keeps track of export interval, and names files accordingly."""
     global _previous_export_timestep, _current_export_timestep
     global _previous_export_seconds, _current_export_seconds
-    if not export_enabled():
+    if not cfg.sim_state_export_enabled:
         return
     
     # Note that this implementation means that the first time this function is ever called
@@ -140,18 +136,18 @@ def export_repeatedly() -> None:
     # If keeping all exports, export every n timesteps, so that intervals are regular.
     # Otherwise (exporting for crash protection), export every 10 minutes so that no more than that is lost.
     export_trigger: bool
-    export_time_interval: float = 10 * 60
+    export_seconds_interval: float = cfg.sim_state_export_minutes_interval * 60
     if cfg.sim_state_export_keep:
         elapsed_timesteps: int = _current_export_timestep - _previous_export_timestep
         export_trigger = (elapsed_timesteps % _state_export_interval == 0)
     else:
         _current_export_seconds = time.time()
         elapsed_time: float = _current_export_seconds - _previous_export_seconds
-        export_trigger = (elapsed_time >= export_time_interval)
+        export_trigger = (elapsed_time >= export_seconds_interval)
     
     if export_trigger:
         _previous_export_timestep = _current_export_timestep
-        _previous_export_seconds += export_time_interval
+        _previous_export_seconds += export_seconds_interval
         export("")  # just timestep as filename
     
     _current_export_timestep += 1

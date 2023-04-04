@@ -20,12 +20,15 @@ windowed_mode: bool = False
 # useful to set True during development so I can see what I'm doing; otherwise leave as False.
 show_equilibration: bool = False
 
-# Number of timesteps between sim state exports. Set to 0 to disable export.
-sim_state_export_interval: int = 500
+sim_state_export_enabled: bool = True
+
+# Number of timesteps/minutes between sim state exports.
+sim_state_export_timestep_interval: int = 500
+sim_state_export_minutes_interval: int = 10
 
 # Sim state exports are quite large. If Using for post-processing of entire simulation, set to True
 # to retain all exports. If using only to be able to recover from premature exit, set to False to retain
-# only the most recent export and delete the rest.
+# only the most recent export and delete the rest. Export timing will use timesteps or minutes, respectively.
 sim_state_export_keep: bool = False
 
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
