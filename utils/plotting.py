@@ -108,7 +108,7 @@ def _show_test_bondlengths_v_phi() -> None:
         particle_phi.append(epu.embryo_phi(phandle))
     
     # plot
-    _bond_lengths_ax.plot(particle_phi, mean_length, "bo")
+    _bond_lengths_ax.plot(particle_phi, mean_length, "b.")
 
     # save
     if _timestep % 1000 == 0:
@@ -136,7 +136,7 @@ def _show_bond_counts() -> None:
     _bond_count_ax.plot(_timesteps, _bonds_per_particle, "bo")
     
     # save
-    bond_count_path: str = os.path.join(_plot_path, "Mean bonds per particle")
+    bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle")
     _bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
 
 def show_graphs(end: bool = False) -> None:
@@ -175,7 +175,7 @@ def show_graphs(end: bool = False) -> None:
     _timestep += 1
     
 def _save_progress_graph(end: bool = False) -> None:
-    filename: str = f"Cortical tension = {cfg.yolk_cortical_tension}; external force = {cfg.external_force}"
+    filename: str = f"Leading edge phi"
     filepath: str = os.path.join(_plot_path, filename + ".png")
     _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
     
