@@ -25,6 +25,7 @@ import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
 
 _phi: list[float] = []
+_bonds_per_particle: list[float] = []
 _timesteps: list[int] = []
 _timestep: int = 0
 _progress_fig: Optional[Figure] = None
@@ -35,6 +36,8 @@ _potentials_fig: Optional[Figure] = None
 _potentials_ax: Optional[Axes] = None
 _bond_lengths_fig: Optional[Figure] = None
 _bond_lengths_ax: Optional[Axes] = None
+_bond_count_fig: Optional[Figure] = None
+_bond_count_ax: Optional[Axes] = None
 _plot_path: str
 
 # in case sim is ended and restarted from exported data, output a new plot, going back all the way
@@ -54,6 +57,7 @@ def _init_graphs() -> None:
     
     # _init_test_energy_v_distance()
     _init_test_bondlengths_v_phi()
+    _init_bond_counts()
     
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
@@ -114,6 +118,29 @@ def _save_graph_bondlengths_v_phi() -> None:
         bond_lengths_path: str = os.path.join(_plot_path, f"Particle mean bond lengths vs. phi, T {_timestep}.png")
         _bond_lengths_fig.savefig(bond_lengths_path, transparent=False, bbox_inches="tight")
 
+def _init_bond_counts() -> None:
+    global _bond_count_fig, _bond_count_ax
+
+    _bond_count_fig, _bond_count_ax = plt.subplots()
+    _bond_count_ax.set_ylabel("Mean bonded neighbors per particle")
+    
+def _show_bond_counts() -> None:
+    phandle: tf.ParticleHandle
+    
+    # logical: it's the mean of how many neighbors each particle has:
+    mean_bonds_per_particle: float = fmean([len(phandle.bonded_neighbors) for phandle in g.Little.items()])
+    
+    # better & faster: it's twice the ratio of bonds to particles. (Have to include leading edge if doing it this way.)
+    mean_bonds_per_particle: float = (2 * len(tf.BondHandle.items()) /
+                                      (len(g.Little.items()) + len(g.LeadingEdge.items())))
+    _bonds_per_particle.append(mean_bonds_per_particle)
+    
+    _bond_count_ax.plot(_timesteps, _bonds_per_particle, "bo")
+    
+def _save_bond_counts() -> None:
+    bond_count_path: str = os.path.join(_plot_path, "Mean bonds per particle")
+    _bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
+
 def show_graphs(end: bool = False) -> None:
     global _timestep
     
@@ -141,6 +168,7 @@ def show_graphs(end: bool = False) -> None:
         
         # _show_test_energy_v_distance()
         _show_test_bondlengths_v_phi()
+        _show_bond_counts()
         
         # Go ahead and save every time we add to the plots. That way even in windowless mode, we can
         # monitor the plots as they update.
@@ -161,6 +189,7 @@ def _save_graphs(end: bool = False) -> None:
         
         # _save_graph_energy_v_distance()
         _save_graph_bondlengths_v_phi()
+        _save_bond_counts()
         
 def get_state() -> dict:
     """In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
@@ -173,6 +202,7 @@ def get_state() -> dict:
     """
     return {"plotnum": _plot_num,
             "timestep": _timestep,
+            "bond_counts": _bonds_per_particle,
             "phi": _phi,
             "timesteps": _timesteps,
             }
@@ -182,9 +212,10 @@ def set_state(d: dict) -> None:
     
     Increment _plot_num with each run to generate a new filename, hence separate plot
     """
-    global _plot_num, _timestep, _phi, _timesteps
+    global _plot_num, _timestep, _bonds_per_particle, _phi, _timesteps
     _plot_num = d["plotnum"] + 1
     _timestep = d["timestep"]
+    _bonds_per_particle = d["bond_counts"]
     _phi = d["phi"]
     _timesteps = d["timesteps"]
     
