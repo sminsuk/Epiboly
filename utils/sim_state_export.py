@@ -34,7 +34,7 @@ def init_export() -> None:
 
     tfu.init_export() should have been run before running this, to create the parent directories.
     """
-    global _state_export_path, _state_export_interval
+    global _state_export_path, _state_export_interval, _previous_export_seconds
     
     # Copy cfg property to module _protected; not caller-changeable at runtime. Ignore cfg henceforth and use this.
     _state_export_interval = cfg.sim_state_export_timestep_interval
