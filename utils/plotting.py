@@ -128,8 +128,12 @@ def _show_bond_counts() -> None:
     mean_bonds_per_particle: float = fmean([len(phandle.bonded_neighbors) for phandle in g.Little.items()])
     
     # better & faster: it's twice the ratio of bonds to particles. (Have to include leading edge if doing it this way.)
-    mean_bonds_per_particle: float = (2 * len(tf.BondHandle.items()) /
-                                      (len(g.Little.items()) + len(g.LeadingEdge.items())))
+    # On the other hand, I have not tested to be sure BondHandle.items() isn't affected by the phantom-bond bug,
+    # something I probably need ToDo.
+    # So save this and maybe use it later:
+    # mean_bonds_per_particle: float = (2 * len(tf.BondHandle.items()) /
+    #                                   (len(g.Little.items()) + len(g.LeadingEdge.items())))
+    
     _bonds_per_particle.append(mean_bonds_per_particle)
     
     # plot
