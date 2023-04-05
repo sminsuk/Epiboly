@@ -80,8 +80,8 @@ def _show_test_energy_v_distance() -> None:
         potentials.append(bhandle.potential(bhandle.length))
 
     # plot
-    _energy_ax.plot(distance, energy, "bo")
-    _potentials_ax.plot(distance, potentials, "ro")
+    _energy_ax.plot(distance, energy, "b.")
+    _potentials_ax.plot(distance, potentials, "r.")
 
     # save
     energypath: str = os.path.join(_plot_path, "Energy vs. bond distance.png")
@@ -137,7 +137,7 @@ def _show_bond_counts() -> None:
     _bonds_per_particle.append(mean_bonds_per_particle)
     
     # plot
-    _bond_count_ax.plot(_timesteps, _bonds_per_particle, "bo")
+    _bond_count_ax.plot(_timesteps, _bonds_per_particle, "b.")
     
     # save
     bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle")
@@ -166,7 +166,7 @@ def show_graphs(end: bool = False) -> None:
         # ToDo? In windowless, technically we don't need to do this until once, at the end, just before
         #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
         #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
-        _progress_ax.plot(_timesteps, _phi, "bo")
+        _progress_ax.plot(_timesteps, _phi, "b.")
         
         # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
         # monitor the plot as it updates.
