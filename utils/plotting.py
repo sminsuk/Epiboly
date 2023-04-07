@@ -184,7 +184,7 @@ def _save_progress_graph(end: bool = False) -> None:
     _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
     
     if end:
-        suffix: str = f"; Timestep = {_timestep - 1}"
+        suffix: str = f"; Timestep = {_timestep}"
         newfilepath: str = os.path.join(_plot_path, filename + suffix + ".png")
         os.rename(filepath, newfilepath)
         
