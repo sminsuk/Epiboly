@@ -215,7 +215,7 @@ def get_state() -> dict:
     In composite runs, pick up the screenshot timing where we left off, and restore camera position
     
     Other aspects of state should automatically reconstitute themselves pretty well:
-    _image_path, _rotation_started, _rotation_finished
+    _image_path, _rotation_started
     """
     center: tf.fVector3 = tf.system.camera_center()
     zoom: float = tf.system.camera_zoom()
@@ -225,6 +225,7 @@ def get_state() -> dict:
 
     return {"previous_step": _previous_screenshot_timestep,
             "current_step": _current_screenshot_timestep,
+            "rotation_finished": _rotation_finished,
             "camera_center": center.as_list(),
             "camera_zoom": zoom,
             "camera_angle": angle,
@@ -236,9 +237,10 @@ def set_state(d: dict) -> None:
     In this case, we do not need to increment _current, because save_screenshot_repeatedly pre-increments it to
     represent the *next* timestep. (Compare the comparable function in sim_state_export, where the opposite is true.)
     """
-    global _previous_screenshot_timestep, _current_screenshot_timestep
+    global _previous_screenshot_timestep, _current_screenshot_timestep, _rotation_finished
     _previous_screenshot_timestep = d["previous_step"]
     _current_screenshot_timestep = d["current_step"]
+    _rotation_finished = d["rotation_finished"]
     
     camera_center: tf.fVector3 = tf.fVector3(d["camera_center"])
     camera_zoom: float = d["camera_zoom"]
