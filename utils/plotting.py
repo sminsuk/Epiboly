@@ -9,6 +9,7 @@ https://stackoverflow.com/questions/28269157/plotting-in-a-non-blocking-way-with
 https://stackoverflow.com/questions/11874767/how-do-i-plot-in-real-time-in-a-while-loop-using-matplotlib
 """
 
+import numpy as np
 import os
 from statistics import fmean
 from typing import Optional
@@ -94,7 +95,9 @@ def _init_test_bondlengths_v_phi() -> None:
 
     _bond_lengths_fig, _bond_lengths_ax = plt.subplots()
     _bond_lengths_ax.set_xlabel("particle phi")
+    _bond_lengths_ax.set_xlim(0, np.pi)
     _bond_lengths_ax.set_ylabel("mean bond length")
+    _bond_lengths_ax.set_ylim(0.10, 0.50)
 
 def _show_test_bondlengths_v_phi() -> None:
     """Plot mean bond length of all bonds on a particle, vs. phi of the particle"""
