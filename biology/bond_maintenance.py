@@ -613,7 +613,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             total_to_edge += became_edge
     end = time.perf_counter()
 
-    print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {end - start} sec. "
+    print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {round(end - start, 2)} sec. "
           f"{total_to_edge} became edge; {total_to_internal} became internal")
     
 def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
