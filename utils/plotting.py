@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 
 import tissue_forge as tf
 import epiboly_globals as g
-import config as cfg
 import neighbors as nbrs
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
@@ -35,10 +34,16 @@ _energy_fig: Optional[Figure] = None
 _energy_ax: Optional[Axes] = None
 _potentials_fig: Optional[Figure] = None
 _potentials_ax: Optional[Axes] = None
+
+# These four could be local if I refactor a bit
 _tensions_fig: Optional[Figure] = None
 _tensions_ax: Optional[Axes] = None
 _tensions_binned_fig: Optional[Figure] = None
 _tensions_binned_ax: Optional[Axes] = None
+
+_combo_tensions_binned_fig: Optional[Figure] = None
+_combo_tensions_binned_ax: Optional[Axes] = None
+
 _bond_count_fig: Optional[Figure] = None
 _bond_count_ax: Optional[Axes] = None
 _plot_path: str
@@ -98,6 +103,7 @@ def _init_test_tension_v_phi() -> None:
     """
     global _tensions_fig, _tensions_ax
     global _tensions_binned_fig, _tensions_binned_ax
+    global _combo_tensions_binned_fig, _combo_tensions_binned_ax
 
     _tensions_fig, _tensions_ax = plt.subplots()
     _tensions_ax.set_xlabel("particle phi")
@@ -111,6 +117,15 @@ def _init_test_tension_v_phi() -> None:
     _tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     _tensions_binned_ax.set_ylabel("median particle tension")
     _tensions_binned_ax.set_ylim(0.0, 0.35)
+
+    if not _combo_tensions_binned_fig:
+        # Only initialize this one once
+        _combo_tensions_binned_fig, _combo_tensions_binned_ax = plt.subplots()
+        _combo_tensions_binned_ax.set_xlabel("phi")
+        _combo_tensions_binned_ax.set_xlim(0, np.pi)
+        _combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+        _combo_tensions_binned_ax.set_ylabel("median particle tension")
+        _combo_tensions_binned_ax.set_ylim(0.0, 0.35)
 
 def _show_test_tension_v_phi() -> None:
     """Plot mean tension of all bonds on a particle, vs. phi of the particle;
@@ -156,10 +171,14 @@ def _show_test_tension_v_phi() -> None:
     
     # plot
     _tensions_binned_ax.plot(bin_axis, medians, "b-")
+    _combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {_timestep}")
+    _combo_tensions_binned_ax.legend()
     
     # save
     tensions_binned_path: str = os.path.join(_plot_path, f"Aggregate tensions vs. phi, T {_timestep}.png")
     _tensions_binned_fig.savefig(tensions_binned_path, transparent=False, bbox_inches="tight")
+    combo_path: str = os.path.join(_plot_path, "Aggregate tensions over time.png")
+    _combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
 
 def _init_bond_counts() -> None:
     global _bond_count_fig, _bond_count_ax
