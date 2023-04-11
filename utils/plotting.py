@@ -35,10 +35,10 @@ _energy_fig: Optional[Figure] = None
 _energy_ax: Optional[Axes] = None
 _potentials_fig: Optional[Figure] = None
 _potentials_ax: Optional[Axes] = None
-_bond_lengths_fig: Optional[Figure] = None
-_bond_lengths_ax: Optional[Axes] = None
-_bond_lengths_binned_fig: Optional[Figure] = None
-_bond_lengths_binned_ax: Optional[Axes] = None
+_tensions_fig: Optional[Figure] = None
+_tensions_ax: Optional[Axes] = None
+_tensions_binned_fig: Optional[Figure] = None
+_tensions_binned_ax: Optional[Axes] = None
 _bond_count_fig: Optional[Figure] = None
 _bond_count_ax: Optional[Axes] = None
 _plot_path: str
@@ -54,7 +54,7 @@ def _init_graphs() -> None:
     _progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
     
     # _init_test_energy_v_distance()
-    _init_test_bondlengths_v_phi()
+    _init_test_tension_v_phi()
     _init_bond_counts()
     
     _plot_path = os.path.join(tfu.export_path(), "Plots")
@@ -92,51 +92,54 @@ def _show_test_energy_v_distance() -> None:
     potentialpath: str = os.path.join(_plot_path, "Potential vs. bond distance.png")
     _potentials_fig.savefig(potentialpath, transparent=False, bbox_inches="tight")
 
-def _init_test_bondlengths_v_phi() -> None:
-    global _bond_lengths_fig, _bond_lengths_ax
-    global _bond_lengths_binned_fig, _bond_lengths_binned_ax
+def _init_test_tension_v_phi() -> None:
+    global _tensions_fig, _tensions_ax
+    global _tensions_binned_fig, _tensions_binned_ax
 
-    _bond_lengths_fig, _bond_lengths_ax = plt.subplots()
-    _bond_lengths_ax.set_xlabel("particle phi")
-    _bond_lengths_ax.set_xlim(0, np.pi)
-    _bond_lengths_ax.set_ylabel("mean bond length")
-    _bond_lengths_ax.set_ylim(-0.06, 0.35)
+    _tensions_fig, _tensions_ax = plt.subplots()
+    _tensions_ax.set_xlabel("particle phi")
+    _tensions_ax.set_xlim(0, np.pi)
+    _tensions_ax.set_ylabel("particle tension (mean bond displacement from equilibrium)")
+    _tensions_ax.set_ylim(0.0, 0.35)
+
+    _tensions_binned_fig, _tensions_binned_ax = plt.subplots()
+    _tensions_binned_ax.set_xlabel("phi")
+    _tensions_binned_ax.set_xlim(0, np.pi)
+    _tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+    _tensions_binned_ax.set_ylabel("median particle tension")
+    _tensions_binned_ax.set_ylim(0.0, 0.35)
+
+def _show_test_tension_v_phi() -> None:
+    """Plot mean tension of all bonds on a particle, vs. phi of the particle;
     
-    _bond_lengths_binned_fig, _bond_lengths_binned_ax = plt.subplots()
-    _bond_lengths_binned_ax.set_xlabel("phi")
-    _bond_lengths_binned_ax.set_xlim(0, np.pi)
-    _bond_lengths_binned_ax.set_xticks([0, np.pi/2, np.pi], labels=["0", "π/2", "π"])
-    _bond_lengths_binned_ax.set_ylabel("median particle bond length")
-    _bond_lengths_binned_ax.set_ylim(-0.06, 0.35)
-
-def _show_test_bondlengths_v_phi() -> None:
-    """Plot mean bond length of all bonds on a particle, vs. phi of the particle"""
+    and then bin the values and plot the median tension for each bin.
+    """
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
     neighbor: tf.ParticleHandle
-    mean_length: list[float] = []
+    tensions: list[float] = []
     particle_phi: list[float] = []
     for phandle in g.Little.items():
-        mean_length.append(fmean([(bhandle.length - bhandle.potential.r0)
-                                  for bhandle in nbrs.bonds(phandle)]))
+        tensions.append(fmean([max(0, bhandle.length - bhandle.potential.r0)
+                              for bhandle in nbrs.bonds(phandle)]))
         particle_phi.append(epu.embryo_phi(phandle))
     
     # plot
-    _bond_lengths_ax.plot(particle_phi, mean_length, "b.")
+    _tensions_ax.plot(particle_phi, tensions, "b.")
 
     # save
-    bond_lengths_path: str = os.path.join(_plot_path, f"Particle mean bond lengths vs. phi, T {_timestep}.png")
-    _bond_lengths_fig.savefig(bond_lengths_path, transparent=False, bbox_inches="tight")
+    tensions_path: str = os.path.join(_plot_path, f"Particle tensions vs. phi, T {_timestep}.png")
+    _tensions_fig.savefig(tensions_path, transparent=False, bbox_inches="tight")
 
     # That was the raw data, now let's bin it and plot its percentiles (w.i.p; just median for now)
-    np_mean_length = np.array(mean_length)
+    np_tensions = np.array(tensions)
     np_particle_phi = np.array(particle_phi)
     bin_edges: np.ndarray = np.linspace(0.0, np.pi, 21)
     bin_indices: np.ndarray = np.digitize(np_particle_phi, bin_edges)
 
     # Note: numpy ufunc equality and masking!
     # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
-    bins: list[np.ndarray] = [np_mean_length[bin_indices == i] for i in range(1, bin_edges.size)]
+    bins: list[np.ndarray] = [np_tensions[bin_indices == i] for i in range(1, bin_edges.size)]
     binn: np.ndarray
     medians = []
     bin_axis: list[float] = []
@@ -146,11 +149,11 @@ def _show_test_bondlengths_v_phi() -> None:
             bin_axis.append(bin_edges[i])
     
     # plot
-    _bond_lengths_binned_ax.plot(bin_axis, medians, "b-")
+    _tensions_binned_ax.plot(bin_axis, medians, "b-")
     
     # save
-    bond_lengths_binned_path: str = os.path.join(_plot_path, f"Aggregate mean bond length vs. phi, T {_timestep}.png")
-    _bond_lengths_binned_fig.savefig(bond_lengths_binned_path, transparent=False, bbox_inches="tight")
+    tensions_binned_path: str = os.path.join(_plot_path, f"Aggregate tensions vs. phi, T {_timestep}.png")
+    _tensions_binned_fig.savefig(tensions_binned_path, transparent=False, bbox_inches="tight")
 
 def _init_bond_counts() -> None:
     global _bond_count_fig, _bond_count_ax
@@ -213,7 +216,7 @@ def show_graphs(end: bool = False) -> None:
         _show_bond_counts()
         
         if _timestep % 1000 == 0:
-            _show_test_bondlengths_v_phi()
+            _show_test_tension_v_phi()
         
     _timestep += 1
     
