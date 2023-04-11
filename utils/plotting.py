@@ -114,9 +114,8 @@ def _show_test_bondlengths_v_phi() -> None:
     _bond_lengths_ax.plot(particle_phi, mean_length, "b.")
 
     # save
-    if _timestep % 1000 == 0:
-        bond_lengths_path: str = os.path.join(_plot_path, f"Particle mean bond lengths vs. phi, T {_timestep}.png")
-        _bond_lengths_fig.savefig(bond_lengths_path, transparent=False, bbox_inches="tight")
+    bond_lengths_path: str = os.path.join(_plot_path, f"Particle mean bond lengths vs. phi, T {_timestep}.png")
+    _bond_lengths_fig.savefig(bond_lengths_path, transparent=False, bbox_inches="tight")
 
 def _init_bond_counts() -> None:
     global _bond_count_fig, _bond_count_ax
@@ -176,8 +175,10 @@ def show_graphs(end: bool = False) -> None:
         _save_progress_graph(end)
 
         # _show_test_energy_v_distance()
-        _show_test_bondlengths_v_phi()
         _show_bond_counts()
+        
+        if _timestep % 1000 == 0:
+            _show_test_bondlengths_v_phi()
         
     _timestep += 1
     
