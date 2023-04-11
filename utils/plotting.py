@@ -54,7 +54,6 @@ def _init_graphs() -> None:
     _progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
     
     # _init_test_energy_v_distance()
-    _init_test_tension_v_phi()
     _init_bond_counts()
     
     _plot_path = os.path.join(tfu.export_path(), "Plots")
@@ -93,6 +92,10 @@ def _show_test_energy_v_distance() -> None:
     _potentials_fig.savefig(potentialpath, transparent=False, bbox_inches="tight")
 
 def _init_test_tension_v_phi() -> None:
+    """This one's different because it's a single time point, must start from scratch each time; not accumulate!
+    
+    Thus, don't call this from _init_graphs(). Instead call it every time from _show_test_tension_v_phi()
+    """
     global _tensions_fig, _tensions_ax
     global _tensions_binned_fig, _tensions_binned_ax
 
@@ -114,6 +117,9 @@ def _show_test_tension_v_phi() -> None:
     
     and then bin the values and plot the median tension for each bin.
     """
+    # Call this every time, to restart this graph from scratch
+    _init_test_tension_v_phi()
+    
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
     neighbor: tf.ParticleHandle
