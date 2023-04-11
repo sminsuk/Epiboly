@@ -46,36 +46,31 @@ _combo_tensions_binned_ax: Optional[Axes] = None
 
 _bond_count_fig: Optional[Figure] = None
 _bond_count_ax: Optional[Axes] = None
-_plot_path: str
+_plot_path: str = ""
 
 def _init_graphs() -> None:
     """Initialize matplotlib and also a subdirectory in which to put the saved plots
     
     tfu.init_export() should have been run before running this, to create the parent directories.
     """
-    global _progress_fig, _progress_ax, _plot_path
-
-    _progress_fig, _progress_ax = plt.subplots()
-    _progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
-    
-    # _init_test_energy_v_distance()
-    _init_bond_counts()
+    global _plot_path
     
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
-def _init_test_energy_v_distance() -> None:
-    global _energy_fig, _energy_ax, _potentials_fig, _potentials_ax
-    
-    _energy_fig, _energy_ax = plt.subplots()
-    _energy_ax.set_xlabel("particle distance")
-    _energy_ax.set_ylabel("bond energy")
-    _potentials_fig, _potentials_ax = plt.subplots()
-    _potentials_ax.set_xlabel("particle distance")
-    _potentials_ax.set_ylabel("bond potential")
-
 def _show_test_energy_v_distance() -> None:
     """Plot energy vs length, & potential vs. length (this is to see if they are the same)"""
+    global _energy_fig, _energy_ax, _potentials_fig, _potentials_ax
+    
+    if not _energy_fig:
+        # Init only once
+        _energy_fig, _energy_ax = plt.subplots()
+        _energy_ax.set_xlabel("particle distance")
+        _energy_ax.set_ylabel("bond energy")
+        _potentials_fig, _potentials_ax = plt.subplots()
+        _potentials_ax.set_xlabel("particle distance")
+        _potentials_ax.set_ylabel("bond potential")
+
     energy: list[float] = []
     potentials: list[float] = []
     distance: list[float] = []
@@ -180,13 +175,14 @@ def _show_test_tension_v_phi() -> None:
     combo_path: str = os.path.join(_plot_path, "Aggregate tensions over time.png")
     _combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
 
-def _init_bond_counts() -> None:
-    global _bond_count_fig, _bond_count_ax
-
-    _bond_count_fig, _bond_count_ax = plt.subplots()
-    _bond_count_ax.set_ylabel("Mean bonded neighbors per particle")
-    
 def _show_bond_counts() -> None:
+    global _bond_count_fig, _bond_count_ax
+    
+    if not _bond_count_fig:
+        # Init only once
+        _bond_count_fig, _bond_count_ax = plt.subplots()
+        _bond_count_ax.set_ylabel("Mean bonded neighbors per particle")
+
     phandle: tf.ParticleHandle
     
     # logical: it's the mean of how many neighbors each particle has:
@@ -208,6 +204,37 @@ def _show_bond_counts() -> None:
     bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle")
     _bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
 
+
+def _show_progress_graph(end: bool) -> None:
+    global _progress_fig, _progress_ax
+    
+    # Init only once
+    if not _progress_fig:
+        _progress_fig, _progress_ax = plt.subplots()
+        _progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
+
+    phi: float = round(epu.leading_edge_mean_phi(), 4)
+    print(f"Appending: {_timestep}, {phi}")
+    _timesteps.append(_timestep)
+    _phi.append(phi)
+
+    # ToDo? In windowless, technically we don't need to do this until once, at the end, just before
+    #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
+    #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
+    # Plot
+    _progress_ax.plot(_timesteps, _phi, "b.")
+
+    # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
+    # monitor the plot as it updates.
+    filename: str = f"Leading edge phi"
+    filepath: str = os.path.join(_plot_path, filename + ".png")
+    _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+
+    if end:
+        suffix: str = f"; Timestep = {_timestep}"
+        newfilepath: str = os.path.join(_plot_path, filename + suffix + ".png")
+        os.rename(filepath, newfilepath)
+
 def show_graphs(end: bool = False) -> None:
     global _timestep
     
@@ -217,26 +244,13 @@ def show_graphs(end: bool = False) -> None:
         # becomes free to move.
         return
 
-    if not _progress_fig:
+    if not _plot_path:
         # if init hasn't been run yet, run it
         _init_graphs()
 
-    # Don't need to add to the graph every timestep.
+    # Don't need to add to the graphs every timestep.
     if _timestep % 100 == 0 or end:
-        phi: float = round(epu.leading_edge_mean_phi(), 4)
-        print(f"Appending: {_timestep}, {phi}")
-        _timesteps.append(_timestep)
-        _phi.append(phi)
-        
-        # ToDo? In windowless, technically we don't need to do this until once, at the end, just before
-        #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
-        #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
-        _progress_ax.plot(_timesteps, _phi, "b.")
-        
-        # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
-        # monitor the plot as it updates.
-        _save_progress_graph(end)
-
+        _show_progress_graph(end)
         # _show_test_energy_v_distance()
         _show_bond_counts()
         
@@ -245,16 +259,6 @@ def show_graphs(end: bool = False) -> None:
         
     _timestep += 1
     
-def _save_progress_graph(end: bool = False) -> None:
-    filename: str = f"Leading edge phi"
-    filepath: str = os.path.join(_plot_path, filename + ".png")
-    _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
-    
-    if end:
-        suffix: str = f"; Timestep = {_timestep}"
-        newfilepath: str = os.path.join(_plot_path, filename + suffix + ".png")
-        os.rename(filepath, newfilepath)
-        
 def get_state() -> dict:
     """In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
     
