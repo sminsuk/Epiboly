@@ -34,16 +34,8 @@ _energy_fig: Optional[Figure] = None
 _energy_ax: Optional[Axes] = None
 _potentials_fig: Optional[Figure] = None
 _potentials_ax: Optional[Axes] = None
-
-# These four could be local if I refactor a bit
-_tensions_fig: Optional[Figure] = None
-_tensions_ax: Optional[Axes] = None
-_tensions_binned_fig: Optional[Figure] = None
-_tensions_binned_ax: Optional[Axes] = None
-
 _combo_tensions_binned_fig: Optional[Figure] = None
 _combo_tensions_binned_ax: Optional[Axes] = None
-
 _bond_count_fig: Optional[Figure] = None
 _bond_count_ax: Optional[Axes] = None
 _plot_path: str = ""
@@ -91,44 +83,40 @@ def _show_test_energy_v_distance() -> None:
     potentialpath: str = os.path.join(_plot_path, "Potential vs. bond distance.png")
     _potentials_fig.savefig(potentialpath, transparent=False, bbox_inches="tight")
 
-def _init_test_tension_v_phi() -> None:
-    """This one's different because it's a single time point, must start from scratch each time; not accumulate!
+def _show_test_tension_v_phi() -> None:
+    """Plot mean tension of all bonds on a particle, vs. phi of the particle;
     
-    Thus, don't call this from _init_graphs(). Instead call it every time from _show_test_tension_v_phi()
+    and then bin the values and plot the median tension for each bin.
     """
-    global _tensions_fig, _tensions_ax
-    global _tensions_binned_fig, _tensions_binned_ax
     global _combo_tensions_binned_fig, _combo_tensions_binned_ax
 
-    _tensions_fig, _tensions_ax = plt.subplots()
-    _tensions_ax.set_xlabel("particle phi")
-    _tensions_ax.set_xlim(0, np.pi)
-    _tensions_ax.set_ylabel("particle tension (mean bond displacement from equilibrium)")
-    _tensions_ax.set_ylim(0.0, 0.35)
+    tensions_fig: Figure
+    tensions_ax: Axes
+    tensions_binned_fig: Figure
+    tensions_binned_ax: Axes
+    
+    # Init the single-timestep plots from scratch every single time
+    tensions_fig, tensions_ax = plt.subplots()
+    tensions_ax.set_xlabel("particle phi")
+    tensions_ax.set_xlim(0, np.pi)
+    tensions_ax.set_ylabel("particle tension (mean bond displacement from equilibrium)")
+    tensions_ax.set_ylim(0.0, 0.35)
 
-    _tensions_binned_fig, _tensions_binned_ax = plt.subplots()
-    _tensions_binned_ax.set_xlabel("phi")
-    _tensions_binned_ax.set_xlim(0, np.pi)
-    _tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    _tensions_binned_ax.set_ylabel("median particle tension")
-    _tensions_binned_ax.set_ylim(0.0, 0.35)
+    tensions_binned_fig, tensions_binned_ax = plt.subplots()
+    tensions_binned_ax.set_xlabel("phi")
+    tensions_binned_ax.set_xlim(0, np.pi)
+    tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+    tensions_binned_ax.set_ylabel("median particle tension")
+    tensions_binned_ax.set_ylim(0.0, 0.35)
 
+    # Only initialize this one once
     if not _combo_tensions_binned_fig:
-        # Only initialize this one once
         _combo_tensions_binned_fig, _combo_tensions_binned_ax = plt.subplots()
         _combo_tensions_binned_ax.set_xlabel("phi")
         _combo_tensions_binned_ax.set_xlim(0, np.pi)
         _combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
         _combo_tensions_binned_ax.set_ylabel("median particle tension")
         _combo_tensions_binned_ax.set_ylim(0.0, 0.35)
-
-def _show_test_tension_v_phi() -> None:
-    """Plot mean tension of all bonds on a particle, vs. phi of the particle;
-    
-    and then bin the values and plot the median tension for each bin.
-    """
-    # Call this every time, to restart this graph from scratch
-    _init_test_tension_v_phi()
     
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
@@ -141,11 +129,11 @@ def _show_test_tension_v_phi() -> None:
         particle_phi.append(epu.embryo_phi(phandle))
     
     # plot
-    _tensions_ax.plot(particle_phi, tensions, "b.")
+    tensions_ax.plot(particle_phi, tensions, "b.")
 
     # save
     tensions_path: str = os.path.join(_plot_path, f"Particle tensions vs. phi, T {_timestep}.png")
-    _tensions_fig.savefig(tensions_path, transparent=False, bbox_inches="tight")
+    tensions_fig.savefig(tensions_path, transparent=False, bbox_inches="tight")
 
     # That was the raw data, now let's bin it and plot its percentiles (w.i.p; just median for now)
     np_tensions = np.array(tensions)
@@ -165,13 +153,18 @@ def _show_test_tension_v_phi() -> None:
             bin_axis.append(bin_edges[i])
     
     # plot
-    _tensions_binned_ax.plot(bin_axis, medians, "b-")
+    tensions_binned_ax.plot(bin_axis, medians, "b-")
     _combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {_timestep}")
     _combo_tensions_binned_ax.legend()
     
     # save
     tensions_binned_path: str = os.path.join(_plot_path, f"Aggregate tensions vs. phi, T {_timestep}.png")
-    _tensions_binned_fig.savefig(tensions_binned_path, transparent=False, bbox_inches="tight")
+    tensions_binned_fig.savefig(tensions_binned_path, transparent=False, bbox_inches="tight")
+    
+    # ToDo: Oh crap, the combo needs to survive export/import. Therefore I need to retain each time point's
+    #  graph data, and export the whole shebang!
+    # Initializating from saved state will wipe out the previous file, on the very first save after
+    # initialization, losing the earlier graphs.
     combo_path: str = os.path.join(_plot_path, "Aggregate tensions over time.png")
     _combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
 
