@@ -50,3 +50,10 @@ def leading_edge_velocity_z() -> float:
     p: tf.ParticleHandle
     veloc_z_values = [p.velocity.z() for p in g.LeadingEdge.items()]
     return fmean(veloc_z_values)
+
+def internal_evl_max_phi() -> float:
+    """phi of the most progressed Little (internal EVL) particle
+
+    This is useful for plots that only consider the internal particles, like the binned tension plot
+    """
+    return max([embryo_phi(particle) for particle in g.Little.items()])

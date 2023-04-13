@@ -138,7 +138,15 @@ def _show_test_tension_v_phi() -> None:
     # That was the raw data, now let's bin it and plot its percentiles (w.i.p; just median for now)
     np_tensions = np.array(tensions)
     np_particle_phi = np.array(particle_phi)
-    bin_edges: np.ndarray = np.linspace(0.0, np.pi, 21)
+    
+    # How many bins? A constant bin size resulted in a partially full final bin, depending on epiboly progress
+    # at each timestep. To ensure the final bin has a large enough sample of particles to generate a valid median,
+    # calculate a bin size that fits an integer number of times into the range of the data. But also, to use roughly
+    # the same size bins at each time step, let the number of bins vary each timestep, accordingly.
+    max_phi: float = epu.internal_evl_max_phi()
+    approximate_bin_size = np.pi / 20
+    num_bins: int = round(max_phi / approximate_bin_size)
+    bin_edges: np.ndarray = np.linspace(0.0, max_phi, num_bins + 1)
     bin_indices: np.ndarray = np.digitize(np_particle_phi, bin_edges)
 
     # Note: numpy ufunc equality and masking!
