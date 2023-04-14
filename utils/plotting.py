@@ -160,11 +160,9 @@ def _show_test_tension_v_phi() -> None:
             bin_axis.append(bin_edges[i])
             
     # Add to history so we will re-plot the ENTIRE history.
-    # Note, prepend rather than append, so we can enumerate() but plot the newest first, and the oldest last.
-    # ToDo: that probably means the legend will be shown upside-down. I can probably fix that later.
-    _combo_medians_history.insert(0, medians)
-    _combo_bin_axis_history.insert(0, bin_axis)
-    _combo_timestep_history.insert(0, _timestep)
+    _combo_medians_history.append(medians)
+    _combo_bin_axis_history.append(bin_axis)
+    _combo_timestep_history.append(_timestep)
     
     # plot
     tensions_binned_ax.plot(bin_axis, medians, "b-")
@@ -173,6 +171,11 @@ def _show_test_tension_v_phi() -> None:
         timestep: int = _combo_timestep_history[i]
         combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {timestep}")
     combo_tensions_binned_ax.legend()
+    
+    # Then plot the T=0 line again, without a legend this time since the legend is already there. That way
+    # its plot can be in front, since it tends to get covered over by all the other lines when it's in back.
+    # Must specify color 0 in the color cycle so it matches the legend for the first plot!
+    combo_tensions_binned_ax.plot(_combo_bin_axis_history[0], _combo_medians_history[0], "C0-")
     
     # save
     tensions_binned_path: str = os.path.join(_plot_path, f"Aggregate tensions vs. phi, T {_timestep}.png")
