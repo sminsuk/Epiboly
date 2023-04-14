@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 
 import tissue_forge as tf
 import epiboly_globals as g
+
+import config as cfg
 import neighbors as nbrs
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
@@ -99,7 +101,7 @@ def _show_test_tension_v_phi() -> None:
     tensions_fig, tensions_ax = plt.subplots()
     tensions_ax.set_xlabel("particle phi")
     tensions_ax.set_xlim(0, np.pi)
-    tensions_ax.set_ylabel("particle tension (mean bond displacement from equilibrium)")
+    tensions_ax.set_ylabel("particle tension\n(mean bond displacement from equilibrium)")
     tensions_ax.set_ylim(0.0, 0.35)
 
     # This one is all the timesteps on one plot, but all of them re-plotted from scratch each time
@@ -108,7 +110,7 @@ def _show_test_tension_v_phi() -> None:
     combo_tensions_binned_ax.set_xlim(0, np.pi)
     combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     combo_tensions_binned_ax.set_ylabel("median particle tension")
-    combo_tensions_binned_ax.set_ylim(0.0, 0.35)
+    combo_tensions_binned_ax.set_ylim(0.0, 0.25)
     
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
@@ -162,11 +164,11 @@ def _show_test_tension_v_phi() -> None:
         bin_axis = _combo_bin_axis_history[i]
         timestep: int = _combo_timestep_history[i]
         combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {timestep}")
-    combo_tensions_binned_ax.legend()
+    combo_tensions_binned_ax.legend(loc="upper left")
     
-    # Then plot the T=0 line again, without a legend this time since the legend is already there. That way
-    # its plot can be in front, since it tends to get covered over by all the other lines when it's in back.
-    # Must specify color 0 in the color cycle so it matches the legend for the first plot!
+    # Then plot the T=0 line again, without a legend this time since the legend is already there. That way its
+    # plot can be in front, since it tends to get covered over by all the other lines when it's in back (when cell
+    # division is enabled). Must specify color 0 in the color cycle so it matches the legend for the first plot!
     combo_tensions_binned_ax.plot(_combo_bin_axis_history[0], _combo_medians_history[0], "C0-")
     
     # save
@@ -252,7 +254,10 @@ def show_graphs(end: bool = False) -> None:
         # _show_test_energy_v_distance()
         _show_bond_counts()
         
-        if _timestep % 1000 == 0:
+        # Call this less frequently when cell division disabled; otherwise so many
+        # lines get drawn that the legend gets too tall for the graph.
+        tension_plot_interval: int = 1000 if cfg.cell_division_enabled else 2000
+        if _timestep % tension_plot_interval == 0:
             _show_test_tension_v_phi()
         
     _timestep += 1
