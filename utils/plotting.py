@@ -91,25 +91,18 @@ def _show_test_tension_v_phi() -> None:
     """
     tensions_fig: Figure
     tensions_ax: Axes
-    tensions_binned_fig: Figure
-    tensions_binned_ax: Axes
     combo_tensions_binned_fig: Figure
     combo_tensions_binned_ax: Axes
     
-    # Init the single-timestep plots from scratch every single time
+    # Init the plots from scratch every single time
+    # This one is just a single-timestep plot
     tensions_fig, tensions_ax = plt.subplots()
     tensions_ax.set_xlabel("particle phi")
     tensions_ax.set_xlim(0, np.pi)
     tensions_ax.set_ylabel("particle tension (mean bond displacement from equilibrium)")
     tensions_ax.set_ylim(0.0, 0.35)
 
-    tensions_binned_fig, tensions_binned_ax = plt.subplots()
-    tensions_binned_ax.set_xlabel("phi")
-    tensions_binned_ax.set_xlim(0, np.pi)
-    tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    tensions_binned_ax.set_ylabel("median particle tension")
-    tensions_binned_ax.set_ylim(0.0, 0.35)
-
+    # This one is all the timesteps on one plot, but all of them re-plotted from scratch each time
     combo_tensions_binned_fig, combo_tensions_binned_ax = plt.subplots()
     combo_tensions_binned_ax.set_xlabel("phi")
     combo_tensions_binned_ax.set_xlim(0, np.pi)
@@ -134,7 +127,7 @@ def _show_test_tension_v_phi() -> None:
     tensions_path: str = os.path.join(_plot_path, f"Particle tensions vs. phi, T {_timestep}.png")
     tensions_fig.savefig(tensions_path, transparent=False, bbox_inches="tight")
 
-    # That was the raw data, now let's bin it and plot its percentiles (w.i.p; just median for now)
+    # That was the raw data, now let's bin it and plot its median
     np_tensions = np.array(tensions)
     np_particle_phi = np.array(particle_phi)
     
@@ -165,7 +158,6 @@ def _show_test_tension_v_phi() -> None:
     _combo_timestep_history.append(_timestep)
     
     # plot
-    tensions_binned_ax.plot(bin_axis, medians, "b-")
     for i, medians in enumerate(_combo_medians_history):
         bin_axis = _combo_bin_axis_history[i]
         timestep: int = _combo_timestep_history[i]
@@ -178,9 +170,6 @@ def _show_test_tension_v_phi() -> None:
     combo_tensions_binned_ax.plot(_combo_bin_axis_history[0], _combo_medians_history[0], "C0-")
     
     # save
-    tensions_binned_path: str = os.path.join(_plot_path, f"Aggregate tensions vs. phi, T {_timestep}.png")
-    tensions_binned_fig.savefig(tensions_binned_path, transparent=False, bbox_inches="tight")
-    
     combo_path: str = os.path.join(_plot_path, "Aggregate tensions over time.png")
     combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
 
