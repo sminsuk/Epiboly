@@ -24,8 +24,11 @@ import neighbors as nbrs
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
 
-_phi: list[float] = []
+_leading_edge_phi: list[float] = []
 _bonds_per_particle: list[float] = []
+_combo_bin_axis_history: list[list[float]] = []
+_combo_medians_history: list[list] = []
+_combo_timestep_history: list[int] = []
 _timesteps: list[int] = []
 _timestep: int = 0
 _progress_fig: Optional[Figure] = None
@@ -34,8 +37,6 @@ _energy_fig: Optional[Figure] = None
 _energy_ax: Optional[Axes] = None
 _potentials_fig: Optional[Figure] = None
 _potentials_ax: Optional[Axes] = None
-_combo_tensions_binned_fig: Optional[Figure] = None
-_combo_tensions_binned_ax: Optional[Axes] = None
 _bond_count_fig: Optional[Figure] = None
 _bond_count_ax: Optional[Axes] = None
 _plot_path: str = ""
@@ -88,12 +89,12 @@ def _show_test_tension_v_phi() -> None:
     
     and then bin the values and plot the median tension for each bin.
     """
-    global _combo_tensions_binned_fig, _combo_tensions_binned_ax
-
     tensions_fig: Figure
     tensions_ax: Axes
     tensions_binned_fig: Figure
     tensions_binned_ax: Axes
+    combo_tensions_binned_fig: Figure
+    combo_tensions_binned_ax: Axes
     
     # Init the single-timestep plots from scratch every single time
     tensions_fig, tensions_ax = plt.subplots()
@@ -109,14 +110,12 @@ def _show_test_tension_v_phi() -> None:
     tensions_binned_ax.set_ylabel("median particle tension")
     tensions_binned_ax.set_ylim(0.0, 0.35)
 
-    # Only initialize this one once
-    if not _combo_tensions_binned_fig:
-        _combo_tensions_binned_fig, _combo_tensions_binned_ax = plt.subplots()
-        _combo_tensions_binned_ax.set_xlabel("phi")
-        _combo_tensions_binned_ax.set_xlim(0, np.pi)
-        _combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-        _combo_tensions_binned_ax.set_ylabel("median particle tension")
-        _combo_tensions_binned_ax.set_ylim(0.0, 0.35)
+    combo_tensions_binned_fig, combo_tensions_binned_ax = plt.subplots()
+    combo_tensions_binned_ax.set_xlabel("phi")
+    combo_tensions_binned_ax.set_xlim(0, np.pi)
+    combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+    combo_tensions_binned_ax.set_ylabel("median particle tension")
+    combo_tensions_binned_ax.set_ylim(0.0, 0.35)
     
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
@@ -157,13 +156,23 @@ def _show_test_tension_v_phi() -> None:
     bin_axis: list[float] = []
     for i, binn in enumerate(bins):
         if binn.size > 0:
-            medians.append(np.median(binn))
+            medians.append(np.median(binn))     # np.median() returns ndarray but is really float because binn is 1d
             bin_axis.append(bin_edges[i])
+            
+    # Add to history so we will re-plot the ENTIRE history.
+    # Note, prepend rather than append, so we can enumerate() but plot the newest first, and the oldest last.
+    # ToDo: that probably means the legend will be shown upside-down. I can probably fix that later.
+    _combo_medians_history.insert(0, medians)
+    _combo_bin_axis_history.insert(0, bin_axis)
+    _combo_timestep_history.insert(0, _timestep)
     
     # plot
     tensions_binned_ax.plot(bin_axis, medians, "b-")
-    _combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {_timestep}")
-    _combo_tensions_binned_ax.legend()
+    for i, medians in enumerate(_combo_medians_history):
+        bin_axis = _combo_bin_axis_history[i]
+        timestep: int = _combo_timestep_history[i]
+        combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {timestep}")
+    combo_tensions_binned_ax.legend()
     
     # save
     tensions_binned_path: str = os.path.join(_plot_path, f"Aggregate tensions vs. phi, T {_timestep}.png")
@@ -174,7 +183,7 @@ def _show_test_tension_v_phi() -> None:
     # Initializating from saved state will wipe out the previous file, on the very first save after
     # initialization, losing the earlier graphs.
     combo_path: str = os.path.join(_plot_path, "Aggregate tensions over time.png")
-    _combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
+    combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
 
 def _show_bond_counts() -> None:
     global _bond_count_fig, _bond_count_ax
@@ -217,13 +226,13 @@ def _show_progress_graph(end: bool) -> None:
     phi: float = round(epu.leading_edge_mean_phi(), 4)
     print(f"Appending: {_timestep}, {phi}")
     _timesteps.append(_timestep)
-    _phi.append(phi)
+    _leading_edge_phi.append(phi)
 
     # ToDo? In windowless, technically we don't need to do this until once, at the end, just before
     #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
     #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
     # Plot
-    _progress_ax.plot(_timesteps, _phi, "b.")
+    _progress_ax.plot(_timesteps, _leading_edge_phi, "b.")
 
     # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
     # monitor the plot as it updates.
@@ -268,16 +277,16 @@ def get_state() -> dict:
     """
     return {"timestep": _timestep,
             "bond_counts": _bonds_per_particle,
-            "phi": _phi,
+            "leading_edge_phi": _leading_edge_phi,
             "timesteps": _timesteps,
             }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _timestep, _bonds_per_particle, _phi, _timesteps
+    global _timestep, _bonds_per_particle, _leading_edge_phi, _timesteps
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
-    _phi = d["phi"]
+    _leading_edge_phi = d["leading_edge_phi"]
     _timesteps = d["timesteps"]
     
 # At module import: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
