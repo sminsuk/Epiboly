@@ -181,10 +181,6 @@ def _show_test_tension_v_phi() -> None:
     tensions_binned_path: str = os.path.join(_plot_path, f"Aggregate tensions vs. phi, T {_timestep}.png")
     tensions_binned_fig.savefig(tensions_binned_path, transparent=False, bbox_inches="tight")
     
-    # ToDo: Oh crap, the combo needs to survive export/import. Therefore I need to retain each time point's
-    #  graph data, and export the whole shebang!
-    # Initializating from saved state will wipe out the previous file, on the very first save after
-    # initialization, losing the earlier graphs.
     combo_path: str = os.path.join(_plot_path, "Aggregate tensions over time.png")
     combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
 
@@ -273,24 +269,32 @@ def show_graphs(end: bool = False) -> None:
     _timestep += 1
     
 def get_state() -> dict:
-    """In composite runs, produce multiple plots, each numbered - but cumulative, all back to 0
+    """In composite runs, save incomplete plot data so those plots can be completed with cumulative data, all back to 0
     
-    Each run saves the plot, but the data is saved as part of the state, so the next run
-    can import it and overwrite the graph, all the way from Timestep 0.
+    This applies to plots that accumulate over the life of the sim, like the progress plot and the median
+    tensions combo plot. Each run saves the plot image to disk, but the data is saved as part of the state,
+    so the next run can import it and overwrite the saved image, all the way from Timestep 0.
     """
     return {"timestep": _timestep,
             "bond_counts": _bonds_per_particle,
             "leading_edge_phi": _leading_edge_phi,
             "timesteps": _timesteps,
+            "combo_bin_axis_history": _combo_bin_axis_history,
+            "combo_medians_history": _combo_medians_history,
+            "combo_timestep_history": _combo_timestep_history,
             }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _timesteps
+    global _combo_bin_axis_history, _combo_medians_history, _combo_timestep_history
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
     _timesteps = d["timesteps"]
+    _combo_bin_axis_history = d["combo_bin_axis_history"]
+    _combo_medians_history = d["combo_medians_history"]
+    _combo_timestep_history = d["combo_timestep_history"]
     
 # At module import: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
 # Note to self: do I need to make sure interactive is off, when I'm in windowless mode? That would be
