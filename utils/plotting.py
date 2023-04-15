@@ -99,10 +99,13 @@ def _show_test_tension_v_phi() -> None:
     # Init the plots from scratch every single time
     # This one is just a single-timestep plot
     tensions_fig, tensions_ax = plt.subplots()
-    tensions_ax.set_xlabel("particle phi")
+    tensions_ax.set_xlabel("Particle phi")
     tensions_ax.set_xlim(0, np.pi)
-    tensions_ax.set_ylabel("particle tension\n(mean bond displacement from equilibrium)")
+    tensions_ax.set_ylabel("Particle tension\n(mean bond displacement from equilibrium)")
     tensions_ax.set_ylim(0.0, 0.35)
+    tensions_ax.text(0.02, 0.97, f"T={_timestep}", transform=tensions_ax.transAxes,
+                     verticalalignment="top", horizontalalignment="left",
+                     fontsize=28, fontweight="bold")
 
     # This one is all the timesteps on one plot, but all of them re-plotted from scratch each time
     combo_tensions_binned_fig, combo_tensions_binned_ax = plt.subplots()
