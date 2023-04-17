@@ -28,9 +28,18 @@ import utils.tf_utils as tfu
 
 _leading_edge_phi: list[float] = []
 _bonds_per_particle: list[float] = []
-_combo_bin_axis_history: list[list[float]] = []
-_combo_medians_history: list[list] = []
-_combo_timestep_history: list[int] = []
+
+# Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
+# I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
+# graphing all such quantities over the SAME plotting interval, and I might regret that. So, for now, I'm duplicating
+# these structures (and the code that generates them) for each graph even though the values will be the same.
+_combo_tension_bin_axis_history: list[list[float]] = []
+_combo_median_tensions_history: list[list] = []
+_combo_tension_timestep_history: list[int] = []
+_combo_speeds_bin_axis_history: list[list[float]] = []
+_combo_median_speeds_history: list[list] = []
+_combo_speeds_timestep_history: list[int] = []
+
 _timesteps: list[int] = []
 _timestep: int = 0
 _progress_fig: Optional[Figure] = None
@@ -86,7 +95,7 @@ def _show_test_energy_v_distance() -> None:
     potentialpath: str = os.path.join(_plot_path, "Potential vs. bond distance.png")
     _potentials_fig.savefig(potentialpath, transparent=False, bbox_inches="tight")
 
-def _show_test_tension_v_phi() -> None:
+def _show_test_tension_v_phi(end: bool) -> None:
     """Plot mean tension of all bonds on a particle, vs. phi of the particle;
     
     and then bin the values and plot the median tension for each bin.
@@ -109,10 +118,10 @@ def _show_test_tension_v_phi() -> None:
 
     # This one is all the timesteps on one plot, but all of them re-plotted from scratch each time
     combo_tensions_binned_fig, combo_tensions_binned_ax = plt.subplots()
-    combo_tensions_binned_ax.set_xlabel("phi")
+    combo_tensions_binned_ax.set_xlabel(r"Particle position $\phi$")
     combo_tensions_binned_ax.set_xlim(0, np.pi)
     combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_tensions_binned_ax.set_ylabel("median particle tension")
+    combo_tensions_binned_ax.set_ylabel("Median particle tension")
     combo_tensions_binned_ax.set_ylim(0.0, 0.25)
     
     bhandle: tf.BondHandle
@@ -158,25 +167,110 @@ def _show_test_tension_v_phi() -> None:
             bin_axis.append(bin_edges[i])
             
     # Add to history so we will re-plot the ENTIRE history.
-    _combo_medians_history.append(medians)
-    _combo_bin_axis_history.append(bin_axis)
-    _combo_timestep_history.append(_timestep)
+    _combo_median_tensions_history.append(medians)
+    _combo_tension_bin_axis_history.append(bin_axis)
+    _combo_tension_timestep_history.append(_timestep)
     
     # plot
-    for i, medians in enumerate(_combo_medians_history):
-        bin_axis = _combo_bin_axis_history[i]
-        timestep: int = _combo_timestep_history[i]
+    for i, medians in enumerate(_combo_median_tensions_history):
+        bin_axis = _combo_tension_bin_axis_history[i]
+        timestep: int = _combo_tension_timestep_history[i]
         combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {timestep}")
     combo_tensions_binned_ax.legend(loc="upper left")
     
     # Then plot the T=0 line again, without a legend this time since the legend is already there. That way its
     # plot can be in front, since it tends to get covered over by all the other lines when it's in back (when cell
     # division is enabled). Must specify color 0 in the color cycle so it matches the legend for the first plot!
-    combo_tensions_binned_ax.plot(_combo_bin_axis_history[0], _combo_medians_history[0], "C0-")
+    combo_tensions_binned_ax.plot(_combo_tension_bin_axis_history[0], _combo_median_tensions_history[0], "C0-")
     
     # save
-    combo_path: str = os.path.join(_plot_path, "Aggregate tensions over time.png")
+    # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
+    suffix: str = " (with final timestep)" if end else ""
+    combo_path: str = os.path.join(_plot_path, f"Aggregate tension vs. phi, multiple timepoints{suffix}.png")
     combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
+
+def _show_piv_speed_v_phi(end: bool) -> None:
+    """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
+    
+    Embryo is cylindrically symmetrical. We just want to know the magnitude of the vegetally-pointing
+    component of the velocity, as a function of phi and time.
+    """
+    combo_speeds_binned_fig: Figure
+    combo_speeds_binned_ax: Axes
+
+    # All the timesteps on one plot, but all of them re-plotted from scratch each time
+    combo_speeds_binned_fig, combo_speeds_binned_ax = plt.subplots()
+    combo_speeds_binned_ax.set_xlabel(r"Particle position $\phi$")
+    combo_speeds_binned_ax.set_xlim(0, np.pi)
+    combo_speeds_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+    # magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
+    combo_speeds_binned_ax.set_ylabel(r"Median $\|\mathbf{v_{veg}}\|$")
+    combo_speeds_binned_ax.set_ylim(0.0, 0.15)
+    # ToDo: But actually, this should be time in the x axis, and phi in the colors! Or maybe even, phi vs time,
+    #  with velocity displayed as a heatmap???
+
+    def phi_and_vegetal_speed(phandle: tf.ParticleHandle) -> tuple[float, float]:
+        theta, particle_position_phi = epu.embryo_coords(phandle)
+        tangent_phi: float = particle_position_phi + np.pi/2
+        tangent_vec: tf.fVector3 = tfu.cartesian_from_spherical([1, theta, tangent_phi])
+        velocity: tf.fVector3 = phandle.velocity
+        # Note: why does TF have both .projected(), and this? Is this faster?
+        veg_component: tf.fVector3 = velocity.projectedOntoNormalized(tangent_vec)
+        return particle_position_phi, veg_component.length()
+        
+    phandle: tf.ParticleHandle
+    speeds: list[float] = []
+    particle_phi: list[float] = []
+    for phandle in g.Little.items():
+        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
+        speeds.append(speed)
+        particle_phi.append(particle_position_phi)
+    for phandle in g.LeadingEdge.items():
+        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
+        speeds.append(speed)
+        particle_phi.append(particle_position_phi)
+
+    # bin it and plot its median
+    np_speeds = np.array(speeds)
+    np_particle_phi = np.array(particle_phi)
+
+    # How many bins? See explanation in _show_test_tension_v_phi(). (But in this case, include LeadingEdge particles.)
+    # ToDo: Should bin size be based on number of particles rather than on phi??? Or for a quicker fix,
+    #  just make them bigger?
+    max_phi: float = epu.leading_edge_max_phi()
+    approximate_bin_size = np.pi / 20
+    num_bins: int = round(max_phi / approximate_bin_size)
+    bin_edges: np.ndarray = np.linspace(0.0, max_phi, num_bins + 1)
+    bin_indices: np.ndarray = np.digitize(np_particle_phi, bin_edges)
+
+    # Note: numpy ufunc equality and masking!
+    # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
+    bins: list[np.ndarray] = [np_speeds[bin_indices == i] for i in range(1, bin_edges.size)]
+    binn: np.ndarray
+    medians = []
+    bin_axis: list[float] = []
+    for i, binn in enumerate(bins):
+        if binn.size > 0:
+            medians.append(np.median(binn))  # np.median() returns ndarray but is really float because binn is 1d
+            bin_axis.append(bin_edges[i])
+
+    # Add to history so we will re-plot the ENTIRE history.
+    _combo_median_speeds_history.append(medians)
+    _combo_speeds_bin_axis_history.append(bin_axis)
+    _combo_speeds_timestep_history.append(_timestep)
+
+    # plot
+    for i, medians in enumerate(_combo_median_speeds_history):
+        bin_axis = _combo_speeds_bin_axis_history[i]
+        timestep: int = _combo_speeds_timestep_history[i]
+        combo_speeds_binned_ax.plot(bin_axis, medians, "-", label=f"T = {timestep}")
+    combo_speeds_binned_ax.legend(loc="upper left")
+
+    # save
+    # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
+    suffix: str = " (with final timestep)" if end else ""
+    combo_path: str = os.path.join(_plot_path, f"PIV - speed vs. phi, multiple timepoints{suffix}.png")
+    combo_speeds_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
 
 def _show_bond_counts() -> None:
     global _bond_count_fig, _bond_count_ax
@@ -257,11 +351,12 @@ def show_graphs(end: bool = False) -> None:
         # _show_test_energy_v_distance()
         _show_bond_counts()
         
-        # Call this less frequently when cell division disabled; otherwise so many
-        # lines get drawn that the legend gets too tall for the graph.
-        tension_plot_interval: int = 1000 if cfg.cell_division_enabled else 2000
-        if _timestep % tension_plot_interval == 0:
-            _show_test_tension_v_phi()
+        # Call these less frequently when cell division disabled; otherwise so many lines get drawn (because
+        # the no-division sim lasts twice as many timesteps) that the legends get too tall for the graph.
+        plot_interval: int = 1000 if cfg.cell_division_enabled else 2000
+        if _timestep % plot_interval == 0 or end:
+            _show_test_tension_v_phi(end)
+            _show_piv_speed_v_phi(end)
         
     _timestep += 1
     
@@ -276,22 +371,29 @@ def get_state() -> dict:
             "bond_counts": _bonds_per_particle,
             "leading_edge_phi": _leading_edge_phi,
             "timesteps": _timesteps,
-            "combo_bin_axis_history": _combo_bin_axis_history,
-            "combo_medians_history": _combo_medians_history,
-            "combo_timestep_history": _combo_timestep_history,
+            "combo_tension_bin_axis_history": _combo_tension_bin_axis_history,
+            "combo_median_tensions_history": _combo_median_tensions_history,
+            "combo_tension_timestep_history": _combo_tension_timestep_history,
+            "combo_speeds_bin_axis_history": _combo_speeds_bin_axis_history,
+            "combo_median_speeds_history": _combo_median_speeds_history,
+            "combo_speeds_timestep_history": _combo_speeds_timestep_history,
             }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _timesteps
-    global _combo_bin_axis_history, _combo_medians_history, _combo_timestep_history
+    global _combo_tension_bin_axis_history, _combo_median_tensions_history, _combo_tension_timestep_history
+    global _combo_speeds_bin_axis_history, _combo_median_speeds_history, _combo_speeds_timestep_history
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
     _timesteps = d["timesteps"]
-    _combo_bin_axis_history = d["combo_bin_axis_history"]
-    _combo_medians_history = d["combo_medians_history"]
-    _combo_timestep_history = d["combo_timestep_history"]
+    _combo_tension_bin_axis_history = d["combo_tension_bin_axis_history"]
+    _combo_median_tensions_history = d["combo_median_tensions_history"]
+    _combo_tension_timestep_history = d["combo_tension_timestep_history"]
+    _combo_speeds_bin_axis_history = d["combo_speeds_bin_axis_history"]
+    _combo_median_speeds_history = d["combo_median_speeds_history"]
+    _combo_speeds_timestep_history = d["combo_speeds_timestep_history"]
     
 # At module import: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
 # Note to self: do I need to make sure interactive is off, when I'm in windowless mode? That would be
