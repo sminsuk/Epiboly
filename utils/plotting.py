@@ -238,7 +238,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     # ToDo: Should bin size be based on number of particles rather than on phi??? Or for a quicker fix,
     #  just make them bigger?
     max_phi: float = epu.leading_edge_max_phi()
-    approximate_bin_size = np.pi / 20
+    approximate_bin_size = np.pi / 10
     num_bins: int = round(max_phi / approximate_bin_size)
     bin_edges: np.ndarray = np.linspace(0.0, max_phi, num_bins + 1)
     bin_indices: np.ndarray = np.digitize(np_particle_phi, bin_edges)
