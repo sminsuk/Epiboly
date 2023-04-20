@@ -111,7 +111,9 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions_ax.set_xlabel("Particle phi")
     tensions_ax.set_xlim(0, np.pi)
     tensions_ax.set_ylabel("Particle tension\n(mean bond displacement from equilibrium)")
-    tensions_ax.set_ylim(0.0, 0.35)
+    if not end:
+        # Final timestep will go way beyond this ylim value, so don't constrain it.
+        tensions_ax.set_ylim(0.0, 0.35)
     tensions_ax.text(0.02, 0.97, f"T={_timestep}", transform=tensions_ax.transAxes,
                      verticalalignment="top", horizontalalignment="left",
                      fontsize=28, fontweight="bold")
@@ -122,7 +124,9 @@ def _show_test_tension_v_phi(end: bool) -> None:
     combo_tensions_binned_ax.set_xlim(0, np.pi)
     combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     combo_tensions_binned_ax.set_ylabel("Median particle tension")
-    combo_tensions_binned_ax.set_ylim(0.0, 0.25)
+    if not end:
+        # Final timestep will go way beyond this ylim value, so don't constrain it.
+        combo_tensions_binned_ax.set_ylim(0.0, 0.25)
     
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
@@ -205,7 +209,9 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     combo_speeds_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     # magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
     combo_speeds_binned_ax.set_ylabel(r"Median $\|\mathbf{v_{veg}}\|$")
-    combo_speeds_binned_ax.set_ylim(0.0, 0.15)
+    if not end:
+        # Final timestep will go way beyond this ylim value, so don't constrain it.
+        combo_speeds_binned_ax.set_ylim(0.0, 0.15)
     # ToDo: But actually, this should be time in the x axis, and phi in the colors! Or maybe even, phi vs time,
     #  with velocity displayed as a heatmap???
 
