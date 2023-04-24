@@ -7,6 +7,11 @@ future if I change something, though.
 
 https://stackoverflow.com/questions/28269157/plotting-in-a-non-blocking-way-with-matplotlib
 https://stackoverflow.com/questions/11874767/how-do-i-plot-in-real-time-in-a-while-loop-using-matplotlib
+
+On the other hand, after increasing the number of things I'm potting, it just made a mess (in windowed mode).
+So, turning it off for now. Turns out it's easy enough to track them "live" as they plot – since I save frequently –
+just by opening the files they save to. (Plus it doesn't seem to work in TF windowless mode anyway; TF
+seems to suppress it.)
 """
 
 import numpy as np
@@ -402,8 +407,5 @@ def set_state(d: dict) -> None:
     _combo_speeds_timestep_history = d["combo_speeds_timestep_history"]
     
 # At module import: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
-# Note to self: do I need to make sure interactive is off, when I'm in windowless mode? That would be
-# necessary for true automation, but would be nice to run windowless manually and still see the plots.
-# However, it seems like TF is suppressing that; in windowless only, the plots aren't showing up once
-# I've called this function.
-plt.ion()
+# (Disabled: see module docstring.)
+# plt.ion()
