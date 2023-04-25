@@ -35,8 +35,8 @@ _bonds_per_particle: list[float] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
-# graphing all such quantities over the SAME plotting interval, and I might regret that. So, for now, I'm duplicating
-# these structures (and the code that generates them) for each graph even though the values will be the same.
+# graphing all such quantities over the SAME plotting interval, which I would have regretted. So, duplicate
+# these structures (and the code that generates them) for each graph.
 _combo_tension_bin_axis_history: list[list[float]] = []
 _combo_median_tensions_history: list[list] = []
 _combo_tension_timestep_history: list[int] = []
