@@ -9,9 +9,11 @@ https://stackoverflow.com/questions/28269157/plotting-in-a-non-blocking-way-with
 https://stackoverflow.com/questions/11874767/how-do-i-plot-in-real-time-in-a-while-loop-using-matplotlib
 
 On the other hand, after increasing the number of things I'm potting, it just made a mess (in windowed mode).
-So, turning it off for now. Turns out it's easy enough to track them "live" as they plot – since I save frequently –
-just by opening the files they save to. (Plus it doesn't seem to work in TF windowless mode anyway; TF
-seems to suppress it.)
+So, turned it off. (Plus it doesn't seem to work in TF windowless mode anyway; TF seems to suppress it.)
+Furthermore, once I switched all my plots to local and properly closed each one after local use, ion() doesn't
+really work anymore anyway, even in windowed mode. (I could set any I want to update live, back to global
+Figure/Axes as they were, and leave those select ones open, but it's not really worth it.) Turns out it's easy
+enough to track them "live" as they plot – since I save frequently – just by opening the files they save to.
 """
 
 import numpy as np
@@ -364,7 +366,3 @@ def set_state(d: dict) -> None:
     _combo_speeds_bin_axis_history = d["combo_speeds_bin_axis_history"]
     _combo_median_speeds_history = d["combo_median_speeds_history"]
     _combo_speeds_timestep_history = d["combo_speeds_timestep_history"]
-    
-# At module import: set to interactive mode ("ion" = "interactive on") so that plot display isn't blocking.
-# (Disabled: see module docstring.)
-# plt.ion()
