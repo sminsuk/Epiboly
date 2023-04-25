@@ -149,6 +149,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     # save
     tensions_path: str = os.path.join(_plot_path, f"Particle tensions vs. phi, T {_timestep}.png")
     tensions_fig.savefig(tensions_path, transparent=False, bbox_inches="tight")
+    plt.close(tensions_fig)
 
     # That was the raw data, now let's bin it and plot its median
     np_tensions = np.array(tensions)
@@ -197,6 +198,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     suffix: str = " (with final timestep)" if end else ""
     combo_path: str = os.path.join(_plot_path, f"Aggregate tension vs. phi, multiple timepoints{suffix}.png")
     combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
+    plt.close(combo_tensions_binned_fig)
 
 def _show_piv_speed_v_phi(end: bool) -> None:
     """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
@@ -282,6 +284,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     suffix: str = " (with final timestep)" if end else ""
     combo_path: str = os.path.join(_plot_path, f"PIV - speed vs. phi, multiple timepoints{suffix}.png")
     combo_speeds_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
+    plt.close(combo_speeds_binned_fig)
 
 def _show_bond_counts() -> None:
     global _bond_count_fig, _bond_count_ax
