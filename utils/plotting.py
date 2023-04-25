@@ -47,14 +47,10 @@ _combo_speeds_timestep_history: list[int] = []
 
 _timesteps: list[int] = []
 _timestep: int = 0
-_progress_fig: Optional[Figure] = None
-_progress_ax: Optional[Axes] = None
 _energy_fig: Optional[Figure] = None
 _energy_ax: Optional[Axes] = None
 _potentials_fig: Optional[Figure] = None
 _potentials_ax: Optional[Axes] = None
-_bond_count_fig: Optional[Figure] = None
-_bond_count_ax: Optional[Axes] = None
 _plot_path: str = ""
 
 def _init_graphs() -> None:
@@ -287,12 +283,11 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     plt.close(combo_speeds_binned_fig)
 
 def _show_bond_counts() -> None:
-    global _bond_count_fig, _bond_count_ax
+    bond_count_fig: Figure
+    bond_count_ax: Axes
     
-    if not _bond_count_fig:
-        # Init only once
-        _bond_count_fig, _bond_count_ax = plt.subplots()
-        _bond_count_ax.set_ylabel("Mean bonded neighbors per particle")
+    bond_count_fig, bond_count_ax = plt.subplots()
+    bond_count_ax.set_ylabel("Mean bonded neighbors per particle")
 
     phandle: tf.ParticleHandle
     
@@ -309,20 +304,19 @@ def _show_bond_counts() -> None:
     _bonds_per_particle.append(mean_bonds_per_particle)
     
     # plot
-    _bond_count_ax.plot(_timesteps, _bonds_per_particle, "b.")
+    bond_count_ax.plot(_timesteps, _bonds_per_particle, "b.")
     
     # save
     bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle")
-    _bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
-
+    bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
+    plt.close(bond_count_fig)
 
 def _show_progress_graph(end: bool) -> None:
-    global _progress_fig, _progress_ax
+    progress_fig: Figure
+    progress_ax: Axes
     
-    # Init only once
-    if not _progress_fig:
-        _progress_fig, _progress_ax = plt.subplots()
-        _progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
+    progress_fig, progress_ax = plt.subplots()
+    progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
 
     phi: float = round(epu.leading_edge_mean_phi(), 4)
     print(f"Appending: {_timestep}, {phi}")
@@ -333,13 +327,14 @@ def _show_progress_graph(end: bool) -> None:
     #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
     #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
     # Plot
-    _progress_ax.plot(_timesteps, _leading_edge_phi, "b.")
+    progress_ax.plot(_timesteps, _leading_edge_phi, "b.")
 
     # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
     # monitor the plot as it updates.
     filename: str = f"Leading edge phi"
     filepath: str = os.path.join(_plot_path, filename + ".png")
-    _progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+    progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+    plt.close(progress_fig)
 
     if end:
         suffix: str = f"; Timestep = {_timestep}"
