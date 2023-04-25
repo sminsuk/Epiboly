@@ -17,7 +17,6 @@ seems to suppress it.)
 import numpy as np
 import os
 from statistics import fmean
-from typing import Optional
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -47,10 +46,6 @@ _combo_speeds_timestep_history: list[int] = []
 
 _timesteps: list[int] = []
 _timestep: int = 0
-_energy_fig: Optional[Figure] = None
-_energy_ax: Optional[Axes] = None
-_potentials_fig: Optional[Figure] = None
-_potentials_ax: Optional[Axes] = None
 _plot_path: str = ""
 
 def _init_graphs() -> None:
@@ -62,39 +57,6 @@ def _init_graphs() -> None:
     
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
-
-def _show_test_energy_v_distance() -> None:
-    """Plot energy vs length, & potential vs. length (this is to see if they are the same)"""
-    global _energy_fig, _energy_ax, _potentials_fig, _potentials_ax
-    
-    if not _energy_fig:
-        # Init only once
-        _energy_fig, _energy_ax = plt.subplots()
-        _energy_ax.set_xlabel("particle distance")
-        _energy_ax.set_ylabel("bond energy")
-        _potentials_fig, _potentials_ax = plt.subplots()
-        _potentials_ax.set_xlabel("particle distance")
-        _potentials_ax.set_ylabel("bond potential")
-
-    energy: list[float] = []
-    potentials: list[float] = []
-    distance: list[float] = []
-    bhandle: tf.BondHandle
-    
-    for bhandle in tf.BondHandle.items()[:100]:
-        distance.append(bhandle.length)
-        energy.append(bhandle.energy)
-        potentials.append(bhandle.potential(bhandle.length))
-
-    # plot
-    _energy_ax.plot(distance, energy, "b.")
-    _potentials_ax.plot(distance, potentials, "r.")
-
-    # save
-    energypath: str = os.path.join(_plot_path, "Energy vs. bond distance.png")
-    _energy_fig.savefig(energypath, transparent=False, bbox_inches="tight")
-    potentialpath: str = os.path.join(_plot_path, "Potential vs. bond distance.png")
-    _potentials_fig.savefig(potentialpath, transparent=False, bbox_inches="tight")
 
 def _show_test_tension_v_phi(end: bool) -> None:
     """Plot mean tension of all bonds on a particle, vs. phi of the particle;
@@ -357,7 +319,6 @@ def show_graphs(end: bool = False) -> None:
     # Don't need to add to the graphs every timestep.
     if _timestep % 100 == 0 or end:
         _show_progress_graph(end)
-        # _show_test_energy_v_distance()
         _show_bond_counts()
         
         # Call these less frequently when cell division disabled; otherwise so many lines get drawn (because
