@@ -268,7 +268,7 @@ def screenshot_true_zero() -> None:
     (The two images will be slightly different.)
     """
     if cfg.show_equilibration and vx.screenshot_export_enabled() and not cfg.windowed_mode:
-        vx.save_screenshot("Timestep true zero")
+        vx.save_screenshots("Timestep true zero")
         
 def initialize_export_tasks() -> None:
     """If exporting plots and or screenshots for video, including equilibration, create a task list for that.
@@ -388,7 +388,7 @@ def initialize_embryo() -> None:
     freeze_leading_edge_z()
     
     # # This was temporary camera manipulation to get a good shot of the instability bug. Still need it?
-    # vx.save_screenshot("Capture the gap before moving the camera")
+    # vx.save_screenshots("Capture the gap before moving the camera")
     # tf.system.camera_view_top()   # one or the other, top() or reset()
     # tf.system.camera_reset()
     # tf.system.camera_zoom_to(-13)
@@ -493,7 +493,7 @@ if __name__ == "__main__":
         print(f"\rUniverse.time = {round(tf.Universe.time, 2)}", end="")
     
     epiboly_init.init()
-    epu.reset_camera()
+    epu.reset_camera()  # Maybe should be vx.init_camera_data() now? Deal with, if I ever need to do this again.
     events.initialize_master_event()
     events.execute_repeatedly(tasks=[{"invoke": show_utime}])
     

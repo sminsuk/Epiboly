@@ -45,12 +45,6 @@ def leading_edge_min_mean_max_phi() -> tuple[float, float, float]:
     phi_values = [embryo_phi(particle) for particle in g.LeadingEdge.items()]
     return min(phi_values), fmean(phi_values), max(phi_values)
 
-def leading_edge_velocity_z() -> float:
-    """mean z velocity of all leading edge particles"""
-    p: tf.ParticleHandle
-    veloc_z_values = [p.velocity.z() for p in g.LeadingEdge.items()]
-    return fmean(veloc_z_values)
-
 def internal_evl_max_phi() -> float:
     """phi of the most progressed Little (internal EVL) particle
 

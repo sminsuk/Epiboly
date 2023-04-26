@@ -58,7 +58,7 @@ events.initialize_master_event()
 
 # Setup and equilibration – unless importing saved state from a prior run
 if not cfg.initialization_directory_name:
-    epu.reset_camera()
+    vx.init_camera_data()
     
     setup.initialize_embryo()
     
@@ -117,7 +117,7 @@ if cfg.windowed_mode:
     # toggle_radius()
     tf.show()
     
-    vx.save_screenshot("Final")
+    vx.save_screenshots("Final")
 else:
     def sim_finished() -> bool:
         # Choose one:
