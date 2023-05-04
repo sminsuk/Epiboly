@@ -208,8 +208,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     np_particle_phi = np.array(particle_phi)
 
     # How many bins? See explanation in _show_test_tension_v_phi(). (But in this case, include LeadingEdge particles.)
-    # ToDo: Should bin size be based on number of particles rather than on phi??? Or for a quicker fix,
-    #  just make them bigger?
+    # ToDo: Should bin size be based on number of particles rather than on phi???
     max_phi: float = epu.leading_edge_max_phi()
     approximate_bin_size = np.pi / 10
     num_bins: int = round(max_phi / approximate_bin_size)
