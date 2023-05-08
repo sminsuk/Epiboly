@@ -10,7 +10,6 @@ import sys
 import traceback
 from typing import Optional
 
-from utils import global_catalogs as gc
 import tissue_forge as tf
 
 _tf_export_root: str = "TissueForge_export"

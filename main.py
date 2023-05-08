@@ -1,5 +1,5 @@
 """Epiboly simulation"""
-import os.path
+from datetime import datetime, timezone
 import sys
 
 import tissue_forge as tf
@@ -44,7 +44,9 @@ if tf.system.is_terminal_interactive():
 #     ###################################################################
 #     """
 #     sys.exit(exit_msg)
-    
+
+local: datetime = datetime.now(timezone.utc).astimezone()
+print("Start:", local.strftime("%Y-%m-%d %I:%M:%S %p %Z"))
 print(f"tissue-forge version = {tf.version.version}")
 print(f"System: {tf.version.system_name} {tf.version.system_version}")
 print(f"CUDA installed: {'Yes' if tf.has_cuda else 'No'}")
