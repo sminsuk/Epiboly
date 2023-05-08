@@ -86,12 +86,26 @@ def _export_state(filename: str) -> None:
     print(f"Saving complete simulation state to '{path}'")
     tf.io.toFile(path)
     
-def remove_all_state_exports() -> None:
-    """Exports are very large files and can be deleted if not needed"""
-    entry: os.DirEntry
-    with os.scandir(_state_export_path) as dir_entry_it:
-        for entry in dir_entry_it:
-            os.remove(entry.path)
+def remove_unneeded_state_exports(which: str, keep_final: bool) -> None:
+    """Delete state exports if not needed
+    
+    TF state exports are very large. And even the extra-state exports add up, and make clutter.
+    """
+    if cfg.sim_state_export_keep:
+        return
+    
+    if which != "state" and which != "extra":
+        return
+    
+    with os.scandir(_state_export_path) as dir_entries_it:
+        dir_entries_chron: list[os.DirEntry] = sorted(dir_entries_it, key=lambda entry: entry.stat().st_mtime_ns)
+    entries: list[os.DirEntry] = [entry for entry in dir_entries_chron
+                                  if entry.name.endswith(f"{which}.json")]
+    
+    if keep_final:
+        entries.pop()
+    for entry in entries:
+        os.remove(entry.path)
 
 def export(filename: str, show_timestep: bool = True) -> None:
     """
@@ -114,12 +128,11 @@ def export(filename: str, show_timestep: bool = True) -> None:
     # Before we export, make sure the state is clean. (Hopefully won't be needed after bugfix in future version.)
     gc.clean_state()
 
-    # Remove all unneeded content of the directory before exporting more
-    if not cfg.sim_state_export_keep:
-        remove_all_state_exports()
-    
     _export_state(filename + "_state.json")
     _export_additional_state(filename + "_extra.json")
+    
+    remove_unneeded_state_exports("state", keep_final=True)
+    remove_unneeded_state_exports("extra", keep_final=True)
 
 def export_repeatedly() -> None:
     """For use inside timestep events. Keeps track of export interval, and names files accordingly."""

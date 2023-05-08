@@ -143,7 +143,7 @@ else:
 # troubleshooting: call this one final time without having to be triggered by an edge transformation event.
 # bonds.test_ring_is_fucked_up()
 
-# Do this before final state export so that the final graphed data point is included in the export
+# Do final plot before final state export so that the final graphed data point is included in the export
 plot.show_graphs(end=True)
 
 if events.event_exception_was_thrown():
@@ -157,12 +157,10 @@ if events.event_exception_was_thrown():
     # exported, nor export anything new:
     pass
     # state.export("Exception")
-elif cfg.sim_state_export_keep:
-    # We're retaining exports for post-processing, so capture the final state.
-    state.export("Final")
 else:
-    # We're only exporting in order to recover from premature exit, but now we're done, so discard them.
-    state.remove_all_state_exports()
+    state.export("Final")
+    state.remove_unneeded_state_exports("state", keep_final=False)
+    state.remove_unneeded_state_exports("extra", keep_final=True)
 
 vx.make_movie()
 
