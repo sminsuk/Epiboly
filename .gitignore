@@ -3,6 +3,8 @@
 
 __pycache__
 .DS_Store
+.idea/Epiboly.iml
+.idea/misc.xml
 
 # This file appeared as a new, untracked file when I told PyCharm to turn off the grammar checks.
 # This is not project related!
