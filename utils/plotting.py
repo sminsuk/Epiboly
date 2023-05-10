@@ -40,18 +40,18 @@ _bonds_per_particle: list[float] = []
 # graphing all such quantities over the SAME plotting interval, which I would have regretted. So, duplicate
 # these structures (and the code that generates them) for each graph.
 _combo_tension_bin_axis_history: list[list[float]] = []
-_combo_median_tensions_history: list[list[float]] = []
+_combo_mean_tensions_history: list[list[float]] = []
 _combo_tension_timestep_history: list[int] = []
 
 _combo_speeds_bin_axis_history: list[list[float]] = []
-_combo_median_speeds_history: list[list[float]] = []
+_combo_mean_speeds_history: list[list[float]] = []
 # Name this strain rate variable after the algorithm it's using, which is the difference between the speed bin values.
 # We'll also calculate it elsewhere by a different algorithm.
 _combo_strain_rates_by_speed_diffs_history: list[list[float]] = []
 _combo_speeds_timestep_history: list[int] = []
 
 _combo_strain_rate_bin_axis_history: list[list[float]] = []
-_combo_median_strain_rates_history: list[list[float]] = []
+_combo_mean_strain_rates_history: list[list[float]] = []
 _combo_strain_rate_timestep_history: list[int] = []
 
 _timesteps: list[int] = []
@@ -71,7 +71,7 @@ def _init_graphs() -> None:
 def _show_test_tension_v_phi(end: bool) -> None:
     """Plot mean tension of all bonds on a particle, vs. phi of the particle;
     
-    and then bin the values and plot the median tension for each bin.
+    and then bin the values and plot the mean tension for each bin.
     """
     tensions_fig: Figure
     tensions_ax: Axes
@@ -119,12 +119,12 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions_fig.savefig(tensions_path, transparent=False, bbox_inches="tight")
     plt.close(tensions_fig)
 
-    # That was the raw data, now let's bin it and plot its median
+    # That was the raw data, now let's bin it and plot its mean
     np_tensions = np.array(tensions)
     np_particle_phi = np.array(particle_phi)
     
     # How many bins? A constant bin size resulted in a partially full final bin, depending on epiboly progress
-    # at each timestep. To ensure the final bin has a large enough sample of particles to generate a valid median,
+    # at each timestep. To ensure the final bin has a large enough sample of particles to generate a valid mean,
     # calculate a bin size that fits an integer number of times into the range of the data. But also, to use roughly
     # the same size bins at each time step, let the number of bins vary each timestep, accordingly.
     max_phi: float = epu.internal_evl_max_phi()
@@ -137,29 +137,30 @@ def _show_test_tension_v_phi(end: bool) -> None:
     # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
     bins: list[np.ndarray] = [np_tensions[bin_indices == i] for i in range(1, bin_edges.size)]
     binn: np.ndarray
-    medians: list[float] = []
+    mean_tensions: list[float] = []
     bin_axis: list[float] = []
     for i, binn in enumerate(bins):
         if binn.size > 0:
-            medians.append(np.mean(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
+            # np.mean() returns ndarray but is really float because binn is 1d
+            mean_tensions.append(np.mean(binn).item())
             bin_axis.append(bin_edges[i])
             
     # Add to history so we will re-plot the ENTIRE history.
-    _combo_median_tensions_history.append(medians)
+    _combo_mean_tensions_history.append(mean_tensions)
     _combo_tension_bin_axis_history.append(bin_axis)
     _combo_tension_timestep_history.append(_timestep)
     
     # plot
-    for i, medians in enumerate(_combo_median_tensions_history):
+    for i, mean_tensions in enumerate(_combo_mean_tensions_history):
         bin_axis = _combo_tension_bin_axis_history[i]
         timestep: int = _combo_tension_timestep_history[i]
-        combo_tensions_binned_ax.plot(bin_axis, medians, "-", label=f"T = {timestep}")
+        combo_tensions_binned_ax.plot(bin_axis, mean_tensions, "-", label=f"T = {timestep}")
     combo_tensions_binned_ax.legend(loc="upper left")
     
     # Then plot the T=0 line again, without a legend this time since the legend is already there. That way its
     # plot can be in front, since it tends to get covered over by all the other lines when it's in back (when cell
     # division is enabled). Must specify color 0 in the color cycle so it matches the legend for the first plot!
-    combo_tensions_binned_ax.plot(_combo_tension_bin_axis_history[0], _combo_median_tensions_history[0], "C0-")
+    combo_tensions_binned_ax.plot(_combo_tension_bin_axis_history[0], _combo_mean_tensions_history[0], "C0-")
     
     # save
     # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
@@ -212,7 +213,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
         speeds.append(speed)
         particle_phi.append(particle_position_phi)
 
-    # bin it and plot its median
+    # bin it and plot its mean
     np_speeds = np.array(speeds)
     np_particle_phi = np.array(particle_phi)
 
@@ -229,23 +230,24 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
     bins: list[np.ndarray] = [np_speeds[bin_indices == i] for i in range(1, bin_edges.size)]
     binn: np.ndarray
-    medians: list[float] = []
+    mean_speeds: list[float] = []
     bin_axis: list[float] = []
     for i, binn in enumerate(bins):
         if binn.size > 0:
-            medians.append(np.mean(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
+            # np.mean() returns ndarray but is really float because binn is 1d
+            mean_speeds.append(np.mean(binn).item())
             bin_axis.append(bin_edges[i])
 
     # Add to history so we will re-plot the ENTIRE history.
-    _combo_median_speeds_history.append(medians)
+    _combo_mean_speeds_history.append(mean_speeds)
     _combo_speeds_bin_axis_history.append(bin_axis)
     _combo_speeds_timestep_history.append(_timestep)
 
     # plot
-    for i, history_medians in enumerate(_combo_median_speeds_history):
+    for i, history_mean_speeds in enumerate(_combo_mean_speeds_history):
         bin_axis = _combo_speeds_bin_axis_history[i]
         timestep: int = _combo_speeds_timestep_history[i]
-        combo_speeds_binned_ax.plot(bin_axis, history_medians, "-", label=f"T = {timestep}")
+        combo_speeds_binned_ax.plot(bin_axis, history_mean_speeds, "-", label=f"T = {timestep}")
     combo_speeds_binned_ax.legend(loc="upper left")
 
     # save
@@ -255,7 +257,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     combo_speeds_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
     plt.close(combo_speeds_binned_fig)
     
-    # Now generate another plot, for strain rates based on these median values
+    # Now generate another plot, for strain rates based on these mean values
     
     combo_strain_rates_binned_fig: Figure
     combo_strain_rates_binned_ax: Axes
@@ -273,7 +275,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     # so they need to be made comparable.) For the first bin, strain rate is not really valid, so don't plot it at all.)
     previous_speed = None
     strain_rates: list[float] = []
-    for speed in medians:
+    for speed in mean_speeds:
         if previous_speed is not None:
             # Skip calculating strain rate for the first bin, because there's nothing valid to subtract
             strain_rates.append((speed - previous_speed) / actual_bin_size)
@@ -295,7 +297,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     plt.close(combo_strain_rates_binned_fig)
 
 def _show_strain_rates_v_phi(end: bool) -> None:
-    """Plot binned median strain-rates for all bonds, vs. phi
+    """Plot binned mean strain-rates for all bonds, vs. phi
 
     phi of the bond determined as mean of the phi of the two bonded particles
     """
@@ -333,7 +335,7 @@ def _show_strain_rates_v_phi(end: bool) -> None:
         strain_rates.append(strain_rate)
         bond_phi.append(bond_position_phi)
 
-    # bin it and plot its median
+    # bin it and plot its mean
     np_strain_rates = np.array(strain_rates)
     np_bond_phi = np.array(bond_phi)
 
@@ -346,20 +348,21 @@ def _show_strain_rates_v_phi(end: bool) -> None:
 
     bins: list[np.ndarray] = [np_strain_rates[bin_indices == i] for i in range(1, bin_edges.size)]
     binn: np.ndarray
-    medians: list[float] = []
+    mean_strain_rates: list[float] = []
     bin_axis: list[float] = []
     for i, binn in enumerate(bins):
         if binn.size > 0:
-            medians.append(np.mean(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
+            # np.mean() returns ndarray but is really float because binn is 1d
+            mean_strain_rates.append(np.mean(binn).item())
             bin_axis.append(bin_edges[i])
 
     # Add to history so we will re-plot the ENTIRE history.
-    _combo_median_strain_rates_history.append(medians)
+    _combo_mean_strain_rates_history.append(mean_strain_rates)
     _combo_strain_rate_bin_axis_history.append(bin_axis)
     _combo_strain_rate_timestep_history.append(_timestep)
 
     # plot
-    for i, strain_rates in enumerate(_combo_median_strain_rates_history):
+    for i, strain_rates in enumerate(_combo_mean_strain_rates_history):
         bin_axis: list[float] = _combo_strain_rate_bin_axis_history[i]
         timestep: int = _combo_strain_rate_timestep_history[i]
         combo_strain_rates_binned_ax.plot(bin_axis, strain_rates, "-", label=f"T = {timestep}")
@@ -462,7 +465,7 @@ def show_graphs(end: bool = False) -> None:
 def get_state() -> dict:
     """In composite runs, save incomplete plot data so those plots can be completed with cumulative data, all back to 0
     
-    This applies to plots that accumulate over the life of the sim, like the progress plot and the median
+    This applies to plots that accumulate over the life of the sim, like the progress plot and the mean
     tensions combo plot. Each run saves the plot image to disk, but the data is saved as part of the state,
     so the next run can import it and overwrite the saved image, all the way from Timestep 0.
     """
@@ -472,40 +475,40 @@ def get_state() -> dict:
             "timesteps": _timesteps,
             
             "combo_tension_bin_axis_history": _combo_tension_bin_axis_history,
-            "combo_median_tensions_history": _combo_median_tensions_history,
+            "combo_mean_tensions_history": _combo_mean_tensions_history,
             "combo_tension_timestep_history": _combo_tension_timestep_history,
             
             "combo_speeds_bin_axis_history": _combo_speeds_bin_axis_history,
-            "combo_median_speeds_history": _combo_median_speeds_history,
+            "combo_mean_speeds_history": _combo_mean_speeds_history,
             "combo_strain_rates_by_speed_diffs_history": _combo_strain_rates_by_speed_diffs_history,
             "combo_speeds_timestep_history": _combo_speeds_timestep_history,
             
             "combo_strain_rate_bin_axis_history": _combo_strain_rate_bin_axis_history,
-            "combo_median_strain_rates_history": _combo_median_strain_rates_history,
+            "combo_mean_strain_rates_history": _combo_mean_strain_rates_history,
             "combo_strain_rate_timestep_history": _combo_strain_rate_timestep_history,
             }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _timesteps
-    global _combo_tension_bin_axis_history, _combo_median_tensions_history, _combo_tension_timestep_history
-    global _combo_speeds_bin_axis_history, _combo_median_speeds_history, _combo_speeds_timestep_history
+    global _combo_tension_bin_axis_history, _combo_mean_tensions_history, _combo_tension_timestep_history
+    global _combo_speeds_bin_axis_history, _combo_mean_speeds_history, _combo_speeds_timestep_history
     global _combo_strain_rates_by_speed_diffs_history
-    global _combo_strain_rate_bin_axis_history, _combo_median_strain_rates_history, _combo_strain_rate_timestep_history
+    global _combo_strain_rate_bin_axis_history, _combo_mean_strain_rates_history, _combo_strain_rate_timestep_history
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
     _timesteps = d["timesteps"]
     
     _combo_tension_bin_axis_history = d["combo_tension_bin_axis_history"]
-    _combo_median_tensions_history = d["combo_median_tensions_history"]
+    _combo_mean_tensions_history = d["combo_mean_tensions_history"]
     _combo_tension_timestep_history = d["combo_tension_timestep_history"]
     
     _combo_speeds_bin_axis_history = d["combo_speeds_bin_axis_history"]
-    _combo_median_speeds_history = d["combo_median_speeds_history"]
+    _combo_mean_speeds_history = d["combo_mean_speeds_history"]
     _combo_strain_rates_by_speed_diffs_history = d["combo_strain_rates_by_speed_diffs_history"]
     _combo_speeds_timestep_history = d["combo_speeds_timestep_history"]
     
     _combo_strain_rate_bin_axis_history = d["combo_strain_rate_bin_axis_history"]
-    _combo_median_strain_rates_history = d["combo_median_strain_rates_history"]
+    _combo_mean_strain_rates_history = d["combo_mean_strain_rates_history"]
     _combo_strain_rate_timestep_history = d["combo_strain_rate_timestep_history"]
