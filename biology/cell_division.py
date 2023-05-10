@@ -78,7 +78,7 @@ def divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     if bond_count > 0:
         print(tfu.bluecolor + f"New particle has {bond_count} bonds before any have been made!" + tfu.endcolor)
 
-    bonds.make_all_bonds(daughter)
+    bonds.make_all_bonds(daughter)  # ToDo: This needs a bug fix, never took into account cfg.max_edge_neighbor_count
     return daughter
 
 def cell_division() -> None:

@@ -51,6 +51,7 @@ def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fal
 
 def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
     # Bond to all neighbors not already bonded to
+    # Except ToDo: This needs to take into account cfg.max_edge_neighbor_count
     existing_neighbor_count: int = len(phandle.bonded_neighbors)
     additional_neighbors_needed: int = max(cfg.min_neighbor_count - existing_neighbor_count, 0)
     neighbors: list[tf.ParticleHandle]
