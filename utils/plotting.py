@@ -96,7 +96,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     combo_tensions_binned_ax.set_xlabel(r"Particle position $\phi$")
     combo_tensions_binned_ax.set_xlim(0, np.pi)
     combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_tensions_binned_ax.set_ylabel("Median particle tension")
+    combo_tensions_binned_ax.set_ylabel("Mean particle tension")
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
         combo_tensions_binned_ax.set_ylim(0.0, 0.25)
@@ -141,7 +141,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     bin_axis: list[float] = []
     for i, binn in enumerate(bins):
         if binn.size > 0:
-            medians.append(np.median(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
+            medians.append(np.mean(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
             bin_axis.append(bin_edges[i])
             
     # Add to history so we will re-plot the ENTIRE history.
@@ -185,7 +185,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     combo_speeds_binned_ax.set_xlim(0, np.pi)
     combo_speeds_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     # magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
-    combo_speeds_binned_ax.set_ylabel(r"Median $\|\mathbf{v_{veg}}\|$")
+    combo_speeds_binned_ax.set_ylabel(r"Mean $\|\mathbf{v_{veg}}\|$")
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
         combo_speeds_binned_ax.set_ylim(0.0, 0.15)
@@ -233,7 +233,7 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     bin_axis: list[float] = []
     for i, binn in enumerate(bins):
         if binn.size > 0:
-            medians.append(np.median(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
+            medians.append(np.mean(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
             bin_axis.append(bin_edges[i])
 
     # Add to history so we will re-plot the ENTIRE history.
@@ -307,7 +307,7 @@ def _show_strain_rates_v_phi(end: bool) -> None:
     combo_strain_rates_binned_ax.set_xlabel(r"Particle position $\phi$")
     combo_strain_rates_binned_ax.set_xlim(0, np.pi)
     combo_strain_rates_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_strain_rates_binned_ax.set_ylabel("Strain rate (bond-based)")
+    combo_strain_rates_binned_ax.set_ylabel("Mean strain rate (bond-based)")
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
         combo_strain_rates_binned_ax.set_ylim(0.0, 0.11)
@@ -350,7 +350,7 @@ def _show_strain_rates_v_phi(end: bool) -> None:
     bin_axis: list[float] = []
     for i, binn in enumerate(bins):
         if binn.size > 0:
-            medians.append(np.median(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
+            medians.append(np.mean(binn).item())  # np.median() returns ndarray but is really float because binn is 1d
             bin_axis.append(bin_edges[i])
 
     # Add to history so we will re-plot the ENTIRE history.
