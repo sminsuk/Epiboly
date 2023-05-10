@@ -14,12 +14,13 @@ import utils.tf_utils as tfu
 _generator: np.random.Generator = np.random.default_rng()
 _expected_timesteps: int
 if cfg.cell_division_enabled:
-    _expected_timesteps = 10500 if cfg.space_filling_enabled else 9100  # low-N approximation; both same???
+    # For space_filling_enabled, value based on only N=2, because haven't been running it lately (see 2023 Mar. 29, 30)
+    _expected_timesteps = 10500 if cfg.space_filling_enabled else 8900
 else:
     # (This is a relic from when only the Poisson part had been written, and the rest of cell division
     # was only stubbed out. I used this to test the behavior of that Poisson functionality, reporting
     # each "division" and the cumulative total. Keeping for now.)
-    _expected_timesteps = 29000 if cfg.space_filling_enabled else 23000
+    _expected_timesteps = 29000 if cfg.space_filling_enabled else 22000
 _expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / _expected_timesteps
 _cumulative_cell_divisions: int = 0
 
