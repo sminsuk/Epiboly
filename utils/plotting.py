@@ -49,10 +49,14 @@ _combo_mean_speeds_history: list[list[float]] = []
 # We'll also calculate it elsewhere by a different algorithm.
 _combo_strain_rates_by_speed_diffs_history: list[list[float]] = []
 _combo_speeds_timestep_history: list[int] = []
+_speeds: list[float] = []
+_speeds_particle_phi: list[float] = []
 
 _combo_strain_rate_bin_axis_history: list[list[float]] = []
 _combo_mean_strain_rates_history: list[list[float]] = []
 _combo_strain_rate_timestep_history: list[int] = []
+_strain_rates: list[float] = []
+_strain_rate_bond_phi: list[float] = []
 
 _timesteps: list[int] = []
 _timestep: int = 0
@@ -96,7 +100,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     combo_tensions_binned_ax.set_xlabel(r"Particle position $\phi$")
     combo_tensions_binned_ax.set_xlim(0, np.pi)
     combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_tensions_binned_ax.set_ylabel("Mean particle tension")
+    combo_tensions_binned_ax.set_ylabel("Median particle tension")
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
         combo_tensions_binned_ax.set_ylim(0.0, 0.25)
@@ -142,7 +146,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     for i, binn in enumerate(bins):
         if binn.size > 0:
             # np.mean() returns ndarray but is really float because binn is 1d
-            mean_tensions.append(np.mean(binn).item())
+            mean_tensions.append(np.median(binn).item())
             bin_axis.append(bin_edges[i])
             
     # Add to history so we will re-plot the ENTIRE history.
@@ -169,7 +173,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
     plt.close(combo_tensions_binned_fig)
 
-def _show_piv_speed_v_phi(end: bool) -> None:
+def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
     
     Embryo is cylindrically symmetrical. We just want to know the magnitude of the vegetally-pointing
@@ -177,6 +181,35 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     
     Further, generate strain rates from these values, so plot those here as well.
     """
+    def phi_and_vegetal_speed(phandle: tf.ParticleHandle) -> tuple[float, float]:
+        theta, particle_position_phi = epu.embryo_coords(phandle)
+        tangent_phi: float = particle_position_phi + np.pi / 2
+        tangent_vec: tf.fVector3 = tfu.cartesian_from_spherical([1, theta, tangent_phi])
+        velocity: tf.fVector3 = phandle.velocity
+        veg_component: tf.fVector3 = velocity.projectedOntoNormalized(tangent_vec)
+        return particle_position_phi, veg_component.length()
+
+    if end:
+        # Normally we've been accumulating into these lists over multiple timesteps, so we just continue to add to them.
+        # But if end, we'll keep things simple by dumping earlier data (if any) and gathering just the current
+        # data and plotting it (so, not time averaged as usual).
+        _speeds.clear()
+        _speeds_particle_phi.clear()
+
+    phandle: tf.ParticleHandle
+    for phandle in g.Little.items():
+        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
+        _speeds.append(speed)
+        _speeds_particle_phi.append(particle_position_phi)
+    for phandle in g.LeadingEdge.items():
+        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
+        _speeds.append(speed)
+        _speeds_particle_phi.append(particle_position_phi)
+
+    if not finished_accumulating and not end:
+        # accumulate more timesteps before plotting
+        return
+
     combo_speeds_binned_fig: Figure
     combo_speeds_binned_ax: Axes
 
@@ -186,36 +219,16 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     combo_speeds_binned_ax.set_xlim(0, np.pi)
     combo_speeds_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     # magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
-    combo_speeds_binned_ax.set_ylabel(r"Mean $\|\mathbf{v_{veg}}\|$")
+    combo_speeds_binned_ax.set_ylabel(r"Median $\Vert\mathbf{v_{veg}}\Vert$")
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
         combo_speeds_binned_ax.set_ylim(0.0, 0.15)
     # ToDo: But actually, this should be time in the x axis, and phi in the colors! Or maybe even, phi vs time,
     #  with velocity displayed as a heatmap???
 
-    def phi_and_vegetal_speed(phandle: tf.ParticleHandle) -> tuple[float, float]:
-        theta, particle_position_phi = epu.embryo_coords(phandle)
-        tangent_phi: float = particle_position_phi + np.pi/2
-        tangent_vec: tf.fVector3 = tfu.cartesian_from_spherical([1, theta, tangent_phi])
-        velocity: tf.fVector3 = phandle.velocity
-        veg_component: tf.fVector3 = velocity.projectedOntoNormalized(tangent_vec)
-        return particle_position_phi, veg_component.length()
-        
-    phandle: tf.ParticleHandle
-    speeds: list[float] = []
-    particle_phi: list[float] = []
-    for phandle in g.Little.items():
-        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
-        speeds.append(speed)
-        particle_phi.append(particle_position_phi)
-    for phandle in g.LeadingEdge.items():
-        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
-        speeds.append(speed)
-        particle_phi.append(particle_position_phi)
-
     # bin it and plot its mean
-    np_speeds = np.array(speeds)
-    np_particle_phi = np.array(particle_phi)
+    np_speeds = np.array(_speeds)
+    np_particle_phi = np.array(_speeds_particle_phi)
 
     # How many bins? See explanation in _show_test_tension_v_phi(). (But in this case, include LeadingEdge particles.)
     # ToDo: Should bin size be based on number of particles rather than on phi???
@@ -235,13 +248,17 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     for i, binn in enumerate(bins):
         if binn.size > 0:
             # np.mean() returns ndarray but is really float because binn is 1d
-            mean_speeds.append(np.mean(binn).item())
+            mean_speeds.append(np.median(binn).item())
             bin_axis.append(bin_edges[i])
 
     # Add to history so we will re-plot the ENTIRE history.
     _combo_mean_speeds_history.append(mean_speeds)
     _combo_speeds_bin_axis_history.append(bin_axis)
     _combo_speeds_timestep_history.append(_timestep)
+
+    # And now we can delete the raw data so that the lists can be reused later
+    _speeds.clear()
+    _speeds_particle_phi.clear()
 
     # plot
     for i, history_mean_speeds in enumerate(_combo_mean_speeds_history):
@@ -264,9 +281,11 @@ def _show_piv_speed_v_phi(end: bool) -> None:
 
     combo_strain_rates_binned_fig, combo_strain_rates_binned_ax = plt.subplots()
     combo_strain_rates_binned_ax.set_xlabel(r"Particle position $\phi$")
+    combo_strain_rates_binned_ax.axvline(x=np.pi/2, linestyle=":", color="k", linewidth=0.5)  # equator
     combo_strain_rates_binned_ax.set_xlim(0, np.pi)
     combo_strain_rates_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_strain_rates_binned_ax.set_ylabel("Strain rate (bin- or tier-based)")
+    combo_strain_rates_binned_ax.set_ylabel("Strain rate (speed-bin differences)")
+    combo_strain_rates_binned_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # stretch/compression boundary
     if not end:
         combo_strain_rates_binned_ax.set_ylim(-0.011 / approximate_bin_size, 0.032 / approximate_bin_size)
 
@@ -296,48 +315,67 @@ def _show_piv_speed_v_phi(end: bool) -> None:
     combo_strain_rates_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
     plt.close(combo_strain_rates_binned_fig)
 
-def _show_strain_rates_v_phi(end: bool) -> None:
-    """Plot binned mean strain-rates for all bonds, vs. phi
+def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
+    """Plot binned mean strain-rates for all bonded particle pairs, vs. phi
 
     phi of the bond determined as mean of the phi of the two bonded particles
     """
-    combo_strain_rates_binned_fig: Figure
-    combo_strain_rates_binned_ax: Axes
-    
-    # All the timesteps on one plot, but all of them re-plotted from scratch each time
-    combo_strain_rates_binned_fig, combo_strain_rates_binned_ax = plt.subplots()
-    combo_strain_rates_binned_ax.set_xlabel(r"Particle position $\phi$")
-    combo_strain_rates_binned_ax.set_xlim(0, np.pi)
-    combo_strain_rates_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_strain_rates_binned_ax.set_ylabel("Mean strain rate (bond-based)")
-    if not end:
-        # Final timestep will go way beyond this ylim value, so don't constrain it.
-        combo_strain_rates_binned_ax.set_ylim(0.0, 0.11)
+    def signed_scalar_from_vector_projection(vector: tf.fVector3, direction: tf.fVector3) -> float:
+        """Return the magnitude of the vector projection, but preserve the sign"""
+        projection: tf.fVector3 = vector.projected(direction)
+        return projection.length() * np.sign(vector.dot(direction))
 
     def phi_and_strain_rate(bhandle: tf.BondHandle) -> tuple[float, float]:
-        """ToDo: Is this what I want? Normal strain rate? Or should I stick with the raw velocity vector difference?"""
         p1: tf.ParticleHandle
         p2: tf.ParticleHandle
         p1, p2 = bhandle.parts
         strain_rate_vec: tf.fVector3 = p1.velocity - p2.velocity
         bond_direction: tf.fVector3 = p1.position - p2.position
-        normal_strain_rate: tf.fVector3 = strain_rate_vec.projected(bond_direction)
-        strain_rate: float = normal_strain_rate.length()
+        normal_strain_rate: float = signed_scalar_from_vector_projection(strain_rate_vec, direction=bond_direction)
         phi: float = (epu.embryo_phi(p1) + epu.embryo_phi(p2)) / 2
-        return phi, strain_rate
+        return phi, normal_strain_rate
 
-    # Calculate strain rate for each bond, along with its position
+    if end:
+        # Normally we've been accumulating into these lists over multiple timesteps, so we just continue to add to them.
+        # But if end, we'll keep things simple by dumping earlier data (if any) and gathering just the current
+        # data and plotting it (so, not time averaged as usual).
+        _strain_rates.clear()
+        _strain_rate_bond_phi.clear()
+
+    # Calculate strain rate for each bonded particle pair, along with its position
     bhandle: tf.BondHandle
-    strain_rates: list[float] = []
-    bond_phi: list[float] = []
     for bhandle in tf.BondHandle.items():
         bond_position_phi, strain_rate = phi_and_strain_rate(bhandle)
-        strain_rates.append(strain_rate)
-        bond_phi.append(bond_position_phi)
+        _strain_rates.append(strain_rate)
+        _strain_rate_bond_phi.append(bond_position_phi)
+
+    if not finished_accumulating and not end:
+        # accumulate more timesteps before plotting
+        return
+
+    combo_strain_rates_binned_fig: Figure
+    combo_strain_rates_binned_ax: Axes
+    
+    # ##### For debugging, get the resulting values and sort them in both directions
+    # so I can more easily observe the larger values
+    sorted_strain_rates = sorted(_strain_rates)
+    reversed_strain_rates = reversed(sorted_strain_rates)
+    
+    # All the timesteps on one plot, but all of them re-plotted from scratch each time
+    combo_strain_rates_binned_fig, combo_strain_rates_binned_ax = plt.subplots()
+    combo_strain_rates_binned_ax.set_xlabel(r"Particle position $\phi$")
+    combo_strain_rates_binned_ax.axvline(x=np.pi/2, linestyle=":", color="k", linewidth=0.5)  # equator
+    combo_strain_rates_binned_ax.set_xlim(0, np.pi)
+    combo_strain_rates_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+    combo_strain_rates_binned_ax.set_ylabel("Median strain rate (bonded particle-pairs)")
+    combo_strain_rates_binned_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # stretch/compression boundary
+    if not end:
+        # Final timestep will go way beyond this ylim value, so don't constrain it.
+        combo_strain_rates_binned_ax.set_ylim(-0.015, 0.01)
 
     # bin it and plot its mean
-    np_strain_rates = np.array(strain_rates)
-    np_bond_phi = np.array(bond_phi)
+    np_strain_rates = np.array(_strain_rates)
+    np_bond_phi = np.array(_strain_rate_bond_phi)
 
     # How many bins? See explanation in _show_test_tension_v_phi().
     max_phi: float = epu.leading_edge_max_phi()
@@ -353,25 +391,32 @@ def _show_strain_rates_v_phi(end: bool) -> None:
     for i, binn in enumerate(bins):
         if binn.size > 0:
             # np.mean() returns ndarray but is really float because binn is 1d
-            mean_strain_rates.append(np.mean(binn).item())
+            mean_strain_rates.append(np.median(binn).item())
             bin_axis.append(bin_edges[i])
 
     # Add to history so we will re-plot the ENTIRE history.
     _combo_mean_strain_rates_history.append(mean_strain_rates)
     _combo_strain_rate_bin_axis_history.append(bin_axis)
     _combo_strain_rate_timestep_history.append(_timestep)
+    
+    # And now we can delete the raw data so that the lists can be reused later
+    _strain_rates.clear()
+    _strain_rate_bond_phi.clear()
 
     # plot
-    for i, strain_rates in enumerate(_combo_mean_strain_rates_history):
+    for i, mean_strain_rates in enumerate(_combo_mean_strain_rates_history):
         bin_axis: list[float] = _combo_strain_rate_bin_axis_history[i]
         timestep: int = _combo_strain_rate_timestep_history[i]
-        combo_strain_rates_binned_ax.plot(bin_axis, strain_rates, "-", label=f"T = {timestep}")
-    combo_strain_rates_binned_ax.legend(loc="upper left" if end else "lower right")
+        combo_strain_rates_binned_ax.plot(bin_axis, mean_strain_rates, "-", label=f"T = {timestep}")
+    if end:
+        combo_strain_rates_binned_ax.legend()
+    else:
+        combo_strain_rates_binned_ax.legend(loc="upper right")
 
     # save
     # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
     suffix: str = " (with final timestep)" if end else ""
-    combo_path = os.path.join(_plot_path, f"Strain rates by bond{suffix}.png")
+    combo_path = os.path.join(_plot_path, f"Strain rates by particle pair{suffix}.png")
     combo_strain_rates_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
     plt.close(combo_strain_rates_binned_fig)
 
@@ -451,14 +496,35 @@ def show_graphs(end: bool = False) -> None:
     if _timestep % 100 == 0 or end:
         _show_progress_graph(end)
         _show_bond_counts()
+
+    # Call the aggregate plots less frequently when cell division disabled; otherwise so many lines get drawn (because
+    # the no-division sim lasts twice as many timesteps) that the legends get too tall for the graph.
+    plot_interval: int = 1000 if cfg.cell_division_enabled else 2000
+    
+    if _timestep % plot_interval == 0 or end:
+        # These aggregate graphs don't need to be time-averaged, so just call them exactly on the interval (including 0)
+        _show_test_tension_v_phi(end)
+
+    if _timestep > 0:
+        # These aggregate graphs need to be time-averaged. Don't do them at exactly 0, because we need to
+        # average the timesteps AFTER that. And the logic below needs to skip over 0 to work. We want
+        # remainder == 0 at the end of the accumulation period, not at the beginning. (Later, we time-average
+        # BEFORE the time point, e.g., get all the data from steps (5000 - [num steps]) through 5000.)
         
-        # Call these less frequently when cell division disabled; otherwise so many lines get drawn (because
-        # the no-division sim lasts twice as many timesteps) that the legends get too tall for the graph.
-        plot_interval: int = 1000 if cfg.cell_division_enabled else 2000
-        if _timestep % plot_interval == 0 or end:
-            _show_test_tension_v_phi(end)
-            _show_piv_speed_v_phi(end)
-            _show_strain_rates_v_phi(end)
+        time_avg_accumulation_steps: int = 200
+        if _timestep <= time_avg_accumulation_steps:
+            # Special case so that at the beginning of the sim, we time-average AFTER T=0,
+            # i.e, get all the data from steps 1 through [num steps].
+            plot_interval = time_avg_accumulation_steps
+        
+        remainder: int = _timestep % plot_interval
+        # If within accumulation_steps of the time point to be plotted, go accumulate data but don't plot anything yet;
+        # when the time to plot arrives, go accumulate that final time point's data, time-average it all, and plot.
+        if (remainder == 0
+                or remainder > plot_interval - time_avg_accumulation_steps
+                or end):
+            _show_piv_speed_v_phi(remainder == 0, end)
+            _show_strain_rates_v_phi(remainder == 0, end)
         
     _timestep += 1
     
@@ -482,10 +548,14 @@ def get_state() -> dict:
             "combo_mean_speeds_history": _combo_mean_speeds_history,
             "combo_strain_rates_by_speed_diffs_history": _combo_strain_rates_by_speed_diffs_history,
             "combo_speeds_timestep_history": _combo_speeds_timestep_history,
+            "speeds": _speeds,
+            "speeds_particle_phi": _speeds_particle_phi,
             
             "combo_strain_rate_bin_axis_history": _combo_strain_rate_bin_axis_history,
             "combo_mean_strain_rates_history": _combo_mean_strain_rates_history,
             "combo_strain_rate_timestep_history": _combo_strain_rate_timestep_history,
+            "strain_rates": _strain_rates,
+            "strain_rate_bond_phi": _strain_rate_bond_phi,
             }
 
 def set_state(d: dict) -> None:
@@ -494,7 +564,9 @@ def set_state(d: dict) -> None:
     global _combo_tension_bin_axis_history, _combo_mean_tensions_history, _combo_tension_timestep_history
     global _combo_speeds_bin_axis_history, _combo_mean_speeds_history, _combo_speeds_timestep_history
     global _combo_strain_rates_by_speed_diffs_history
+    global _speeds, _speeds_particle_phi
     global _combo_strain_rate_bin_axis_history, _combo_mean_strain_rates_history, _combo_strain_rate_timestep_history
+    global _strain_rates, _strain_rate_bond_phi
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
@@ -508,7 +580,11 @@ def set_state(d: dict) -> None:
     _combo_mean_speeds_history = d["combo_mean_speeds_history"]
     _combo_strain_rates_by_speed_diffs_history = d["combo_strain_rates_by_speed_diffs_history"]
     _combo_speeds_timestep_history = d["combo_speeds_timestep_history"]
+    _speeds = d["speeds"]
+    _speeds_particle_phi = d["speeds_particle_phi"]
     
     _combo_strain_rate_bin_axis_history = d["combo_strain_rate_bin_axis_history"]
     _combo_mean_strain_rates_history = d["combo_mean_strain_rates_history"]
     _combo_strain_rate_timestep_history = d["combo_strain_rate_timestep_history"]
+    _strain_rates = d["strain_rates"]
+    _strain_rate_bond_phi = d["strain_rate_bond_phi"]
