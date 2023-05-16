@@ -287,7 +287,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     combo_strain_rates_binned_ax.set_ylabel("Strain rate (speed-bin differences)")
     combo_strain_rates_binned_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # stretch/compression boundary
     if not end:
-        combo_strain_rates_binned_ax.set_ylim(-0.011 / approximate_bin_size, 0.032 / approximate_bin_size)
+        combo_strain_rates_binned_ax.set_ylim(-0.011, 0.032)
 
     # From the aggregate speed of each bin, calculate strain rate = difference from previous bin, which we'll plot
     # separately. (And divide by actual_bin_size, which is constant within the time point, but not between time points;
@@ -296,8 +296,9 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     strain_rates: list[float] = []
     for speed in median_speeds:
         if previous_speed is not None:
-            # Skip calculating strain rate for the first bin, because there's nothing valid to subtract
-            strain_rates.append((speed - previous_speed) / actual_bin_size)
+            # Skip calculating strain rate for the first bin, because there's nothing valid to subtract.
+            # And normalize for the bin size so the values will be comparable between time points.
+            strain_rates.append((speed - previous_speed) * approximate_bin_size / actual_bin_size)
         previous_speed = speed
 
     # Add this to history as well
