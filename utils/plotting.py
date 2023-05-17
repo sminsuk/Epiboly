@@ -88,9 +88,10 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions_ax.set_xlabel("Particle phi")
     tensions_ax.set_xlim(0, np.pi)
     tensions_ax.set_ylabel("Particle tension\n(mean bond displacement from equilibrium)")
+    tensions_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # tension/compression boundary
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
-        tensions_ax.set_ylim(0.0, 0.35)
+        tensions_ax.set_ylim(-0.075, 0.35)
     tensions_ax.text(0.02, 0.97, f"T={_timestep}", transform=tensions_ax.transAxes,
                      verticalalignment="top", horizontalalignment="left",
                      fontsize=28, fontweight="bold")
@@ -101,9 +102,10 @@ def _show_test_tension_v_phi(end: bool) -> None:
     combo_tensions_binned_ax.set_xlim(0, np.pi)
     combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     combo_tensions_binned_ax.set_ylabel("Median particle tension")
+    combo_tensions_binned_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # tension/compression boundary
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
-        combo_tensions_binned_ax.set_ylim(0.0, 0.25)
+        combo_tensions_binned_ax.set_ylim(-0.05, 0.25)
     
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
@@ -111,7 +113,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions: list[float] = []
     particle_phi: list[float] = []
     for phandle in g.Little.items():
-        tensions.append(fmean([max(0, bhandle.length - bhandle.potential.r0)
+        tensions.append(fmean([bhandle.length - bhandle.potential.r0
                               for bhandle in nbrs.bonds(phandle)]))
         particle_phi.append(epu.embryo_phi(phandle))
     
@@ -159,12 +161,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
         bin_axis = _combo_tension_bin_axis_history[i]
         timestep: int = _combo_tension_timestep_history[i]
         combo_tensions_binned_ax.plot(bin_axis, median_tensions, "-", label=f"T = {timestep}")
-    combo_tensions_binned_ax.legend(loc="upper left")
-    
-    # Then plot the T=0 line again, without a legend this time since the legend is already there. That way its
-    # plot can be in front, since it tends to get covered over by all the other lines when it's in back (when cell
-    # division is enabled). Must specify color 0 in the color cycle so it matches the legend for the first plot!
-    combo_tensions_binned_ax.plot(_combo_tension_bin_axis_history[0], _combo_median_tensions_history[0], "C0-")
+    combo_tensions_binned_ax.legend(loc="upper left" if end else "lower right")
     
     # save
     # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
