@@ -72,6 +72,128 @@ def _init_graphs() -> None:
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
+def _plot_data_history(values_history: list[list[float]],
+                       bin_axis_history: list[list[float]],
+                       timestep_history: list[int],
+                       filename: str,
+                       xlabel: str = None,
+                       ylabel: str = None,
+                       ylim: tuple[float, float] = None,
+                       axvline: float = None,
+                       axhline: float = None,
+                       legend_loc: str = None,
+                       end_legend_loc: str = None,
+                       end: bool = False) -> None:
+    """Plot the history of binned data over multiple time points.
+
+    Required parameters:
+    history lists: Global storage, preserving all data drawn over multiple time points.
+    filename: where to save the plot image. Do not include file extension.
+
+    Optional parameters:
+    xlabel, ylabel: x & y axis labels
+    ylim: lower and upper y axis bounds. (xlim is assumed to be (0, pi).)
+          y axis scale is left unconstrained if ylim is None, or if end == True.
+    axvline, axhline: x and y positions of optional vertical and horizontal lines, respectively.
+    legend locations: if None, legend will be unconstrained, i.e. will use the default, which is "best" location.
+    end: whether this represents the final plot at the last timestep, which is treated specially.
+    """
+    combo_binned_values_fig: Figure
+    combo_binned_values_ax: Axes
+    
+    # All the timesteps on one plot, but all of them re-plotted from scratch each time
+    combo_binned_values_fig, combo_binned_values_ax = plt.subplots()
+    if xlabel is not None:
+        combo_binned_values_ax.set_xlabel(xlabel)
+    if axvline is not None:
+        combo_binned_values_ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
+    combo_binned_values_ax.set_xlim(0, np.pi)
+    combo_binned_values_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+    if ylabel is not None:
+        combo_binned_values_ax.set_ylabel(ylabel)
+    if axhline is not None:
+        combo_binned_values_ax.axhline(y=axhline, linestyle=":", color="k", linewidth=0.5)
+    if not end:
+        # Final timestep may be extreme, gets saved as a separate plot, and doesn't need its scale to be consistent
+        # between different sim configurations (e.g. with vs without cell division), so don't constrain it.
+        if ylim is not None:
+            combo_binned_values_ax.set_ylim(*ylim)
+    
+    # plot the entire history
+    for i, median_values in enumerate(values_history):
+        bin_axis: list[float] = bin_axis_history[i]
+        timestep: int = timestep_history[i]
+        combo_binned_values_ax.plot(bin_axis, median_values, "-", label=f"T = {timestep}")
+    if end:
+        if end_legend_loc is None:
+            combo_binned_values_ax.legend()  # unconstrained
+        else:
+            combo_binned_values_ax.legend(loc=end_legend_loc)
+    else:
+        if legend_loc is None:
+            combo_binned_values_ax.legend()
+        else:
+            combo_binned_values_ax.legend(loc=legend_loc)
+    
+    # save
+    # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
+    suffix: str = " (with final timestep)" if end else ""
+    combo_path = os.path.join(_plot_path, f"{filename}{suffix}.png")
+    combo_binned_values_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
+    plt.close(combo_binned_values_fig)
+
+def _add_binned_medians_to_history(values: list[float],
+                                   positions: list[float],
+                                   values_history: list[list[float]],
+                                   bin_axis_history: list[list[float]],
+                                   timestep_history: list[int],
+                                   approx_bin_size: float = np.pi / 20) -> float:
+    """From list of data points and positions, generate bins and median values, and add to history
+    
+    values, positions: data for a single plotted line on the graph. May be only from the current timestep,
+                       or global storage with data accumulated over multiple timesteps for time averaging.
+    history lists: Global storage, preserving lines previously drawn. Current timestep data will be added to it.
+    approx_bin_size: width of bins on the x axis (delta phi); actual width will be adjusted to fit evenly into the data.
+    
+    returns: actual bin size used for the current timepoint, as adjusted from approx_bin_size
+    """
+    # bin the data and calculate the median for each bin
+    np_values = np.array(values)
+    np_positions = np.array(positions)
+    
+    # How many bins? A constant bin size resulted in a partially full final bin, depending on epiboly progress
+    # at each timestep. To ensure the final bin has a large enough sample of particles to generate a valid median,
+    # calculate a bin size that fits an integer number of times into the range of the data. But also, to use roughly
+    # the same size bins at each time step, let the number of bins vary each timestep, accordingly.
+    max_phi: float = epu.leading_edge_max_phi()
+    num_bins: int = round(max_phi / approx_bin_size)
+    bin_edges: np.ndarray = np.linspace(0.0, max_phi, num_bins + 1)
+    actual_bin_size: float = bin_edges[1] - bin_edges[0]
+    bin_indices: np.ndarray = np.digitize(np_positions, bin_edges)
+    
+    # Note: numpy ufunc equality and masking!
+    # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
+    bins: list[np.ndarray] = [np_values[bin_indices == i] for i in range(1, bin_edges.size)]
+    binn: np.ndarray
+    median_values: list[float] = []
+    bin_axis: list[float] = []
+    for i, binn in enumerate(bins):
+        if binn.size > 0:
+            # np.median() returns ndarray but is really float because binn is 1d
+            median_values.append(np.median(binn).item())
+            bin_axis.append(bin_edges[i])
+    
+    # Add to history. We will re-plot the entire thing.
+    values_history.append(median_values)
+    bin_axis_history.append(bin_axis)
+    timestep_history.append(_timestep)
+    
+    # Now delete the raw data (multi-timestep data accumulation) so that these global lists can be reused later
+    values.clear()
+    positions.clear()
+    
+    return actual_bin_size
+
 def _show_test_tension_v_phi(end: bool) -> None:
     """Plot mean tension of all bonds on a particle, vs. phi of the particle;
     
@@ -79,8 +201,6 @@ def _show_test_tension_v_phi(end: bool) -> None:
     """
     tensions_fig: Figure
     tensions_ax: Axes
-    combo_tensions_binned_fig: Figure
-    combo_tensions_binned_ax: Axes
     
     # Init the plots from scratch every single time
     # This one is just a single-timestep plot
@@ -91,21 +211,10 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # tension/compression boundary
     if not end:
         # Final timestep will go way beyond this ylim value, so don't constrain it.
-        tensions_ax.set_ylim(-0.075, 0.35)
+        tensions_ax.set_ylim(-0.075, 0.25)
     tensions_ax.text(0.02, 0.97, f"T={_timestep}", transform=tensions_ax.transAxes,
                      verticalalignment="top", horizontalalignment="left",
                      fontsize=28, fontweight="bold")
-
-    # This one is all the timesteps on one plot, but all of them re-plotted from scratch each time
-    combo_tensions_binned_fig, combo_tensions_binned_ax = plt.subplots()
-    combo_tensions_binned_ax.set_xlabel(r"Particle position $\phi$")
-    combo_tensions_binned_ax.set_xlim(0, np.pi)
-    combo_tensions_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_tensions_binned_ax.set_ylabel("Median particle tension")
-    combo_tensions_binned_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # tension/compression boundary
-    if not end:
-        # Final timestep will go way beyond this ylim value, so don't constrain it.
-        combo_tensions_binned_ax.set_ylim(-0.05, 0.25)
     
     bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
@@ -126,49 +235,23 @@ def _show_test_tension_v_phi(end: bool) -> None:
     plt.close(tensions_fig)
 
     # That was the raw data, now let's bin it and plot its median
-    np_tensions = np.array(tensions)
-    np_particle_phi = np.array(particle_phi)
+    _add_binned_medians_to_history(tensions,
+                                   particle_phi,
+                                   _combo_median_tensions_history,
+                                   _combo_tension_bin_axis_history,
+                                   _combo_tension_timestep_history)
     
-    # How many bins? A constant bin size resulted in a partially full final bin, depending on epiboly progress
-    # at each timestep. To ensure the final bin has a large enough sample of particles to generate a valid median,
-    # calculate a bin size that fits an integer number of times into the range of the data. But also, to use roughly
-    # the same size bins at each time step, let the number of bins vary each timestep, accordingly.
-    max_phi: float = epu.internal_evl_max_phi()
-    approximate_bin_size = np.pi / 20
-    num_bins: int = round(max_phi / approximate_bin_size)
-    bin_edges: np.ndarray = np.linspace(0.0, max_phi, num_bins + 1)
-    bin_indices: np.ndarray = np.digitize(np_particle_phi, bin_edges)
-
-    # Note: numpy ufunc equality and masking!
-    # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
-    bins: list[np.ndarray] = [np_tensions[bin_indices == i] for i in range(1, bin_edges.size)]
-    binn: np.ndarray
-    median_tensions: list[float] = []
-    bin_axis: list[float] = []
-    for i, binn in enumerate(bins):
-        if binn.size > 0:
-            # np.median() returns ndarray but is really float because binn is 1d
-            median_tensions.append(np.median(binn).item())
-            bin_axis.append(bin_edges[i])
-            
-    # Add to history so we will re-plot the ENTIRE history.
-    _combo_median_tensions_history.append(median_tensions)
-    _combo_tension_bin_axis_history.append(bin_axis)
-    _combo_tension_timestep_history.append(_timestep)
-    
-    # plot
-    for i, median_tensions in enumerate(_combo_median_tensions_history):
-        bin_axis = _combo_tension_bin_axis_history[i]
-        timestep: int = _combo_tension_timestep_history[i]
-        combo_tensions_binned_ax.plot(bin_axis, median_tensions, "-", label=f"T = {timestep}")
-    combo_tensions_binned_ax.legend(loc="upper left" if end else "lower right")
-    
-    # save
-    # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
-    suffix: str = " (with final timestep)" if end else ""
-    combo_path: str = os.path.join(_plot_path, f"Aggregate tension vs. phi, multiple timepoints{suffix}.png")
-    combo_tensions_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
-    plt.close(combo_tensions_binned_fig)
+    _plot_data_history(_combo_median_tensions_history,
+                       _combo_tension_bin_axis_history,
+                       _combo_tension_timestep_history,
+                       filename="Aggregate tension vs. phi, multiple timepoints",
+                       xlabel=r"Particle position $\phi$",
+                       ylabel="Median particle tension",
+                       ylim=(-0.05, 0.20),
+                       axhline=0,   # compression/tension boundary
+                       legend_loc="lower right",
+                       end_legend_loc="upper left",
+                       end=end)
 
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
@@ -207,87 +290,38 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
         # accumulate more timesteps before plotting
         return
 
-    combo_speeds_binned_fig: Figure
-    combo_speeds_binned_ax: Axes
+    approximate_bin_size: float = np.pi / 10
+    actual_bin_size: float = _add_binned_medians_to_history(_speeds,
+                                                            _speeds_particle_phi,
+                                                            _combo_median_speeds_history,
+                                                            _combo_speeds_bin_axis_history,
+                                                            _combo_speeds_timestep_history,
+                                                            approx_bin_size=approximate_bin_size)
+    # ToDo? Alternative ways to plot? Time in the x axis, and phi as the different colored lines!
+    #  Or maybe even, phi vs time, with velocity displayed as a heatmap???
+    # ToDo? Should bin size be based on number of particles (or height, which is proportional to
+    #  surface area) rather than on phi???
 
-    # All the timesteps on one plot, but all of them re-plotted from scratch each time
-    combo_speeds_binned_fig, combo_speeds_binned_ax = plt.subplots()
-    combo_speeds_binned_ax.set_xlabel(r"Particle position $\phi$")
-    combo_speeds_binned_ax.set_xlim(0, np.pi)
-    combo_speeds_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    # magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
-    combo_speeds_binned_ax.set_ylabel(r"Median $\Vert\mathbf{v_{veg}}\Vert$")
-    if not end:
-        # Final timestep will go way beyond this ylim value, so don't constrain it.
-        combo_speeds_binned_ax.set_ylim(0.0, 0.15)
-    # ToDo: But actually, this should be time in the x axis, and phi in the colors! Or maybe even, phi vs time,
-    #  with velocity displayed as a heatmap???
+    # Latex: magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
+    ylabel: str = r"Median $\Vert\mathbf{v_{veg}}\Vert$"
 
-    # bin it and plot its median
-    np_speeds = np.array(_speeds)
-    np_particle_phi = np.array(_speeds_particle_phi)
-
-    # How many bins? See explanation in _show_test_tension_v_phi(). (But in this case, include LeadingEdge particles.)
-    # ToDo: Should bin size be based on number of particles rather than on phi???
-    max_phi: float = epu.leading_edge_max_phi()
-    approximate_bin_size = np.pi / 10
-    num_bins: int = round(max_phi / approximate_bin_size)
-    bin_edges: np.ndarray = np.linspace(0.0, max_phi, num_bins + 1)
-    actual_bin_size: float = bin_edges[1] - bin_edges[0]
-    bin_indices: np.ndarray = np.digitize(np_particle_phi, bin_edges)
-
-    # Note: numpy ufunc equality and masking!
-    # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
-    bins: list[np.ndarray] = [np_speeds[bin_indices == i] for i in range(1, bin_edges.size)]
-    binn: np.ndarray
-    median_speeds: list[float] = []
-    bin_axis: list[float] = []
-    for i, binn in enumerate(bins):
-        if binn.size > 0:
-            # np.median() returns ndarray but is really float because binn is 1d
-            median_speeds.append(np.median(binn).item())
-            bin_axis.append(bin_edges[i])
-
-    # Add to history so we will re-plot the ENTIRE history.
-    _combo_median_speeds_history.append(median_speeds)
-    _combo_speeds_bin_axis_history.append(bin_axis)
-    _combo_speeds_timestep_history.append(_timestep)
-
-    # And now we can delete the raw data so that the lists can be reused later
-    _speeds.clear()
-    _speeds_particle_phi.clear()
-
-    # plot
-    for i, history_median_speeds in enumerate(_combo_median_speeds_history):
-        bin_axis = _combo_speeds_bin_axis_history[i]
-        timestep: int = _combo_speeds_timestep_history[i]
-        combo_speeds_binned_ax.plot(bin_axis, history_median_speeds, "-", label=f"T = {timestep}")
-    combo_speeds_binned_ax.legend(loc="upper left")
-
-    # save
-    # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
-    suffix: str = " (with final timestep)" if end else ""
-    combo_path: str = os.path.join(_plot_path, f"PIV - speed vs. phi, multiple timepoints{suffix}.png")
-    combo_speeds_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
-    plt.close(combo_speeds_binned_fig)
+    _plot_data_history(_combo_median_speeds_history,
+                       _combo_speeds_bin_axis_history,
+                       _combo_speeds_timestep_history,
+                       filename="PIV - speed vs. phi, multiple timepoints",
+                       xlabel=r"Particle position $\phi$",
+                       ylabel=ylabel,
+                       ylim=(0.0, 0.15),
+                       legend_loc="upper left",
+                       end_legend_loc="upper left",
+                       end=end)
     
-    # Now generate another plot, for strain rates based on these median values
-    
-    combo_strain_rates_binned_fig: Figure
-    combo_strain_rates_binned_ax: Axes
-
-    combo_strain_rates_binned_fig, combo_strain_rates_binned_ax = plt.subplots()
-    combo_strain_rates_binned_ax.set_xlabel(r"Particle position $\phi$")
-    combo_strain_rates_binned_ax.axvline(x=np.pi/2, linestyle=":", color="k", linewidth=0.5)  # equator
-    combo_strain_rates_binned_ax.set_xlim(0, np.pi)
-    combo_strain_rates_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_strain_rates_binned_ax.set_ylabel("Strain rate (speed-bin differences)")
-    combo_strain_rates_binned_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # stretch/compression boundary
-    if not end:
-        combo_strain_rates_binned_ax.set_ylim(-0.011, 0.032)
+    # Now generate another plot, for strain rates based on the median speed values, which were appended to the
+    # speeds history when the speed plot was generated:
+    median_speeds: list[float] = _combo_median_speeds_history[-1]
 
     # From the aggregate speed of each bin, calculate strain rate = difference from previous bin, which we'll plot
-    # separately. (And divide by actual_bin_size, which is constant within the time point, but not between time points;
+    # separately. (And correct for actual_bin_size, which is constant within a time point, but not between time points;
     # so they need to be made comparable.) For the first bin, strain rate is not really valid, so don't plot it at all.)
     previous_speed = None
     strain_rates: list[float] = []
@@ -301,17 +335,22 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     # Add this to history as well
     _combo_strain_rates_by_speed_diffs_history.append(strain_rates)
 
-    # plot the ENTIRE history
-    for i, strain_rates in enumerate(_combo_strain_rates_by_speed_diffs_history):
-        # From each bin axis, take all but the first item, because we omitted strain rate for that bin
-        bin_axis: list[float] = _combo_speeds_bin_axis_history[i][1:]
-        timestep: int = _combo_speeds_timestep_history[i]
-        combo_strain_rates_binned_ax.plot(bin_axis, strain_rates, "-", label=f"T = {timestep}")
-    combo_strain_rates_binned_ax.legend(loc="upper left" if end else "lower right")
+    # Since we skipped the first bin on the values, we have to do the same on the positions.
+    # This is true for every timepoint in the history.
+    truncated_bin_axis_history: list[list[float]] = [bin_axis[1:] for bin_axis in _combo_speeds_bin_axis_history]
     
-    combo_path = os.path.join(_plot_path, f"Strain rates by speed bin diffs{suffix}.png")
-    combo_strain_rates_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
-    plt.close(combo_strain_rates_binned_fig)
+    _plot_data_history(_combo_strain_rates_by_speed_diffs_history,
+                       truncated_bin_axis_history,
+                       _combo_speeds_timestep_history,
+                       filename="Strain rates by speed bin diffs",
+                       xlabel=r"Particle position $\phi$",
+                       ylabel="Strain rate (speed-bin differences)",
+                       ylim=(-0.011, 0.045),
+                       axvline=np.pi/2,     # equator
+                       axhline=0,           # stretch/compression boundary
+                       legend_loc="lower right",
+                       end_legend_loc="upper left",
+                       end=end)
 
 def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
     """Plot binned median strain-rates for all bonded particle pairs, vs. phi
@@ -365,72 +404,22 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
         # accumulate more timesteps before plotting
         return
 
-    combo_normal_strain_rates_binned_fig: Figure
-    combo_normal_strain_rates_binned_ax: Axes
+    _add_binned_medians_to_history(_normal_strain_rates, _strain_rate_bond_phi,
+                                   _combo_median_strain_rates_history,
+                                   _combo_strain_rate_bin_axis_history,
+                                   _combo_strain_rate_timestep_history)
     
-    # ##### For debugging, get the resulting values and sort them in both directions
-    # so I can more easily observe the larger values
-    sorted_strain_rates = sorted(_normal_strain_rates)
-    reversed_strain_rates = reversed(sorted_strain_rates)
-    
-    # All the timesteps on one plot, but all of them re-plotted from scratch each time
-    combo_normal_strain_rates_binned_fig, combo_normal_strain_rates_binned_ax = plt.subplots()
-    combo_normal_strain_rates_binned_ax.set_xlabel(r"Particle position $\phi$")
-    combo_normal_strain_rates_binned_ax.axvline(x=np.pi/2, linestyle=":", color="k", linewidth=0.5)  # equator
-    combo_normal_strain_rates_binned_ax.set_xlim(0, np.pi)
-    combo_normal_strain_rates_binned_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
-    combo_normal_strain_rates_binned_ax.set_ylabel("Median normal strain rate")
-    combo_normal_strain_rates_binned_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # stretch vs. compression
-    if not end:
-        # Final timestep will go way beyond this ylim value, so don't constrain it.
-        combo_normal_strain_rates_binned_ax.set_ylim(-0.015, 0.01)
-
-    # bin it and plot its median
-    np_normal_strain_rates = np.array(_normal_strain_rates)
-    np_bond_phi = np.array(_strain_rate_bond_phi)
-
-    # How many bins? See explanation in _show_test_tension_v_phi().
-    max_phi: float = epu.leading_edge_max_phi()
-    approximate_bin_size = np.pi / 20
-    num_bins: int = round(max_phi / approximate_bin_size)
-    bin_edges: np.ndarray = np.linspace(0.0, max_phi, num_bins + 1)
-    bin_indices: np.ndarray = np.digitize(np_bond_phi, bin_edges)
-
-    bins: list[np.ndarray] = [np_normal_strain_rates[bin_indices == i] for i in range(1, bin_edges.size)]
-    binn: np.ndarray
-    median_strain_rates: list[float] = []
-    bin_axis: list[float] = []
-    for i, binn in enumerate(bins):
-        if binn.size > 0:
-            # np.median() returns ndarray but is really float because binn is 1d
-            median_strain_rates.append(np.median(binn).item())
-            bin_axis.append(bin_edges[i])
-
-    # Add to history so we will re-plot the ENTIRE history.
-    _combo_median_strain_rates_history.append(median_strain_rates)
-    _combo_strain_rate_bin_axis_history.append(bin_axis)
-    _combo_strain_rate_timestep_history.append(_timestep)
-    
-    # And now we can delete the raw data so that the lists can be reused later
-    _normal_strain_rates.clear()
-    _strain_rate_bond_phi.clear()
-
-    # plot
-    for i, median_strain_rates in enumerate(_combo_median_strain_rates_history):
-        bin_axis: list[float] = _combo_strain_rate_bin_axis_history[i]
-        timestep: int = _combo_strain_rate_timestep_history[i]
-        combo_normal_strain_rates_binned_ax.plot(bin_axis, median_strain_rates, "-", label=f"T = {timestep}")
-    if end:
-        combo_normal_strain_rates_binned_ax.legend()
-    else:
-        combo_normal_strain_rates_binned_ax.legend(loc="upper right")
-
-    # save
-    # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
-    suffix: str = " (with final timestep)" if end else ""
-    combo_path = os.path.join(_plot_path, f"Strain rates by particle pair{suffix}.png")
-    combo_normal_strain_rates_binned_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
-    plt.close(combo_normal_strain_rates_binned_fig)
+    _plot_data_history(_combo_median_strain_rates_history,
+                       _combo_strain_rate_bin_axis_history,
+                       _combo_strain_rate_timestep_history,
+                       filename="Normal strain rates by particle pair",
+                       xlabel=r"Particle position $\phi$",
+                       ylabel="Median normal strain rate",
+                       ylim=(-0.02, 0.01),
+                       axvline=np.pi/2,  # equator
+                       axhline=0,        # stretch/compression boundary
+                       legend_loc="upper right",
+                       end=end)
 
 def _show_bond_counts() -> None:
     bond_count_fig: Figure
