@@ -39,22 +39,22 @@ _bonds_per_particle: list[float] = []
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
 # graphing all such quantities over the SAME plotting interval, which I would have regretted. So, duplicate
 # these structures (and the code that generates them) for each graph.
-_combo_tension_bin_axis_history: list[list[float]] = []
-_combo_median_tensions_history: list[list[float]] = []
-_combo_tension_timestep_history: list[int] = []
+_tension_bin_axis_history: list[list[float]] = []
+_median_tensions_history: list[list[float]] = []
+_tension_timestep_history: list[int] = []
 
-_combo_speeds_bin_axis_history: list[list[float]] = []
-_combo_median_speeds_history: list[list[float]] = []
+_speeds_bin_axis_history: list[list[float]] = []
+_median_speeds_history: list[list[float]] = []
 # Name this strain rate variable after the algorithm it's using, which is the difference between the speed bin values.
 # We'll also calculate it elsewhere by a different algorithm.
-_combo_strain_rates_by_speed_diffs_history: list[list[float]] = []
-_combo_speeds_timestep_history: list[int] = []
+_strain_rates_by_speed_diffs_history: list[list[float]] = []
+_speeds_timestep_history: list[int] = []
 _speeds: list[float] = []
 _speeds_particle_phi: list[float] = []
 
-_combo_strain_rate_bin_axis_history: list[list[float]] = []
-_combo_median_strain_rates_history: list[list[float]] = []
-_combo_strain_rate_timestep_history: list[int] = []
+_strain_rate_bin_axis_history: list[list[float]] = []
+_median_normal_strain_rates_history: list[list[float]] = []
+_strain_rate_timestep_history: list[int] = []
 _normal_strain_rates: list[float] = []
 _strain_rate_bond_phi: list[float] = []
 
@@ -98,49 +98,49 @@ def _plot_data_history(values_history: list[list[float]],
     legend locations: if None, legend will be unconstrained, i.e. will use the default, which is "best" location.
     end: whether this represents the final plot at the last timestep, which is treated specially.
     """
-    combo_binned_values_fig: Figure
-    combo_binned_values_ax: Axes
+    binned_values_fig: Figure
+    binned_values_ax: Axes
     
     # All the timesteps on one plot, but all of them re-plotted from scratch each time
-    combo_binned_values_fig, combo_binned_values_ax = plt.subplots()
+    binned_values_fig, binned_values_ax = plt.subplots()
     if xlabel is not None:
-        combo_binned_values_ax.set_xlabel(xlabel)
+        binned_values_ax.set_xlabel(xlabel)
     if axvline is not None:
-        combo_binned_values_ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
-    combo_binned_values_ax.set_xlim(0, np.pi)
-    combo_binned_values_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+        binned_values_ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
+    binned_values_ax.set_xlim(0, np.pi)
+    binned_values_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
     if ylabel is not None:
-        combo_binned_values_ax.set_ylabel(ylabel)
+        binned_values_ax.set_ylabel(ylabel)
     if axhline is not None:
-        combo_binned_values_ax.axhline(y=axhline, linestyle=":", color="k", linewidth=0.5)
+        binned_values_ax.axhline(y=axhline, linestyle=":", color="k", linewidth=0.5)
     if not end:
         # Final timestep may be extreme, gets saved as a separate plot, and doesn't need its scale to be consistent
         # between different sim configurations (e.g. with vs without cell division), so don't constrain it.
         if ylim is not None:
-            combo_binned_values_ax.set_ylim(*ylim)
+            binned_values_ax.set_ylim(*ylim)
     
     # plot the entire history
     for i, median_values in enumerate(values_history):
         bin_axis: list[float] = bin_axis_history[i]
         timestep: int = timestep_history[i]
-        combo_binned_values_ax.plot(bin_axis, median_values, "-", label=f"T = {timestep}")
+        binned_values_ax.plot(bin_axis, median_values, "-", label=f"T = {timestep}")
     if end:
         if end_legend_loc is None:
-            combo_binned_values_ax.legend()  # unconstrained
+            binned_values_ax.legend()  # unconstrained
         else:
-            combo_binned_values_ax.legend(loc=end_legend_loc)
+            binned_values_ax.legend(loc=end_legend_loc)
     else:
         if legend_loc is None:
-            combo_binned_values_ax.legend()
+            binned_values_ax.legend()
         else:
-            combo_binned_values_ax.legend(loc=legend_loc)
+            binned_values_ax.legend(loc=legend_loc)
     
     # save
     # On final timestep, use a different filename, so I get two saved versions: with and without the final plot
     suffix: str = " (with final timestep)" if end else ""
-    combo_path = os.path.join(_plot_path, f"{filename}{suffix}.png")
-    combo_binned_values_fig.savefig(combo_path, transparent=False, bbox_inches="tight")
-    plt.close(combo_binned_values_fig)
+    path = os.path.join(_plot_path, f"{filename}{suffix}.png")
+    binned_values_fig.savefig(path, transparent=False, bbox_inches="tight")
+    plt.close(binned_values_fig)
 
 def _add_binned_medians_to_history(values: list[float],
                                    positions: list[float],
@@ -237,18 +237,18 @@ def _show_test_tension_v_phi(end: bool) -> None:
     # That was the raw data, now let's bin it and plot its median
     _add_binned_medians_to_history(tensions,
                                    particle_phi,
-                                   _combo_median_tensions_history,
-                                   _combo_tension_bin_axis_history,
-                                   _combo_tension_timestep_history)
+                                   _median_tensions_history,
+                                   _tension_bin_axis_history,
+                                   _tension_timestep_history)
     
-    _plot_data_history(_combo_median_tensions_history,
-                       _combo_tension_bin_axis_history,
-                       _combo_tension_timestep_history,
+    _plot_data_history(_median_tensions_history,
+                       _tension_bin_axis_history,
+                       _tension_timestep_history,
                        filename="Aggregate tension vs. phi, multiple timepoints",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Median particle tension",
                        ylim=(-0.05, 0.20),
-                       axhline=0,   # compression/tension boundary
+                       axhline=0,  # compression/tension boundary
                        legend_loc="lower right",
                        end_legend_loc="upper left",
                        end=end)
@@ -293,9 +293,9 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     approximate_bin_size: float = np.pi / 10
     actual_bin_size: float = _add_binned_medians_to_history(_speeds,
                                                             _speeds_particle_phi,
-                                                            _combo_median_speeds_history,
-                                                            _combo_speeds_bin_axis_history,
-                                                            _combo_speeds_timestep_history,
+                                                            _median_speeds_history,
+                                                            _speeds_bin_axis_history,
+                                                            _speeds_timestep_history,
                                                             approx_bin_size=approximate_bin_size)
     # ToDo? Alternative ways to plot? Time in the x axis, and phi as the different colored lines!
     #  Or maybe even, phi vs time, with velocity displayed as a heatmap???
@@ -305,9 +305,9 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     # Latex: magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
     ylabel: str = r"Median $\Vert\mathbf{v_{veg}}\Vert$"
 
-    _plot_data_history(_combo_median_speeds_history,
-                       _combo_speeds_bin_axis_history,
-                       _combo_speeds_timestep_history,
+    _plot_data_history(_median_speeds_history,
+                       _speeds_bin_axis_history,
+                       _speeds_timestep_history,
                        filename="PIV - speed vs. phi, multiple timepoints",
                        xlabel=r"Particle position $\phi$",
                        ylabel=ylabel,
@@ -318,7 +318,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     
     # Now generate another plot, for strain rates based on the median speed values, which were appended to the
     # speeds history when the speed plot was generated:
-    median_speeds: list[float] = _combo_median_speeds_history[-1]
+    median_speeds: list[float] = _median_speeds_history[-1]
 
     # From the aggregate speed of each bin, calculate strain rate = difference from previous bin, which we'll plot
     # separately. (And correct for actual_bin_size, which is constant within a time point, but not between time points;
@@ -333,21 +333,21 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
         previous_speed = speed
 
     # Add this to history as well
-    _combo_strain_rates_by_speed_diffs_history.append(strain_rates)
+    _strain_rates_by_speed_diffs_history.append(strain_rates)
 
     # Since we skipped the first bin on the values, we have to do the same on the positions.
     # This is true for every timepoint in the history.
-    truncated_bin_axis_history: list[list[float]] = [bin_axis[1:] for bin_axis in _combo_speeds_bin_axis_history]
+    truncated_bin_axis_history: list[list[float]] = [bin_axis[1:] for bin_axis in _speeds_bin_axis_history]
     
-    _plot_data_history(_combo_strain_rates_by_speed_diffs_history,
+    _plot_data_history(_strain_rates_by_speed_diffs_history,
                        truncated_bin_axis_history,
-                       _combo_speeds_timestep_history,
+                       _speeds_timestep_history,
                        filename="Strain rates by speed bin diffs",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Strain rate (speed-bin differences)",
                        ylim=(-0.011, 0.045),
-                       axvline=np.pi/2,     # equator
-                       axhline=0,           # stretch/compression boundary
+                       axvline=np.pi/2,  # equator
+                       axhline=0,  # stretch/compression boundary
                        legend_loc="lower right",
                        end_legend_loc="upper left",
                        end=end)
@@ -405,19 +405,19 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
         return
 
     _add_binned_medians_to_history(_normal_strain_rates, _strain_rate_bond_phi,
-                                   _combo_median_strain_rates_history,
-                                   _combo_strain_rate_bin_axis_history,
-                                   _combo_strain_rate_timestep_history)
+                                   _median_normal_strain_rates_history,
+                                   _strain_rate_bin_axis_history,
+                                   _strain_rate_timestep_history)
     
-    _plot_data_history(_combo_median_strain_rates_history,
-                       _combo_strain_rate_bin_axis_history,
-                       _combo_strain_rate_timestep_history,
+    _plot_data_history(_median_normal_strain_rates_history,
+                       _strain_rate_bin_axis_history,
+                       _strain_rate_timestep_history,
                        filename="Normal strain rates by particle pair",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Median normal strain rate",
                        ylim=(-0.02, 0.01),
                        axvline=np.pi/2,  # equator
-                       axhline=0,        # stretch/compression boundary
+                       axhline=0,  # stretch/compression boundary
                        legend_loc="upper right",
                        end=end)
 
@@ -533,7 +533,7 @@ def get_state() -> dict:
     """In composite runs, save incomplete plot data so those plots can be completed with cumulative data, all back to 0
     
     This applies to plots that accumulate over the life of the sim, like the progress plot and the median
-    tensions combo plot. Each run saves the plot image to disk, but the data is saved as part of the state,
+    tensions plot. Each run saves the plot image to disk, but the data is saved as part of the state,
     so the next run can import it and overwrite the saved image, all the way from Timestep 0.
     """
     return {"timestep": _timestep,
@@ -541,20 +541,20 @@ def get_state() -> dict:
             "leading_edge_phi": _leading_edge_phi,
             "timesteps": _timesteps,
             
-            "combo_tension_bin_axis_history": _combo_tension_bin_axis_history,
-            "combo_median_tensions_history": _combo_median_tensions_history,
-            "combo_tension_timestep_history": _combo_tension_timestep_history,
+            "tension_bin_axis_history": _tension_bin_axis_history,
+            "median_tensions_history": _median_tensions_history,
+            "tension_timestep_history": _tension_timestep_history,
             
-            "combo_speeds_bin_axis_history": _combo_speeds_bin_axis_history,
-            "combo_median_speeds_history": _combo_median_speeds_history,
-            "combo_strain_rates_by_speed_diffs_history": _combo_strain_rates_by_speed_diffs_history,
-            "combo_speeds_timestep_history": _combo_speeds_timestep_history,
+            "speeds_bin_axis_history": _speeds_bin_axis_history,
+            "median_speeds_history": _median_speeds_history,
+            "strain_rates_by_speed_diffs_history": _strain_rates_by_speed_diffs_history,
+            "speeds_timestep_history": _speeds_timestep_history,
             "speeds": _speeds,
             "speeds_particle_phi": _speeds_particle_phi,
             
-            "combo_strain_rate_bin_axis_history": _combo_strain_rate_bin_axis_history,
-            "combo_median_strain_rates_history": _combo_median_strain_rates_history,
-            "combo_strain_rate_timestep_history": _combo_strain_rate_timestep_history,
+            "strain_rate_bin_axis_history": _strain_rate_bin_axis_history,
+            "median_normal_strain_rates_history": _median_normal_strain_rates_history,
+            "strain_rate_timestep_history": _strain_rate_timestep_history,
             "normal_strain_rates": _normal_strain_rates,
             "strain_rate_bond_phi": _strain_rate_bond_phi,
             }
@@ -562,30 +562,30 @@ def get_state() -> dict:
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _timesteps
-    global _combo_tension_bin_axis_history, _combo_median_tensions_history, _combo_tension_timestep_history
-    global _combo_speeds_bin_axis_history, _combo_median_speeds_history, _combo_speeds_timestep_history
-    global _combo_strain_rates_by_speed_diffs_history
+    global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
+    global _speeds_bin_axis_history, _median_speeds_history, _speeds_timestep_history
+    global _strain_rates_by_speed_diffs_history
     global _speeds, _speeds_particle_phi
-    global _combo_strain_rate_bin_axis_history, _combo_median_strain_rates_history, _combo_strain_rate_timestep_history
+    global _strain_rate_bin_axis_history, _median_normal_strain_rates_history, _strain_rate_timestep_history
     global _normal_strain_rates, _strain_rate_bond_phi
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
     _timesteps = d["timesteps"]
     
-    _combo_tension_bin_axis_history = d["combo_tension_bin_axis_history"]
-    _combo_median_tensions_history = d["combo_median_tensions_history"]
-    _combo_tension_timestep_history = d["combo_tension_timestep_history"]
+    _tension_bin_axis_history = d["tension_bin_axis_history"]
+    _median_tensions_history = d["median_tensions_history"]
+    _tension_timestep_history = d["tension_timestep_history"]
     
-    _combo_speeds_bin_axis_history = d["combo_speeds_bin_axis_history"]
-    _combo_median_speeds_history = d["combo_median_speeds_history"]
-    _combo_strain_rates_by_speed_diffs_history = d["combo_strain_rates_by_speed_diffs_history"]
-    _combo_speeds_timestep_history = d["combo_speeds_timestep_history"]
+    _speeds_bin_axis_history = d["speeds_bin_axis_history"]
+    _median_speeds_history = d["median_speeds_history"]
+    _strain_rates_by_speed_diffs_history = d["strain_rates_by_speed_diffs_history"]
+    _speeds_timestep_history = d["speeds_timestep_history"]
     _speeds = d["speeds"]
     _speeds_particle_phi = d["speeds_particle_phi"]
     
-    _combo_strain_rate_bin_axis_history = d["combo_strain_rate_bin_axis_history"]
-    _combo_median_strain_rates_history = d["combo_median_strain_rates_history"]
-    _combo_strain_rate_timestep_history = d["combo_strain_rate_timestep_history"]
+    _strain_rate_bin_axis_history = d["strain_rate_bin_axis_history"]
+    _median_normal_strain_rates_history = d["median_normal_strain_rates_history"]
+    _strain_rate_timestep_history = d["strain_rate_timestep_history"]
     _normal_strain_rates = d["normal_strain_rates"]
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
