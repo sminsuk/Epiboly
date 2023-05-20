@@ -147,13 +147,18 @@ def _add_binned_medians_to_history(values: list[float],
                                    values_history: list[list[float]],
                                    bin_axis_history: list[list[float]],
                                    timestep_history: list[int],
+                                   repeating: bool = False,
                                    approx_bin_size: float = np.pi / 20) -> float:
     """From list of data points and positions, generate bins and median values, and add to history
     
     values, positions: data for a single plotted line on the graph. May be only from the current timestep,
-                       or global storage with data accumulated over multiple timesteps for time averaging.
+        or global storage with data accumulated over multiple timesteps for time averaging.
     history lists: Global storage, preserving lines previously drawn. Current timestep data will be added to it.
     approx_bin_size: width of bins on the x axis (delta phi); actual width will be adjusted to fit evenly into the data.
+    repeating: This flag is used to indicate that this function is being called multiple times with related data
+        sets, which all share the same positions (and hence the same bin_axis_history). When repeating is
+        set to True, it means that the bin_axis_history and timestep_history have already been saved on a
+        previous call, and thus should not be saved again. I.e., this is a repeat of the same data.
     
     returns: actual bin size used for the current timepoint, as adjusted from approx_bin_size
     """
@@ -185,12 +190,9 @@ def _add_binned_medians_to_history(values: list[float],
     
     # Add to history. We will re-plot the entire thing.
     values_history.append(median_values)
-    bin_axis_history.append(bin_axis)
-    timestep_history.append(_timestep)
-    
-    # Now delete the raw data (multi-timestep data accumulation) so that these global lists can be reused later
-    values.clear()
-    positions.clear()
+    if not repeating:
+        bin_axis_history.append(bin_axis)
+        timestep_history.append(_timestep)
     
     return actual_bin_size
 
@@ -302,6 +304,10 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     # ToDo? Should bin size be based on number of particles (or height, which is proportional to
     #  surface area) rather than on phi???
 
+    # Now delete the raw data (multi-timestep data accumulation) so that these global lists can be reused later
+    _speeds.clear()
+    _speeds_particle_phi.clear()
+
     # Latex: magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
     ylabel: str = r"Median $\Vert\mathbf{v_{veg}}\Vert$"
 
@@ -409,6 +415,10 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
                                    _strain_rate_bin_axis_history,
                                    _strain_rate_timestep_history)
     
+    # Now delete the raw data (multi-timestep data accumulation) so that these global lists can be reused later
+    _normal_strain_rates.clear()
+    _strain_rate_bond_phi.clear()
+
     _plot_data_history(_median_normal_strain_rates_history,
                        _strain_rate_bin_axis_history,
                        _strain_rate_timestep_history,
