@@ -147,7 +147,8 @@ def _add_binned_medians_to_history(values: list[float],
                                    values_history: list[list[float]],
                                    bin_axis_history: list[list[float]],
                                    timestep_history: list[int],
-                                   repeating: bool = False,
+                                   first: bool = True,
+                                   last: bool = True,
                                    approx_bin_size: float = np.pi / 20) -> float:
     """From list of data points and positions, generate bins and median values, and add to history
     
@@ -155,10 +156,13 @@ def _add_binned_medians_to_history(values: list[float],
         or global storage with data accumulated over multiple timesteps for time averaging.
     history lists: Global storage, preserving lines previously drawn. Current timestep data will be added to it.
     approx_bin_size: width of bins on the x axis (delta phi); actual width will be adjusted to fit evenly into the data.
-    repeating: This flag is used to indicate that this function is being called multiple times with related data
-        sets, which all share the same positions (and hence the same bin_axis_history). When repeating is
-        set to True, it means that the bin_axis_history and timestep_history have already been saved on a
-        previous call, and thus should not be saved again. I.e., this is a repeat of the same data.
+    first, last: These flags are used to indicate that this function is being called multiple times with related data
+        sets, which all share the same positions (and hence the same bin_axis_history). When making a singular
+        call, use the defaults of both = True (it's the only call, so it's both the first and last call).
+        When making a series of calls for related data, set first = True only on the first call, and False
+        everywhere else; and set last = True only on the last call, and False everywhere else. The bin_axis_history
+        and timestep_history will only be appended to history on the first call. The raw accumulated positions
+        data for time averaging, which needs to be reset for future use, will only be cleared on the last call.
     
     returns: actual bin size used for the current timepoint, as adjusted from approx_bin_size
     """
@@ -190,10 +194,17 @@ def _add_binned_medians_to_history(values: list[float],
     
     # Add to history. We will re-plot the entire thing.
     values_history.append(median_values)
-    if not repeating:
+    if first:
         bin_axis_history.append(bin_axis)
         timestep_history.append(_timestep)
     
+    # Now delete the raw data (multi-timestep data accumulation) so that these global lists can be reused
+    # later. In a series of multiple calls, values is a different list each time, so always clear it.
+    values.clear()
+    if last:
+        # In a series of multiple calls, positions is reused each time, so only clear it after the last call.
+        positions.clear()
+
     return actual_bin_size
 
 def _show_test_tension_v_phi(end: bool) -> None:
@@ -304,10 +315,6 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     # ToDo? Should bin size be based on number of particles (or height, which is proportional to
     #  surface area) rather than on phi???
 
-    # Now delete the raw data (multi-timestep data accumulation) so that these global lists can be reused later
-    _speeds.clear()
-    _speeds_particle_phi.clear()
-
     # Latex: magnitude (double vertical bar) of the vector v-sub-veg, the vegetal component of velocity
     ylabel: str = r"Median $\Vert\mathbf{v_{veg}}\Vert$"
 
@@ -415,10 +422,6 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
                                    _strain_rate_bin_axis_history,
                                    _strain_rate_timestep_history)
     
-    # Now delete the raw data (multi-timestep data accumulation) so that these global lists can be reused later
-    _normal_strain_rates.clear()
-    _strain_rate_bond_phi.clear()
-
     _plot_data_history(_median_normal_strain_rates_history,
                        _strain_rate_bin_axis_history,
                        _strain_rate_timestep_history,
