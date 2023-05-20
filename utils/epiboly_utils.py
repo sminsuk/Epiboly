@@ -3,6 +3,7 @@
 These are utility functions specific to this simulation.
 """
 from statistics import fmean
+from typing import Union
 
 import tissue_forge as tf
 import epiboly_globals as g
@@ -16,19 +17,32 @@ def reset_camera():
     tf.system.camera_view_front()
     tf.system.camera_zoom_to(-12)
 
-def embryo_phi(particle: tf.ParticleHandle) -> float:
-    """phi relative to the animal/vegetal axis"""
-    r, theta, phi = particle.sphericalPosition(particle=g.Big.particle(0))
+def embryo_phi(p: Union[tf.fVector3, tf.ParticleHandle]) -> float:
+    """phi relative to the animal/vegetal axis
+    
+    Overload to get phi based on either a position or an existing particle.
+    """
+    theta, phi = embryo_coords(p)
     return phi
 
-def embryo_theta(particle: tf.ParticleHandle) -> float:
-    """theta relative to the animal/vegetal axis"""
-    r, theta, phi = particle.sphericalPosition(particle=g.Big.particle(0))
+def embryo_theta(p: Union[tf.fVector3, tf.ParticleHandle]) -> float:
+    """theta relative to the animal/vegetal axis
+    
+    Overload to get theta based on either a position or an existing particle.
+    """
+    theta, phi = embryo_coords(p)
     return theta
 
-def embryo_coords(particle: tf.ParticleHandle) -> tuple[float, float]:
-    """theta, phi relative to the animal/vegetal axis"""
-    r, theta, phi = particle.sphericalPosition(particle=g.Big.particle(0))
+def embryo_coords(p: Union[tf.fVector3, tf.ParticleHandle]) -> tuple[float, float]:
+    """theta, phi relative to the animal/vegetal axis
+    
+    Overload to get theta, phi based on either a position or an existing particle.
+    """
+    position: tf.fVector3 = p if type(p) is tf.fVector3 else p.position
+    yolk_particle: tf.ParticleHandle = g.Big.items()[0]
+    r, theta, phi = tf.metrics.cartesian_to_spherical(postion=position, origin=yolk_particle.position)
+    # (sic, argument name is misspelled in the API)
+    
     return theta, phi
 
 def leading_edge_max_phi() -> float:
