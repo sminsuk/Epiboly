@@ -109,6 +109,20 @@ def spherical_degs_from_cartesian(cartesian_vec):
     r, theta, phi = spherical_from_cartesian(cartesian_vec)
     return tf.fVector3([r, math.degrees(theta), math.degrees(phi)])
 
+def corrected_theta(diff: float) -> float:
+    """Given a difference between thetas of two spherical coordinate vectors, correct for range boundary crossing.
+    
+    Call by passing a subtraction expression: corrected_theta(theta2 - theta1). Thus the sign of the result depends
+    on the order of the subtraction, but also on how great the difference is (hence whether the shortest distance
+    straddles the boundary). The absolute value of the result will never be greater than pi.
+    """
+    if diff > np.pi:
+        return diff - 2 * np.pi
+    elif diff < -np.pi:
+        return diff + 2 * np.pi
+    else:
+        return diff
+
 def random_nd_spherical(npoints: int, dim: int) -> list[list[float]]:
     """Generate uniform distributed points on n-dimensional sphere
 

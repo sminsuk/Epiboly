@@ -374,6 +374,11 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
         """Return the magnitude of the vector projection, but preserve the sign"""
         projection: tf.fVector3 = vector.projected(direction)
         return projection.length() * np.sign(vector.dot(direction))
+    
+    def unsigned_scalar_from_vector_projection(vector: tf.fVector3, direction: tf.fVector3) -> float:
+        """Use this when you need to guarantee a nonnegative result"""
+        projection: tf.fVector3 = vector.projected(direction)
+        return projection.length()
 
     def phi_and_strain_rates(bhandle: tf.BondHandle) -> tuple[float, float, float, float]:
         p1: tf.ParticleHandle
@@ -381,8 +386,13 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
         p1, p2 = bhandle.parts
         theta1, phi1 = epu.embryo_coords(p1)
         theta2, phi2 = epu.embryo_coords(p2)
-        theta: float = (theta1 + theta2) / 2
-        phi: float = (phi1 + phi2) / 2
+        
+        # The average theta is easier to get this way than by just averaging the two thetas,
+        # because then you'd have to deal with the case of two thetas at opposite ends of the
+        # range, i.e. across a discontinuous numerical boundary.
+        midpoint: tf.fVector3 = (p1.position + p2.position) / 2
+        theta, phi = epu.embryo_coords(midpoint)
+        
         vegetalward_phi: float = phi + np.pi / 2
         eastward_theta: float = theta + np.pi / 2
 
@@ -390,12 +400,30 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
         normal_direction: tf.fVector3 = p2.position - p1.position
         vegetalward: tf.fVector3 = tfu.cartesian_from_spherical([1, theta, vegetalward_phi])
         eastward: tf.fVector3 = tfu.cartesian_from_spherical([1, eastward_theta, np.pi/2])
-        polar_direction: tf.fVector3 = vegetalward * np.sign(phi2 - phi1)
-        circumf_direction: tf.fVector3 = eastward * np.sign(theta2 - theta1)
         
+        # Particle positions could theoretically be identical, so normal_direction would be the zero vector,
+        # and projecting onto it would give NaN. But in practice that's never going to happen.
         normal_strain_rate: float = signed_scalar_from_vector_projection(strain_rate_vec, direction=normal_direction)
-        polar_strain_rate: float = signed_scalar_from_vector_projection(strain_rate_vec, direction=polar_direction)
-        circumf_strain_rate: float = signed_scalar_from_vector_projection(strain_rate_vec, direction=circumf_direction)
+        
+        # In contrast, fairly frequently, the difference between the 2 phi values or the 2 theta values is zero,
+        # which would result in the usual calculation of polar_direction and circumf_direction being the zero vector,
+        # and projecting onto those would give NaN. So we need to handle those special cases. But in those cases
+        # the strain rate is definitely nonnegative (can't compress when distance along those respective directions
+        # is already zero), so we just need the simpler calculation that ignores the sign of the vector projection.
+        if phi1 == phi2:
+            polar_strain_rate: float = unsigned_scalar_from_vector_projection(strain_rate_vec,
+                                                                              direction=vegetalward)
+        else:
+            polar_direction: tf.fVector3 = vegetalward * np.sign(phi2 - phi1)
+            polar_strain_rate: float = signed_scalar_from_vector_projection(strain_rate_vec,
+                                                                            direction=polar_direction)
+        if theta1 == theta2:
+            circumf_strain_rate: float = unsigned_scalar_from_vector_projection(strain_rate_vec,
+                                                                                direction=eastward)
+        else:
+            circumf_direction: tf.fVector3 = eastward * np.sign(tfu.corrected_theta(theta2 - theta1))
+            circumf_strain_rate: float = signed_scalar_from_vector_projection(strain_rate_vec,
+                                                                              direction=circumf_direction)
         
         return phi, normal_strain_rate, polar_strain_rate, circumf_strain_rate
 
