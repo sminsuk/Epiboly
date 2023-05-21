@@ -54,8 +54,12 @@ _speeds_particle_phi: list[float] = []
 
 _strain_rate_bin_axis_history: list[list[float]] = []
 _median_normal_strain_rates_history: list[list[float]] = []
+_median_polar_strain_rates_history: list[list[float]] = []
+_median_circumf_strain_rates_history: list[list[float]] = []
 _strain_rate_timestep_history: list[int] = []
 _normal_strain_rates: list[float] = []
+_polar_strain_rates: list[float] = []
+_circumf_strain_rates: list[float] = []
 _strain_rate_bond_phi: list[float] = []
 
 _timesteps: list[int] = []
@@ -360,7 +364,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
                        ylabel="Strain rate (speed-bin differences)",
                        ylim=(-0.011, 0.045),
                        axvline=np.pi/2,  # equator
-                       axhline=0,  # stretch/compression boundary
+                       axhline=0,        # stretch/compression boundary
                        legend_loc="lower right",
                        end_legend_loc="upper left",
                        end=end)
@@ -432,6 +436,8 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
         # But if end, we'll keep things simple by dumping earlier data (if any) and gathering just the current
         # data and plotting it (so, not time averaged as usual).
         _normal_strain_rates.clear()
+        _polar_strain_rates.clear()
+        _circumf_strain_rates.clear()
         _strain_rate_bond_phi.clear()
 
     # Calculate strain rate for each bonded particle pair, along with its position
@@ -439,28 +445,44 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
     for bhandle in tf.BondHandle.items():
         bond_position_phi, normal_strain_rate, polar_strain_rate, circumf_strain_rate = phi_and_strain_rates(bhandle)
         _normal_strain_rates.append(normal_strain_rate)
+        _polar_strain_rates.append(polar_strain_rate)
+        _circumf_strain_rates.append(circumf_strain_rate)
         _strain_rate_bond_phi.append(bond_position_phi)
 
     if not finished_accumulating and not end:
         # accumulate more timesteps before plotting
         return
 
-    _add_binned_medians_to_history(_normal_strain_rates, _strain_rate_bond_phi,
-                                   _median_normal_strain_rates_history,
-                                   _strain_rate_bin_axis_history,
-                                   _strain_rate_timestep_history)
+    # For all three sets of data (normal, polar, circumferential), generate binned median values and store to history,
+    # storing the results from each data set in its respective history list. The bin_axis_history and timestep_history
+    # will only be generated once, in the first of the three calls (first=True).
+    arg_sets = [(_normal_strain_rates, _median_normal_strain_rates_history, True, False),
+                (_polar_strain_rates, _median_polar_strain_rates_history, False, False),
+                (_circumf_strain_rates, _median_circumf_strain_rates_history, False, True)]
+    for values, values_history, first, last in arg_sets:
+        _add_binned_medians_to_history(values, _strain_rate_bond_phi,
+                                       values_history,
+                                       _strain_rate_bin_axis_history,
+                                       _strain_rate_timestep_history,
+                                       first=first,
+                                       last=last)
     
-    _plot_data_history(_median_normal_strain_rates_history,
-                       _strain_rate_bin_axis_history,
-                       _strain_rate_timestep_history,
-                       filename="Normal strain rates by particle pair",
-                       xlabel=r"Particle position $\phi$",
-                       ylabel="Median normal strain rate",
-                       ylim=(-0.02, 0.01),
-                       axvline=np.pi/2,  # equator
-                       axhline=0,  # stretch/compression boundary
-                       legend_loc="upper right",
-                       end=end)
+    # Now plot all three graphs, the same way.
+    arg_sets = [("normal", _median_normal_strain_rates_history, (-0.02, 0.01), "upper right"),
+                ("polar", _median_polar_strain_rates_history, (-0.009, 0.01), None),
+                ("circumferential", _median_circumf_strain_rates_history, (-0.018, 0.006), "upper right")]
+    for direction, values_history, ylim, legend_loc in arg_sets:
+        _plot_data_history(values_history,
+                           _strain_rate_bin_axis_history,
+                           _strain_rate_timestep_history,
+                           filename=f"{direction.capitalize()} strain rates",
+                           xlabel=r"Particle position $\phi$",
+                           ylabel=f"Median {direction} strain rate",
+                           ylim=ylim,
+                           axvline=np.pi/2,  # equator
+                           axhline=0,        # stretch/compression boundary
+                           legend_loc=legend_loc,
+                           end=end)
 
 def _show_bond_counts() -> None:
     bond_count_fig: Figure
@@ -595,8 +617,12 @@ def get_state() -> dict:
             
             "strain_rate_bin_axis_history": _strain_rate_bin_axis_history,
             "median_normal_strain_rates_history": _median_normal_strain_rates_history,
+            "median_polar_strain_rates_history": _median_polar_strain_rates_history,
+            "median_circumf_strain_rates_history": _median_circumf_strain_rates_history,
             "strain_rate_timestep_history": _strain_rate_timestep_history,
             "normal_strain_rates": _normal_strain_rates,
+            "polar_strain_rates": _polar_strain_rates,
+            "circumf_strain_rates": _circumf_strain_rates,
             "strain_rate_bond_phi": _strain_rate_bond_phi,
             }
 
@@ -608,7 +634,8 @@ def set_state(d: dict) -> None:
     global _strain_rates_by_speed_diffs_history
     global _speeds, _speeds_particle_phi
     global _strain_rate_bin_axis_history, _median_normal_strain_rates_history, _strain_rate_timestep_history
-    global _normal_strain_rates, _strain_rate_bond_phi
+    global _median_polar_strain_rates_history, _median_circumf_strain_rates_history
+    global _normal_strain_rates, _polar_strain_rates, _circumf_strain_rates, _strain_rate_bond_phi
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
@@ -627,6 +654,10 @@ def set_state(d: dict) -> None:
     
     _strain_rate_bin_axis_history = d["strain_rate_bin_axis_history"]
     _median_normal_strain_rates_history = d["median_normal_strain_rates_history"]
+    _median_polar_strain_rates_history = d["median_polar_strain_rates_history"]
+    _median_circumf_strain_rates_history = d["median_circumf_strain_rates_history"]
     _strain_rate_timestep_history = d["strain_rate_timestep_history"]
     _normal_strain_rates = d["normal_strain_rates"]
+    _polar_strain_rates = d["polar_strain_rates"]
+    _circumf_strain_rates = d["circumf_strain_rates"]
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
