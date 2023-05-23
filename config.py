@@ -36,6 +36,7 @@ sim_state_export_keep: bool = False
 screenshot_export_interval: int = 10
 
 cell_division_enabled: bool = True
+plot_time_averages: bool = True
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
 # and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)

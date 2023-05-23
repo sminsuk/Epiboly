@@ -569,26 +569,31 @@ def show_graphs(end: bool = False) -> None:
         # These aggregate graphs don't need to be time-averaged, so just call them exactly on the interval (including 0)
         _show_test_tension_v_phi(end)
 
-    if _timestep > 0:
-        # These aggregate graphs need to be time-averaged. Don't do them at exactly 0, because we need to
-        # average the timesteps AFTER that. And the logic below needs to skip over 0 to work. We want
-        # remainder == 0 at the end of the accumulation period, not at the beginning. (Later, we time-average
-        # BEFORE the time point, e.g., get all the data from steps (5000 - [num steps]) through 5000.)
-        
-        time_avg_accumulation_steps: int = 200
-        if _timestep <= time_avg_accumulation_steps:
-            # Special case so that at the beginning of the sim, we time-average AFTER T=0,
-            # i.e, get all the data from steps 1 through [num steps].
-            plot_interval = time_avg_accumulation_steps
-        
-        remainder: int = _timestep % plot_interval
-        # If within accumulation_steps of the time point to be plotted, go accumulate data but don't plot anything yet;
-        # when the time to plot arrives, go accumulate that final time point's data, time-average it all, and plot.
-        if (remainder == 0
-                or remainder > plot_interval - time_avg_accumulation_steps
-                or end):
-            _show_piv_speed_v_phi(remainder == 0, end)
-            _show_strain_rates_v_phi(remainder == 0, end)
+    if not cfg.plot_time_averages:
+        if _timestep % plot_interval == 0 or end:
+            _show_piv_speed_v_phi(True, end)
+            _show_strain_rates_v_phi(True, end)
+    else:
+        if _timestep > 0:
+            # These aggregate graphs need to be time-averaged. Don't do them at exactly 0, because we need to
+            # average the timesteps AFTER that. And the logic below needs to skip over 0 to work. We want
+            # remainder == 0 at the end of the accumulation period, not at the beginning. (Later, we time-average
+            # BEFORE the time point, e.g., get all the data from steps (5000 - [num steps]) through 5000.)
+            
+            time_avg_accumulation_steps: int = 200
+            if _timestep <= time_avg_accumulation_steps:
+                # Special case so that at the beginning of the sim, we time-average AFTER T=0,
+                # i.e, get all the data from steps 1 through [num steps].
+                plot_interval = time_avg_accumulation_steps
+            
+            remainder: int = _timestep % plot_interval
+            # During accumulation phase for the time point, go accumulate data but don't plot anything yet;
+            # when the time to plot arrives, go accumulate that final time point's data, time-average it all, and plot.
+            if (remainder == 0
+                    or remainder > plot_interval - time_avg_accumulation_steps
+                    or end):
+                _show_piv_speed_v_phi(remainder == 0, end)
+                _show_strain_rates_v_phi(remainder == 0, end)
         
     _timestep += 1
     
