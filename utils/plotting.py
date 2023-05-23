@@ -307,7 +307,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
         # accumulate more timesteps before plotting
         return
 
-    approximate_bin_size: float = np.pi / 10
+    approximate_bin_size: float = np.pi / 20
     actual_bin_size: float = _add_binned_medians_to_history(_speeds,
                                                             _speeds_particle_phi,
                                                             _median_speeds_history,
