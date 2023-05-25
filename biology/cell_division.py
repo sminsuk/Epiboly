@@ -7,22 +7,29 @@ import epiboly_globals as g
 
 import config as cfg
 import biology.bond_maintenance as bonds
+import utils.epiboly_utils as epu
 import utils.global_catalogs as gc
 import utils.tf_utils as tfu
 
 # Initialize just once
 _generator: np.random.Generator = np.random.default_rng()
-_expected_timesteps: int
-if cfg.cell_division_enabled:
-    # For space_filling_enabled, value based on only N=2, because haven't been running it lately (see 2023 Mar. 29, 30)
-    _expected_timesteps = 10500 if cfg.space_filling_enabled else 8900
-else:
-    # (This is a relic from when only the Poisson part had been written, and the rest of cell division
-    # was only stubbed out. I used this to test the behavior of that Poisson functionality, reporting
-    # each "division" and the cumulative total. Keeping for now.)
-    _expected_timesteps = 29000 if cfg.space_filling_enabled else 22000
-_expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / _expected_timesteps
 _cumulative_cell_divisions: int = 0
+
+# Calibrate division rate to EVL area.
+# Because surface area of a slice of a sphere = 2πrh, area increase will be proportional to height increase.
+_expected_divisions_per_height_unit: float
+_evl_previous_z: float
+
+def initialize_evl_area_tracking() -> None:
+    """Call this once, after simulation setup and equilibration, but before any additional timesteps"""
+    global _expected_divisions_per_height_unit, _evl_previous_z
+    
+    evl_final_height: float = 2 * (g.Big.radius + g.Little.radius)
+    evl_initial_height: float = evl_final_height * cfg.epiboly_initial_percentage / 100
+    evl_total_height_increase: float = evl_final_height - evl_initial_height
+    _expected_divisions_per_height_unit = cfg.total_epiboly_divisions / evl_total_height_increase
+
+    _evl_previous_z = epu.leading_edge_mean_z()
 
 def adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
     """Tissue Forge particle splitting is randomly oriented, but we need to constrain the axis to within the sheet"""
@@ -111,20 +118,29 @@ def cell_division() -> None:
             In 4 runs with space filling DISabled, total timesteps = 21K, 22K, 21K, 28K.
             In 4 runs with space filling ENabled (diffusion coefficient = 40), total timesteps = 28K, 27K, 29K, 32K.
             So for now, do a calculation based on whether that is enabled or not.
-            (Idea for maybe later: make this depend on leading edge displacement per timestep, instead of on time.
-            Then it would no longer be an "expected" value, but would instead be derived from an actual on-the-fly
-            measurement representing epiboly progress. Average division rate would then drift over time, as
-            the parameter sent to the poisson function changes. This should result in a more consistent total
-            number of divisions over the course of the sim. -- Also, decoupling cell division rate from absolute
-            time, and coupling it instead to rate of leading edge advancement, would have the beneficial effect of
+        8B. But later, made this depend on leading edge displacement, instead of on time. So now it will no
+            longer be a predetermined value per timestep, but will instead be derived from an actual on-the-fly
+            measurement representing epiboly progress. Average division rate will thus drift over time, as the
+            parameter sent to the poisson function changes. This should result in a more consistent total number
+            of divisions over the course of the sim, and it should no longer depend on whether the space filling
+            algorithm is enabled, nor on any other parameter. -- Also, decoupling cell division rate from absolute
+            time, and coupling it instead to rate of leading edge advancement, should have the beneficial effect of
             preventing division from happening when there's no external force to generate epiboly.)
     9. Use Poisson to determine how many cells will actually divide this time.
     """
-    global _cumulative_cell_divisions
+    global _cumulative_cell_divisions, _evl_previous_z
     if not cfg.cell_division_enabled:
         return
     
-    num_divisions: int = _generator.poisson(lam=_expected_divisions_per_timestep)
+    # Note that z coordinate *decreases* as epiboly progresses
+    evl_current_z: float = epu.leading_edge_mean_z()
+    if evl_current_z >= _evl_previous_z:
+        return
+    
+    expected_divisions: float = _expected_divisions_per_height_unit * (_evl_previous_z - evl_current_z)
+    _evl_previous_z = evl_current_z
+    
+    num_divisions: int = _generator.poisson(lam=expected_divisions)
     if num_divisions <= 0:
         return
         
@@ -145,12 +161,16 @@ def cell_division() -> None:
 
 def get_state() -> dict:
     """generate state to be saved to disk"""
-    return {"cumulative": _cumulative_cell_divisions}
+    return {"cumulative_cell_divisions": _cumulative_cell_divisions,
+            "expected_divisions_per_height_unit": _expected_divisions_per_height_unit,
+            "evl_previous_z": _evl_previous_z}
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _cumulative_cell_divisions
-    _cumulative_cell_divisions = d["cumulative"]
+    global _cumulative_cell_divisions, _expected_divisions_per_height_unit, _evl_previous_z
+    _cumulative_cell_divisions = d["cumulative_cell_divisions"]
+    _expected_divisions_per_height_unit = d["expected_divisions_per_height_unit"]
+    _evl_previous_z = d["evl_previous_z"]
 
 def _test1() -> None:
     """Testing whether this does what I want.
@@ -204,6 +224,22 @@ def _test4() -> None:
 
 if __name__ == '__main__':
     """Run some tests to check my own understanding"""
+    
+    # Original initialization looked like this, but then I switched from calibrating cell division rate
+    # based on time, to calibrating it based on EVL area instead. Keep this stuff down here for the tests
+    # so I don't have to mess with those.
+    _expected_timesteps: int
+    if cfg.cell_division_enabled:
+        # For space_filling_enabled, value based on only N=2, because haven't been running it lately
+        # (see results from 2023 Mar. 29, 30)
+        _expected_timesteps = 10500 if cfg.space_filling_enabled else 8900
+    else:
+        # (This is a relic from when only the Poisson part had been written, and the rest of cell division
+        # was only stubbed out. I used this to test the behavior of that Poisson functionality, reporting
+        # each "division" and the cumulative total. Keeping for now.)
+        _expected_timesteps = 29000 if cfg.space_filling_enabled else 22000
+    _expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / _expected_timesteps
+    
     _test1()
     _test1()
     _test1()

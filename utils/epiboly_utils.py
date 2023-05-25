@@ -53,6 +53,12 @@ def leading_edge_mean_phi() -> float:
     """mean phi for all leading edge particles"""
     phi_values = [embryo_phi(particle) for particle in g.LeadingEdge.items()]
     return fmean(phi_values)
+
+def leading_edge_mean_z() -> float:
+    """mean z for all leading edge particles"""
+    particle: tf.ParticleHandle
+    z_values = [particle.position.z() for particle in g.LeadingEdge.items()]
+    return fmean(z_values)
     
 def leading_edge_min_mean_max_phi() -> tuple[float, float, float]:
     """minimum, mean, and max phi for all leading edge particles"""

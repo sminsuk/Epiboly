@@ -55,7 +55,6 @@ num_spherical_positions: int = 5000
 
 # Cell division rate parameters. See justification in docstring of cell_division.cell_division().
 total_epiboly_divisions: int = 7500
-expected_timesteps: int  # For now, not a constant and not used; TBD
 
 # Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5
