@@ -574,15 +574,17 @@ def show_graphs(end: bool = False) -> None:
             _show_piv_speed_v_phi(True, end)
             _show_strain_rates_v_phi(True, end)
     else:
-        if _timestep > 0:
-            # These aggregate graphs need to be time-averaged. Don't do them at exactly 0, because we need to
-            # average the timesteps AFTER that. And the logic below needs to skip over 0 to work. We want
-            # remainder == 0 at the end of the accumulation period, not at the beginning. (Later, we time-average
+        if _timestep > 0 or cfg.plot_t0_as_single_timestep:
+            # These aggregate graphs need to be time-averaged. Averaging at simulation start is optional,
+            # according to the config flag. If doing that, don't plot at exactly 0, because we need to average
+            # the timesteps AFTER that. And the logic below needs to skip over 0 to work. We want remainder == 0
+            # at the end of the accumulation period, not at the beginning. (At later timesteps, we time-average
             # BEFORE the time point, e.g., get all the data from steps (5000 - [num steps]) through 5000.)
+            # If not averaging at simulation start, plot T = 0 as a single timestep.
             
             time_avg_accumulation_steps: int = 200
-            if _timestep <= time_avg_accumulation_steps:
-                # Special case so that at the beginning of the sim, we time-average AFTER T=0,
+            if _timestep <= time_avg_accumulation_steps and not cfg.plot_t0_as_single_timestep:
+                # Special case, when time-averaging the beginning of the simulation, so that we time-average AFTER T=0,
                 # i.e, get all the data from steps 1 through [num steps].
                 plot_interval = time_avg_accumulation_steps
             

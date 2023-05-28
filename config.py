@@ -36,7 +36,11 @@ sim_state_export_keep: bool = False
 screenshot_export_interval: int = 10
 
 cell_division_enabled: bool = True
+
+# Should certain metrics be plotted as time-averages, instead of as single timesteps? And if so,
+# should that also be applied to the simulation start, or just plot T0 as a single timestep?
 plot_time_averages: bool = True
+plot_t0_as_single_timestep: bool = True
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
 # and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)
