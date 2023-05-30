@@ -128,8 +128,10 @@ else:
         # Truncated run with provided duration:
         # 310 for equilibration (fast, a couple minutes)
         # plus more (slow; ~30 per hour on old Mac)
-        # (310 + 150 gets a clean exit before the memory crash)
-        # return tf.Universe.time > 310 + 150
+        # return tf.Universe.time > 310 + 5
+    
+        # Good total when running no-epiboly control (0 external force), same amount of time as no-cell-div epiboly:
+        # return tf.Universe.time > 525
         
         # Full epiboly:
         return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
