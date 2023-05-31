@@ -109,6 +109,16 @@ def spherical_degs_from_cartesian(cartesian_vec):
     r, theta, phi = spherical_from_cartesian(cartesian_vec)
     return tf.fVector3([r, math.degrees(theta), math.degrees(phi)])
 
+def signed_scalar_from_vector_projection(vector: tf.fVector3, direction: tf.fVector3) -> float:
+    """Return the magnitude of the vector projection, but preserve the sign"""
+    projection: tf.fVector3 = vector.projected(direction)
+    return projection.length() * np.sign(vector.dot(direction))
+
+def unsigned_scalar_from_vector_projection(vector: tf.fVector3, direction: tf.fVector3) -> float:
+    """Use this when you need to guarantee a nonnegative result"""
+    projection: tf.fVector3 = vector.projected(direction)
+    return projection.length()
+
 def corrected_theta(diff: float) -> float:
     """Given a difference between thetas of two spherical coordinate vectors, correct for range boundary crossing.
     
