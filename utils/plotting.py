@@ -76,6 +76,22 @@ def _init_graphs() -> None:
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
+def _expand_limits_if_needed(limits: tuple[float, float], data: list) -> tuple[float, float]:
+    """Test whether data exceeds the plotting limits, and expand the limits to accommodate. But never shrink them.
+    
+    limits: ylim values for the plot when well behaved
+    data: list of floats, of any number of dimensions, representing all points that will be plotted.
+    return: revised ylim values for the plot
+    
+    Final timestep may be extreme, gets saved as a separate plot, and doesn't need its scale to be consistent
+    between different sim configurations (e.g. with vs without cell division), so don't constrain it
+    from expanding from what's normally used. But do constrain it from shrinking.
+    """
+    low_lim, high_lim = limits
+    data_min: float = np.amin(data)
+    data_max: float = np.amax(data)
+    return min(low_lim, data_min), max(high_lim, data_max)
+
 def _plot_data_history(values_history: list[list[float]],
                        bin_axis_history: list[list[float]],
                        timestep_history: list[int],
@@ -117,11 +133,10 @@ def _plot_data_history(values_history: list[list[float]],
         binned_values_ax.set_ylabel(ylabel)
     if axhline is not None:
         binned_values_ax.axhline(y=axhline, linestyle=":", color="k", linewidth=0.5)
-    if not end:
-        # Final timestep may be extreme, gets saved as a separate plot, and doesn't need its scale to be consistent
-        # between different sim configurations (e.g. with vs without cell division), so don't constrain it.
-        if ylim is not None:
-            binned_values_ax.set_ylim(*ylim)
+    if ylim is not None:
+        if end:
+            ylim = _expand_limits_if_needed(ylim, values_history)
+        binned_values_ax.set_ylim(*ylim)
     
     # plot the entire history
     for i, median_values in enumerate(values_history):
@@ -226,9 +241,6 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions_ax.set_xlim(0, np.pi)
     tensions_ax.set_ylabel("Particle tension\n(mean bond displacement from equilibrium)")
     tensions_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # tension/compression boundary
-    if not end:
-        # Final timestep will go way beyond this ylim value, so don't constrain it.
-        tensions_ax.set_ylim(-0.075, 0.25)
     tensions_ax.text(0.02, 0.97, f"T={_timestep}", transform=tensions_ax.transAxes,
                      verticalalignment="top", horizontalalignment="left",
                      fontsize=28, fontweight="bold")
@@ -244,6 +256,10 @@ def _show_test_tension_v_phi(end: bool) -> None:
         particle_phi.append(epu.embryo_phi(phandle))
     
     # plot
+    ylim: tuple[float, float] = (-0.075, 0.25)
+    if end:
+        ylim = _expand_limits_if_needed(ylim, tensions)
+    tensions_ax.set_ylim(*ylim)
     tensions_ax.plot(particle_phi, tensions, "b.")
 
     # save
