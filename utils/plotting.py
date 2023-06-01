@@ -16,6 +16,7 @@ Figure/Axes as they were, and leave those select ones open, but it's not really 
 enough to track them "live" as they plot – since I save frequently – just by opening the files they save to.
 """
 
+from itertools import chain
 import numpy as np
 import os
 from statistics import fmean
@@ -80,7 +81,7 @@ def _expand_limits_if_needed(limits: tuple[float, float], data: list) -> tuple[f
     """Test whether data exceeds the plotting limits, and expand the limits to accommodate. But never shrink them.
     
     limits: ylim values for the plot when well behaved
-    data: list of floats, of any number of dimensions, representing all points that will be plotted.
+    data: list[float], or list[list[float]], representing all points that will be plotted.
     return: revised ylim values for the plot
     
     Final timestep may be extreme, gets saved as a separate plot, and doesn't need its scale to be consistent
@@ -88,8 +89,19 @@ def _expand_limits_if_needed(limits: tuple[float, float], data: list) -> tuple[f
     from expanding from what's normally used. But do constrain it from shrinking.
     """
     low_lim, high_lim = limits
-    data_min: float = np.amin(data)
-    data_max: float = np.amax(data)
+
+    # flatten 2-d data to 1-d so we can take max, min
+    # (Seems to be best and fastest way:
+    # https://www.leocon.dev/blog/2021/09/how-to-flatten-a-python-list-array-and-which-one-should-you-use/
+    # Note that input array can be ragged, making numpy approaches more difficult.)
+    flat_data: list
+    if isinstance(data[0], list):
+        flat_data = list(chain.from_iterable(data))
+    else:
+        flat_data = data
+        
+    data_min: float = min(flat_data)
+    data_max: float = max(flat_data)
     return min(low_lim, data_min), max(high_lim, data_max)
 
 def _plot_data_history(values_history: list[list[float]],
