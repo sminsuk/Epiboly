@@ -102,7 +102,20 @@ def _expand_limits_if_needed(limits: tuple[float, float], data: list) -> tuple[f
         
     data_min: float = min(flat_data)
     data_max: float = max(flat_data)
-    return min(low_lim, data_min), max(high_lim, data_max)
+    
+    # On each end (top and bottom), use the passed-in limit unless the data exceed it
+    plot_min: float = min(low_lim, data_min)
+    plot_max: float = max(high_lim, data_max)
+    
+    # Prevent expanded plot from touching the bounding box, so that it's obvious the data is entirely contained.
+    margin: float = (plot_max - plot_min) / 50
+    
+    if plot_min < low_lim:
+        plot_min -= margin
+    if plot_max > high_lim:
+        plot_max += margin
+        
+    return plot_min, plot_max
 
 def _plot_data_history(values_history: list[list[float]],
                        bin_axis_history: list[list[float]],
