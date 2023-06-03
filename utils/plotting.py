@@ -368,7 +368,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
                        filename="PIV - speed vs. phi, multiple timepoints",
                        xlabel=r"Particle position $\phi$",
                        ylabel=ylabel,
-                       ylim=(-0.01, 0.15),
+                       ylim=(-0.006, 0.09),
                        axhline=0,        # vegetalward/animalward boundary
                        legend_loc="upper left",
                        end_legend_loc="upper left",
@@ -403,7 +403,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
                        filename="Strain rates by speed bin diffs",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Strain rate (speed-bin differences)",
-                       ylim=(-0.011, 0.045),
+                       ylim=(-0.005, 0.035),
                        axvline=np.pi/2,  # equator
                        axhline=0,        # stretch/compression boundary
                        legend_loc="lower right",
