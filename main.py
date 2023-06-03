@@ -63,7 +63,7 @@ if not cfg.initialization_directory_name:
     vx.init_camera_data()
     
     setup.initialize_embryo()
-    cd.initialize_evl_area_tracking()
+    cd.initialize_division_rate_tracking()
     
     # Call now so that state is exported after setup/equilibration but before any update events;
     # then again at the end so I get the final state if the script completes.

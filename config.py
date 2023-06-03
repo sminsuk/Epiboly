@@ -58,6 +58,8 @@ num_leading_edge_points: int = 110
 num_spherical_positions: int = 5000
 
 # Cell division rate parameters. See justification in docstring of cell_division.cell_division().
+# Calibrate either to timesteps, or to area increase
+calibrate_division_rate_to_timesteps: bool = False
 total_epiboly_divisions: int = 7500
 
 # Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.

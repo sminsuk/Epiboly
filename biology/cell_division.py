@@ -15,13 +15,51 @@ import utils.tf_utils as tfu
 _generator: np.random.Generator = np.random.default_rng()
 _cumulative_cell_divisions: int = 0
 
-# Calibrate division rate to EVL area.
+# For calibrating division rate to EVL area.
 # Because surface area of a slice of a sphere = 2πrh, area increase will be proportional to height increase.
-_expected_divisions_per_height_unit: float
-_evl_previous_z: float
+_expected_divisions_per_height_unit: float = 0
+_evl_previous_z: float = 0
 
-def initialize_evl_area_tracking() -> None:
-    """Call this once, after simulation setup and equilibration, but before any additional timesteps"""
+# For calibrating division rate to time.
+_expected_timesteps: int = 0
+_expected_divisions_per_timestep: float = 0
+
+def initialize_division_rate_tracking() -> None:
+    """Call this once, after simulation setup and equilibration, but before any additional timesteps
+    
+    Initially, used timestep calibration. Then switched to area calibration. But that's not entirely
+    worked out yet, so, need to keep timestep calibration as an option for now. (Also, the tests use it.)
+    
+    Timestep calibration:
+    - isn't universal; needs magic numbers for every different case;
+    - is only approximate, because the total number of timesteps in the sim isn't known until the sim is finished;
+    
+    Area calibration:
+    - should be universal (if I can get it right); won't need to be tweaked every time I change a parameter of the sim;
+    - should be perfectly tuned because the area increase is always the same;
+    """
+    if cfg.cell_division_enabled:
+        if cfg.calibrate_division_rate_to_timesteps:
+            _initialize_timestep_tracking()
+        else:
+            _initialize_evl_area_tracking()
+    
+def _initialize_timestep_tracking() -> None:
+    """Calibrate division rate to the passage of time"""
+    global _expected_timesteps, _expected_divisions_per_timestep
+    if cfg.cell_division_enabled:
+        # For space_filling_enabled, value based on only N=2, because haven't been running it lately
+        # (see results from 2023 Mar. 29, 30)
+        _expected_timesteps = 10500 if cfg.space_filling_enabled else 8900
+    else:
+        # (This is a relic from when only the Poisson part had been written, and the rest of cell division
+        # was only stubbed out. I used this to test the behavior of that Poisson functionality, reporting
+        # each "division" and the cumulative total. Keeping for now.)
+        _expected_timesteps = 29000 if cfg.space_filling_enabled else 22000
+    _expected_divisions_per_timestep = cfg.total_epiboly_divisions / _expected_timesteps
+
+def _initialize_evl_area_tracking() -> None:
+    """Calibrate division rate to the changes in EVL area"""
     global _expected_divisions_per_height_unit, _evl_previous_z
     
     evl_final_height: float = 2 * (g.Big.radius + g.Little.radius)
@@ -31,7 +69,7 @@ def initialize_evl_area_tracking() -> None:
 
     _evl_previous_z = epu.leading_edge_mean_z()
 
-def adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
+def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
     """Tissue Forge particle splitting is randomly oriented, but we need to constrain the axis to within the sheet"""
     r1: float
     r2: float
@@ -64,7 +102,7 @@ def adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
         p1.position = yolk_phandle.position + relative_cartesian1
         p2.position = yolk_phandle.position + relative_cartesian2
 
-def divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
+def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter: tf.ParticleHandle = parent.split()
     parent.radius = g.Little.radius
     parent.mass = g.Little.mass
@@ -79,7 +117,7 @@ def divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter.style.color = tfu.lighter_blue     # for now, change it
     gc.add_particle(daughter)
     
-    adjust_positions(parent, daughter)
+    _adjust_positions(parent, daughter)
 
     bond_count: int = len(daughter.bonded_neighbors)
     if bond_count > 0:
@@ -125,20 +163,26 @@ def cell_division() -> None:
             of divisions over the course of the sim, and it should no longer depend on whether the space filling
             algorithm is enabled, nor on any other parameter. -- Also, decoupling cell division rate from absolute
             time, and coupling it instead to rate of leading edge advancement, should have the beneficial effect of
-            preventing division from happening when there's no external force to generate epiboly.)
+            preventing division from happening when there's no external force to generate epiboly.
+        8C. Currently, I've made it an option which approach to use, while I get the subtleties worked out for
+            area-based calibration.
     9. Use Poisson to determine how many cells will actually divide this time.
     """
     global _cumulative_cell_divisions, _evl_previous_z
     if not cfg.cell_division_enabled:
         return
     
-    # Note that z coordinate *decreases* as epiboly progresses
-    evl_current_z: float = epu.leading_edge_mean_z()
-    if evl_current_z >= _evl_previous_z:
-        return
-    
-    expected_divisions: float = _expected_divisions_per_height_unit * (_evl_previous_z - evl_current_z)
-    _evl_previous_z = evl_current_z
+    expected_divisions: float
+    if cfg.calibrate_division_rate_to_timesteps:
+        expected_divisions = _expected_divisions_per_timestep
+    else:
+        # Note that z coordinate *decreases* as epiboly progresses
+        evl_current_z: float = epu.leading_edge_mean_z()
+        if evl_current_z >= _evl_previous_z:
+            return
+        
+        expected_divisions = _expected_divisions_per_height_unit * (_evl_previous_z - evl_current_z)
+        _evl_previous_z = evl_current_z
     
     num_divisions: int = _generator.poisson(lam=expected_divisions)
     if num_divisions <= 0:
@@ -153,7 +197,7 @@ def cell_division() -> None:
     daughter: tf.ParticleHandle
     for phandle in selected_particles:
         _cumulative_cell_divisions += 1
-        daughter = divide(phandle)
+        daughter = _divide(phandle)
         assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
         print(f"New cell division (cumulative: {_cumulative_cell_divisions},"
               f" total cells: {len(g.Little.items()) + len(g.LeadingEdge.items())}),"
@@ -163,14 +207,19 @@ def get_state() -> dict:
     """generate state to be saved to disk"""
     return {"cumulative_cell_divisions": _cumulative_cell_divisions,
             "expected_divisions_per_height_unit": _expected_divisions_per_height_unit,
-            "evl_previous_z": _evl_previous_z}
+            "evl_previous_z": _evl_previous_z,
+            "expected_timesteps": _expected_timesteps,
+            "expected_divisions_per_timestep": _expected_divisions_per_timestep}
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _cumulative_cell_divisions, _expected_divisions_per_height_unit, _evl_previous_z
+    global _expected_timesteps, _expected_divisions_per_timestep
     _cumulative_cell_divisions = d["cumulative_cell_divisions"]
     _expected_divisions_per_height_unit = d["expected_divisions_per_height_unit"]
     _evl_previous_z = d["evl_previous_z"]
+    _expected_timesteps = d["expected_timesteps"]
+    _expected_divisions_per_timestep = d["expected_divisions_per_timestep"]
 
 def _test1() -> None:
     """Testing whether this does what I want.
@@ -224,21 +273,7 @@ def _test4() -> None:
 
 if __name__ == '__main__':
     """Run some tests to check my own understanding"""
-    
-    # Original initialization looked like this, but then I switched from calibrating cell division rate
-    # based on time, to calibrating it based on EVL area instead. Keep this stuff down here for the tests
-    # so I don't have to mess with those.
-    _expected_timesteps: int
-    if cfg.cell_division_enabled:
-        # For space_filling_enabled, value based on only N=2, because haven't been running it lately
-        # (see results from 2023 Mar. 29, 30)
-        _expected_timesteps = 10500 if cfg.space_filling_enabled else 8900
-    else:
-        # (This is a relic from when only the Poisson part had been written, and the rest of cell division
-        # was only stubbed out. I used this to test the behavior of that Poisson functionality, reporting
-        # each "division" and the cumulative total. Keeping for now.)
-        _expected_timesteps = 29000 if cfg.space_filling_enabled else 22000
-    _expected_divisions_per_timestep: float = cfg.total_epiboly_divisions / _expected_timesteps
+    _initialize_timestep_tracking()
     
     _test1()
     _test1()
