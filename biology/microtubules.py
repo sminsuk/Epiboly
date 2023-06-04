@@ -32,7 +32,8 @@ def apply_even_tangent_forces() -> None:
         theta, phi = epu.embryo_coords(p)
         return ParticleData(p, theta, phi)
     
-    total_force: int = cfg.yolk_cortical_tension + cfg.external_force
+    external_force: int = 0 if cfg.run_balanced_force_control else cfg.external_force
+    total_force: int = cfg.yolk_cortical_tension + external_force
 
     p: tf.ParticleHandle
     particle_data_list: list[ParticleData] = [get_particle_data(p) for p in g.LeadingEdge.items()]

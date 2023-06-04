@@ -593,9 +593,10 @@ def show_graphs(end: bool = False) -> None:
         _show_progress_graph(end)
         _show_bond_counts()
 
-    # Call the aggregate plots less frequently when cell division disabled; otherwise so many lines get drawn (because
-    # the no-division sim lasts twice as many timesteps) that the legends get too tall for the graph.
-    plot_interval: int = 1000 if cfg.cell_division_enabled else 2000
+    # Call the aggregate plots less frequently in the absence of cell division; otherwise so many lines get drawn
+    # (because the no-division sim lasts twice as many timesteps) that the legends get too tall for the graph.
+    # (When control is running, at least for now, we go out as many timesteps as non-cell-division epiboly.)
+    plot_interval: int = 1000 if cfg.cell_division_enabled and not cfg.run_balanced_force_control else 2000
     
     if _timestep % plot_interval == 0 or end:
         # These aggregate graphs don't need to be time-averaged, so just call them exactly on the interval (including 0)

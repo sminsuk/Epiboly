@@ -130,11 +130,13 @@ else:
         # plus more (slow; ~30 per hour on old Mac)
         # return tf.Universe.time > 310 + 5
     
-        # Good total when running no-epiboly control (0 external force), same amount of time as no-cell-div epiboly:
-        # return tf.Universe.time > 310 + 215
-        
-        # Full epiboly:
-        return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
+        if cfg.run_balanced_force_control:
+            # No epiboly should occur, so can't used epiboly progress to decide when to stop.
+            # Good total for this: same amount of time as no-cell-div epiboly (approximate):
+            return tf.Universe.time > 310 + 215
+        else:
+            # Full epiboly:
+            return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
     
     while True:
         if sim_finished():
