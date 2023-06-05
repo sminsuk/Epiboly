@@ -398,7 +398,9 @@ def initialize_embryo() -> None:
     filter_evl_to_animal_cap(leading_edge_z)
     
     unfreeze_leading_edge()
-    equilibrate(10)
+    
+    # This last bit, quite long, removes most of the particle overlap as shown by the tension graphs at T=0
+    equilibrate(400)
 
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
@@ -463,9 +465,9 @@ def alt_initialize_embryo() -> None:
     filter_evl_to_animal_cap(leading_edge_z)
     tf.show()
     
-    print("Removed escapers, now unfreezing and letting the edge relax (10)")
+    print("Removed escapers, now unfreezing and letting the edge relax (400)")
     unfreeze_leading_edge()
-    equilibrate(10)
+    equilibrate(400)
     show()
     
     print("Now adding interior bonds and edge angles")
