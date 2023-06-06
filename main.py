@@ -126,14 +126,14 @@ else:
         # Choose one:
         
         # Truncated run with provided duration:
-        # 310 for equilibration (fast, a couple minutes)
+        # 700 for equilibration (fast, a couple minutes)
         # plus more (slow; ~30 per hour on old Mac)
-        # return tf.Universe.time > 310 + 5
+        # return tf.Universe.time > 700 + 5
     
         if cfg.run_balanced_force_control:
             # No epiboly should occur, so can't used epiboly progress to decide when to stop.
             # Good total for this: same amount of time as no-cell-div epiboly (approximate):
-            return tf.Universe.time > 310 + 215
+            return tf.Universe.time > 700 + 215
         else:
             # Full epiboly:
             return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
