@@ -12,6 +12,7 @@ import epiboly_init
 import config as cfg
 
 from biology import bond_maintenance as bonds
+import biology.microtubules as mt
 from control_flow import events
 from utils import tf_utils as tfu,\
     epiboly_utils as epu,\
@@ -270,19 +271,33 @@ def screenshot_true_zero() -> None:
     if cfg.show_equilibration and vx.screenshot_export_enabled() and not cfg.windowed_mode:
         vx.save_screenshots("Timestep true zero")
         
-def initialize_export_tasks() -> None:
+def initialize_event_tasks(add_forces: bool = False) -> None:
     """If exporting plots and or screenshots for video, including equilibration, create a task list for that.
+    
+    Also, for final phase of equilibration, add cortical tension and bond making/breaking
     
     This will override the task list for the running Universe.time readout at the bottom of the console, but
     the latter won't be needed because we'll be showing the image filenames, which also include Universe.time.
     """
+    task_list: list[events.Task] = []
     if cfg.show_equilibration:
-        task_list: list[events.Task] = [{"invoke": plot.show_graphs}]
+        task_list.append({"invoke": plot.show_graphs})  # ToDo: Bug here
         if vx.screenshot_export_enabled():
             vx.set_screenshot_export_interval(25)
             task_list.append({"invoke": vx.save_screenshot_repeatedly})
             
-        events.execute_repeatedly(tasks=task_list)
+    if add_forces:
+        # "equilibrating": True, means only yolk cortical tension will be applied, not the external force
+        task_list.append({"invoke": mt.apply_even_tangent_forces,
+                          "args": {"equilibrating": True}
+                          })
+        # Bond making/breaking also needed, because without it, the forces are not in balance, and the
+        # tissue still stretches (and tears)! Apparently bond making/breaking causes increased tension!
+        # Thus, this isn't technically "equilibration" anymore; it's establishing a steady state!
+        # Note: this is also much slower than the rest of equilibration. Use it sparingly.
+        task_list.append({"invoke": bonds.maintain_bonds})
+            
+    events.execute_repeatedly(tasks=task_list)
 
 def show_equilibrating_message() -> None:
     if cfg.windowed_mode and not cfg.show_equilibration:
@@ -375,7 +390,7 @@ def initialize_embryo() -> None:
     freeze_leading_edge_z()
     
     screenshot_true_zero()
-    initialize_export_tasks()
+    initialize_event_tasks()
     
     equilibrate(100)
     freeze_leading_edge_completely()
@@ -404,7 +419,8 @@ def initialize_embryo() -> None:
 
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
-    # equilibrate(10)  # Now none at all for this
+    initialize_event_tasks(add_forces=True)
+    equilibrate(10)  # 10 time units (1000 timesteps) was 12 minutes in real time
     
     # # ################# Test ##################
     # # Free-runnning equilibration without interior bonds.
@@ -436,7 +452,7 @@ def alt_initialize_embryo() -> None:
     initialize_bonded_edge()
     freeze_leading_edge_z()
     screenshot_true_zero()          # Need these? I wasn't sure when I did the big clean-up
-    initialize_export_tasks()       # of this module, after not having used it in awhile.
+    initialize_event_tasks()        # of this module, after not having used it in awhile.
     print("Equilibrating ring (frozen in z) (100)")
     equilibrate(100)
     freeze_leading_edge_completely()
@@ -470,10 +486,11 @@ def alt_initialize_embryo() -> None:
     equilibrate(400)
     show()
     
-    print("Now adding interior bonds and edge angles")
+    print("Now adding interior bonds and edge angles, yolk cortical tension, and bond making/breaking")
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
-    tf.show()   # (If you run this simulator, it will start to shrink, because balancing yolk tension not added yet.)
+    initialize_event_tasks(add_forces=True)
+    tf.show()
 
     # # ################# Test ##################
     # # Free-runnning equilibration without interior bonds.

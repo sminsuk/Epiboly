@@ -14,7 +14,7 @@ def remove_tangent_forces() -> None:
         p.force_init = [0, 0, 0]
     print("Tangent forces removed")
 
-def apply_even_tangent_forces() -> None:
+def apply_even_tangent_forces(equilibrating: bool = False) -> None:
     """Note that once this has run, turning it off does not remove existing forces. Use remove_tangent_forces().
     
     To apply force evenly, must take into account not only the variation in density around the marginal ring, but
@@ -32,7 +32,7 @@ def apply_even_tangent_forces() -> None:
         theta, phi = epu.embryo_coords(p)
         return ParticleData(p, theta, phi)
     
-    external_force: int = 0 if cfg.run_balanced_force_control else cfg.external_force
+    external_force: int = 0 if equilibrating or cfg.run_balanced_force_control else cfg.external_force
     total_force: int = cfg.yolk_cortical_tension + external_force
 
     p: tf.ParticleHandle
