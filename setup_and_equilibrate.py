@@ -277,6 +277,7 @@ def initialize_export_tasks() -> None:
     the latter won't be needed because we'll be showing the image filenames, which also include Universe.time.
     """
     if cfg.show_equilibration:
+        # ToDo: Bug here. See commit message for this comment (2023-06-06) for details and how to fix.
         task_list: list[events.Task] = [{"invoke": plot.show_graphs}]
         if vx.screenshot_export_enabled():
             vx.set_screenshot_export_interval(25)
