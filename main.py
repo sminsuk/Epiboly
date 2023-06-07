@@ -132,8 +132,9 @@ else:
     
         if cfg.run_balanced_force_control:
             # No epiboly should occur, so can't used epiboly progress to decide when to stop.
-            # Good total for this: same amount of time as no-cell-div epiboly (approximate):
-            return tf.Universe.time > 700 + 215
+            # Go same total time that epiboly would take (approximate):
+            duration: int = 89 if cfg.cell_division_enabled else 215
+            return tf.Universe.time > 700 + duration
         else:
             # Full epiboly:
             return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
