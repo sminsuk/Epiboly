@@ -165,8 +165,9 @@ def save_screenshots(filename: str) -> None:
     if not _rotation_started:
         _test_when_to_start_rotation()
         
+    precision: int = 4 if cfg.run_balanced_force_control else 2
     print(f"Saving screenshots for Timestep = {_current_screenshot_timestep};"
-          f" phi = {round(epu.leading_edge_mean_phi(), 2)}")
+          f" phi = {round(epu.leading_edge_mean_phi(), precision)}")
 
     if cfg.windowed_mode:
         _automated_camera_rotate()
