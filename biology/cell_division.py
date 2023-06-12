@@ -1,4 +1,5 @@
 """cell_division.py - Cell division"""
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -65,8 +66,40 @@ def _initialize_evl_area_tracking() -> None:
     evl_final_height: float = 2 * (g.Big.radius + g.Little.radius)
     evl_initial_height: float = evl_final_height * cfg.epiboly_initial_percentage / 100
     evl_total_height_increase: float = evl_final_height - evl_initial_height
-    _expected_divisions_per_height_unit = cfg.total_epiboly_divisions / evl_total_height_increase
 
+    # Calculate whether the increased area is enough to accommodate the requested number of particles without crowding.
+    # This deals with the fact that particles have a fixed size and if density is high, adding new
+    # particles will result in repulsion that drives further area increase. We don't want that because:
+    # (perhaps three ways of saying the same thing)
+    # 1. we only want area increase to be driven by explicitly modeled forces
+    # 2. we want division to reflect area increase, not the other way around: one-way causality
+    # 3. it's a positive feedback: area increase -> new particles -> area increase
+    # The control (balanced forces) illustrates the problem because it should have ~0 area increase, hence
+    # 0 or near 0 cell division, but that's not the case when cfg.total_epiboly_divisions is too large.
+    # Given the configured geometry (particle radii and epiboly_initial_percentage) at the time of this
+    # commit, this calculation results in a maximum of 3,064 cell divisions over the course of full epiboly.
+    #   Note to self: this also assumes the initial setup is well-packed but not over-packed. That was tuned
+    # manually by adjusting particle size to work well with the desired number of particles, but if I ever need to
+    # change that config, this now provides an algorithm to tune the particle radius / particle count automatically.
+    
+    # some geometry:
+    embryo_radius: float = g.Big.radius + g.Little.radius
+    area_to_height_ratio = 2 * np.pi * embryo_radius  # from area of spherical segment = 2 pi R h
+    circumscribed_hexagon_ratio = 2 * np.sqrt(3) / np.pi  # area ratio of hexagon circumscribed around a circle
+
+    # Would the area occupied by the requested particles in a hexagonal packing, fit in the EVL area increase?
+    total_area_increase: float = evl_total_height_increase * area_to_height_ratio
+    particle_area: float = np.pi * g.Little.radius * g.Little.radius  # area occupied by rendered particle itself
+    circumscribed_hexagon_area: float = particle_area * circumscribed_hexagon_ratio
+    elbow_room_factor: float = 1.0  # For now. We may need fudge factor > 1 to realistically avoid crowding.
+    particle_footprint: float = elbow_room_factor * circumscribed_hexagon_area  # approx. because based on plane
+    new_particle_capacity: int = math.floor(total_area_increase / particle_footprint)
+    
+    # Throttle to the number of particles that can fit
+    print(f"Requested divisions: {cfg.total_epiboly_divisions}; capacity: {new_particle_capacity}")
+    total_epiboly_divisions: int = min(cfg.total_epiboly_divisions, new_particle_capacity)
+
+    _expected_divisions_per_height_unit = total_epiboly_divisions / evl_total_height_increase
     _evl_previous_z = epu.leading_edge_mean_z()
 
 def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
@@ -175,9 +208,6 @@ def cell_division() -> None:
     num_divisions: int
     if cfg.calibrate_division_rate_to_timesteps:
         num_divisions = _generator.poisson(lam=_expected_divisions_per_timestep)
-        assert num_divisions >= 0, f"Poisson result = {num_divisions}, This should NEVER happen!"
-        if num_divisions == 0:
-            return
     else:
         # Note that z coordinate *decreases* as epiboly progresses
         evl_current_z: float = epu.leading_edge_mean_z()
@@ -187,38 +217,13 @@ def cell_division() -> None:
         
         expected_divisions: float = _expected_divisions_per_height_unit * delta_z
         num_divisions = _generator.poisson(lam=expected_divisions)
-        assert num_divisions >= 0, f"Poisson result = {num_divisions}, This should NEVER happen!"
-        if num_divisions == 0:
-            return
-
-        # Calculate whether the increased area is enough to accommodate this number of particles without crowding.
-        # This deals with the fact that particles have a fixed sized and if density is high, adding new
-        # particles will result in repulsion that drives further area increase. We don't want that because:
-        # (perhaps three ways of saying the same thing)
-        # 1. we only want area increase to be driven by explicitly modeled forces
-        # 2. we want division to reflect area increase, not the other way around: one-way causality
-        # 3. it's a positive feedback: area increase -> new particles -> area increase (which breaks the controls)
-        
-        # some geometry:
-        embryo_radius: float = g.Big.radius + g.Little.radius
-        area_to_height_ratio = 2 * np.pi * embryo_radius        # from area of spherical segment = 2 pi R h
-        circumscribed_hexagon_ratio = 2 * np.sqrt(3) / np.pi    # area ratio of hexagon circumscribed around a circle
-
-        # Would the area occupied by this many particles in a hexagonal packing, fit in the EVL area increase?
-        delta_area: float = delta_z * area_to_height_ratio
-        particle_area: float = np.pi * g.Little.radius * g.Little.radius    # area occupied by rendered particle itself
-        circumscribed_hexagon_area: float = particle_area * circumscribed_hexagon_ratio
-        elbow_room_factor: float = 1.0  # For now. We may need fudge factor > 1 to realistically avoid crowding.
-        particle_footprint: float = elbow_room_factor * circumscribed_hexagon_area  # approx. because based on plane
-        new_particle_capacity: float = delta_area / particle_footprint
-        if num_divisions > new_particle_capacity:
-            # If these particles can't be accommodated, simply wait and do the cell divisions later. Since we
-            # haven't updated _evl_previous_z yet, repeated area increases will be cumulative and we'll still
-            # get the same number of particles in the end.
-            return
         
         _evl_previous_z = evl_current_z
         
+    assert num_divisions >= 0, f"Poisson result = {num_divisions}, This should NEVER happen!"
+    if num_divisions == 0:
+        return
+    
     # Select the particles to split
     phandle: tf.ParticleHandle
     
