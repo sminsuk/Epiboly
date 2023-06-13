@@ -60,7 +60,7 @@ num_spherical_positions: int = 5000
 # Cell division rate parameters. See justification in docstring of cell_division.cell_division().
 # Calibrate either to timesteps, or to area increase
 calibrate_division_rate_to_timesteps: bool = False
-total_epiboly_divisions: int = 7500
+total_epiboly_divisions: int = 7500  # currently throttled to 3064; TBD: how much to actually use
 
 # Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5

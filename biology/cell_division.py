@@ -28,15 +28,16 @@ _expected_divisions_per_timestep: float = 0
 def initialize_division_rate_tracking() -> None:
     """Call this once, after simulation setup and equilibration, but before any additional timesteps
     
-    Initially, used timestep calibration. Then switched to area calibration. But that's not entirely
-    worked out yet, so, need to keep timestep calibration as an option for now. (Also, the tests use it.)
+    Initially, used timestep calibration. Then switched to area calibration. But until it was completely
+    worked out, wanted to keep timestep calibration as an option for now. (Also, this module's tests use it.)
+    (I think area calibration is now in good shape.)
     
     Timestep calibration:
     - isn't universal; needs magic numbers for every different case;
     - is only approximate, because the total number of timesteps in the sim isn't known until the sim is finished;
     
     Area calibration:
-    - should be universal (if I can get it right); won't need to be tweaked every time I change a parameter of the sim;
+    - should be universal; won't need to be tweaked every time I change a parameter of the sim;
     - should be perfectly tuned because the area increase is always the same;
     """
     if cfg.cell_division_enabled:
@@ -49,9 +50,10 @@ def _initialize_timestep_tracking() -> None:
     """Calibrate division rate to the passage of time"""
     global _expected_timesteps, _expected_divisions_per_timestep
     if cfg.cell_division_enabled:
-        # For space_filling_enabled, value based on only N=2, because haven't been running it lately
-        # (see results from 2023 Mar. 29, 30)
-        _expected_timesteps = 10500 if cfg.space_filling_enabled else 8900
+        # For space_filling_enabled, wild guess, since haven't used it since changing the cell division
+        # algorithm (and hence the duration of epiboly), but it used to be that (and even then, based only
+        # on N=2), space-filling took about 20% more timesteps, so go with that for now.
+        _expected_timesteps = 14400 if cfg.space_filling_enabled else 12000
     else:
         # (This is a relic from when only the Poisson part had been written, and the rest of cell division
         # was only stubbed out. I used this to test the behavior of that Poisson functionality, reporting

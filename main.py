@@ -131,9 +131,9 @@ else:
         # return tf.Universe.time > 700 + 5
     
         if cfg.run_balanced_force_control:
-            # No epiboly should occur, so can't used epiboly progress to decide when to stop.
+            # No epiboly should occur, so can't use epiboly progress to decide when to stop.
             # Go same total time that epiboly would take (approximate):
-            duration: int = 89 if cfg.cell_division_enabled else 215
+            duration: int = 120 if cfg.cell_division_enabled else 215
             return tf.Universe.time > 700 + duration
         else:
             # Full epiboly:
