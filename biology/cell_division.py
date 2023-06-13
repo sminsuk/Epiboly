@@ -228,9 +228,15 @@ def cell_division() -> None:
     
     # Select the particles to split
     phandle: tf.ParticleHandle
-    
-    p_list: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()]
-    selected_particles: np.ndarray = _generator.choice(p_list, size=num_divisions, replace=False)
+    particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()]
+    selected_particles: np.ndarray
+    if cfg.cell_division_biased_by_tension:
+        # a particle's probability of being selected should be proportional to the tension it is under
+        relative_probabilities: list[float] = [max(0.0, tfu.strain(phandle)) for phandle in particles]
+        p_normalized: np.ndarray = np.array(relative_probabilities) / np.sum(relative_probabilities)
+        selected_particles = _generator.choice(particles, size=num_divisions, replace=False, p=p_normalized)
+    else:
+        selected_particles = _generator.choice(particles, size=num_divisions, replace=False)
     
     daughter: tf.ParticleHandle
     for phandle in selected_particles:

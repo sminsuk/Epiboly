@@ -36,6 +36,7 @@ sim_state_export_keep: bool = False
 screenshot_export_interval: int = 10
 
 cell_division_enabled: bool = True
+cell_division_biased_by_tension: bool = True
 
 # Should certain metrics be plotted as time-averages, instead of as single timesteps? And if so,
 # should that also be applied to the simulation start, or just plot T0 as a single timestep?
