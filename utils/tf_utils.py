@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import math
 import numpy as np
 import os
+from statistics import fmean
 import sys
 import traceback
 from typing import Optional
@@ -240,6 +241,24 @@ def bond_between(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = T
         print(bluecolor + "Warning, more than 1 bond found. To retrieve them all, use bonds_between()" + endcolor)
     return None if not p1p2bonds else p1p2bonds[0]
 
+def bonds(p: tf.ParticleHandle) -> list[tf.BondHandle]:
+    """Returns the (assumed single) bond to each bonded neighbor.
+
+    Workaround for p.bonds, which as of TF v. 0.1.1, MAY contain phantom bonds.
+    """
+    neighbor: tf.ParticleHandle
+    return [bond_between(p, neighbor) for neighbor in p.bonded_neighbors]
+
+def strain(p: tf.ParticleHandle) -> float:
+    """Return the aggregate strain on a particle, which is the mean of the signed strain of all its bonds
+    
+    Note that if the bond potentials are harmonic, then strain is proportional to tension, so this can
+    be used as a proxy for the latter.
+    """
+    p_bonds: list[tf.BondHandle] = bonds(p)
+    return 0 if not p_bonds else fmean([bhandle.length - bhandle.potential.r0
+                                        for bhandle in p_bonds])
+    
 def particle_from_id(id: int, type: tf.ParticleType = None) -> Optional[tf.ParticleHandle]:
     """Temporary work around, delete after issue is fixed in future Tissue Forge release
 

@@ -29,7 +29,6 @@ import tissue_forge as tf
 import epiboly_globals as g
 
 import config as cfg
-import neighbors as nbrs
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
 
@@ -270,14 +269,11 @@ def _show_test_tension_v_phi(end: bool) -> None:
                      verticalalignment="top", horizontalalignment="left",
                      fontsize=28, fontweight="bold")
     
-    bhandle: tf.BondHandle
     phandle: tf.ParticleHandle
-    neighbor: tf.ParticleHandle
     tensions: list[float] = []
     particle_phi: list[float] = []
     for phandle in g.Little.items():
-        tensions.append(fmean([bhandle.length - bhandle.potential.r0
-                              for bhandle in nbrs.bonds(phandle)]))
+        tensions.append(tfu.strain(phandle))
         particle_phi.append(epu.embryo_phi(phandle))
     
     # plot
