@@ -232,10 +232,14 @@ def cell_division() -> None:
     selected_particles: np.ndarray
     if cfg.cell_division_biased_by_tension:
         # a particle's probability of being selected should be proportional to the tension it is under
-        relative_probabilities: list[float] = [max(0.0, tfu.strain(phandle)) for phandle in particles]
-        p_normalized: np.ndarray = np.array(relative_probabilities) / np.sum(relative_probabilities)
+        strains: list[float] = [tfu.strain(phandle) for phandle in particles]
+        relative_probabilities: np.ndarray = np.clip(strains, a_min=0.0, a_max=None)
+        if cfg.tension_squared:
+            relative_probabilities = np.square(relative_probabilities)
+        p_normalized: np.ndarray = relative_probabilities / np.sum(relative_probabilities)
         selected_particles = _generator.choice(particles, size=num_divisions, replace=False, p=p_normalized)
     else:
+        # all particles have a uniform probability of being selected
         selected_particles = _generator.choice(particles, size=num_divisions, replace=False)
     
     daughter: tf.ParticleHandle
