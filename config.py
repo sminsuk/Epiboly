@@ -35,14 +35,22 @@ sim_state_export_keep: bool = False
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 screenshot_export_interval: int = 10
 
+# Cell division: whether or not, and how, and how much:
 cell_division_enabled: bool = True
+# Cell division rate parameters. See justification in docstring of cell_division.cell_division().
+# Calibrate either to timesteps, or to EVL area increase:
+calibrate_division_rate_to_timesteps: bool = False
+total_epiboly_divisions: int = 7500  # currently throttled to 3064; TBD: how much to actually use
+# Spatial distribution of cell division events:
 cell_division_biased_by_tension: bool = True
 tension_squared: bool = True  # (ignored unless cell_division_biased_by_tension is True)
 
-# Should certain metrics be plotted as time-averages, instead of as single timesteps? And if so,
-# should that also be applied to the simulation start, or just plot T0 as a single timestep?
+# Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
+plot_interval: int = 2000
+# Should certain metrics be plotted as time-averages, instead of as single timesteps?
 plot_time_averages: bool = True
-plot_t0_as_single_timestep: bool = True
+# And if so, should that also be applied to the simulation start, or just plot T0 as a single timestep?
+plot_t0_as_single_timestep: bool = True  # (ignored unless plot_time_averages is True)
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
 # and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)
@@ -58,11 +66,6 @@ epiboly_initial_percentage: int = 43
 # How many leading edge and interior cells to make (for entire sphere, prior to filtering out the ones below the edge)
 num_leading_edge_points: int = 110
 num_spherical_positions: int = 5000
-
-# Cell division rate parameters. See justification in docstring of cell_division.cell_division().
-# Calibrate either to timesteps, or to area increase
-calibrate_division_rate_to_timesteps: bool = False
-total_epiboly_divisions: int = 7500  # currently throttled to 3064; TBD: how much to actually use
 
 # Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5

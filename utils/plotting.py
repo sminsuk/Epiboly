@@ -589,10 +589,7 @@ def show_graphs(end: bool = False) -> None:
         _show_progress_graph(end)
         _show_bond_counts()
 
-    # Currently best value, with total durations between roughly 12,000 - 22,000 timesteps. But if we go back to
-    # running experiments that go shorter (or longer), may want to modulate this depending on the values of
-    # cfg.cell_division_enabled, cfg.run_balanced_force_control, and/or other relevant factors.)
-    plot_interval: int = 2000
+    plot_interval: int = cfg.plot_interval
     
     if _timestep % plot_interval == 0 or end:
         # These aggregate graphs don't need to be time-averaged, so just call them exactly on the interval (including 0)
