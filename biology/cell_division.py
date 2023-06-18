@@ -53,6 +53,8 @@ def _initialize_timestep_tracking() -> None:
         # For space_filling_enabled, wild guess, since haven't used it since changing the cell division
         # algorithm (and hence the duration of epiboly), but it used to be that (and even then, based only
         # on N=2), space-filling took about 20% more timesteps, so go with that for now.
+        # Also note, these magic values are only valid for total_epiboly_divisions = 7500.
+        # ToDo: Really should get rid of this option entirely. Move it down to the tests, with appropriate comment.
         _expected_timesteps = 14400 if cfg.space_filling_enabled else 12000
     else:
         # (This is a relic from when only the Poisson part had been written, and the rest of cell division
