@@ -28,12 +28,14 @@ import matplotlib.pyplot as plt
 import tissue_forge as tf
 import epiboly_globals as g
 
+import biology.microtubules as mt
 import config as cfg
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
 
 _leading_edge_phi: list[float] = []
 _bonds_per_particle: list[float] = []
+_forces: list[float] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
@@ -303,8 +305,8 @@ def _show_test_tension_v_phi(end: bool) -> None:
                        ylabel="Median particle tension",
                        ylim=(-0.05, 0.20),
                        axhline=0,  # compression/tension boundary
-                       legend_loc="lower right",
-                       end_legend_loc="upper left",
+                       legend_loc="lower right" if cfg.constant_total_force else None,
+                       end_legend_loc="upper left" if cfg.constant_total_force else None,
                        end=end)
 
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
@@ -402,8 +404,8 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
                        ylim=(-0.005, 0.035),
                        axvline=np.pi/2,  # equator
                        axhline=0,        # stretch/compression boundary
-                       legend_loc="lower right",
-                       end_legend_loc="upper left",
+                       legend_loc="lower right" if cfg.constant_total_force else None,
+                       end_legend_loc="upper left" if cfg.constant_total_force else None,
                        end=end)
 
 def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
@@ -509,7 +511,7 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
                            ylim=ylim,
                            axvline=np.pi/2,  # equator
                            axhline=0,        # stretch/compression boundary
-                           legend_loc=legend_loc,
+                           legend_loc=legend_loc if cfg.constant_total_force else None,
                            end=end)
 
 def _show_bond_counts() -> None:
@@ -537,9 +539,32 @@ def _show_bond_counts() -> None:
     bond_count_ax.plot(_timesteps, _bonds_per_particle, "b.")
     
     # save
-    bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle")
+    bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle.png")
     bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
     plt.close(bond_count_fig)
+
+def _show_forces() -> None:
+    # print(f"Total force = {mt.current_total_force()}")
+    if cfg.constant_total_force:
+        # Nothing terribly interesting to plot!
+        return
+    
+    forces_fig: Figure
+    forces_ax: Axes
+
+    forces_fig, forces_ax = plt.subplots()
+    forces_ax.set_ylabel("Forces")
+    forces_ax.axhline(y=cfg.yolk_cortical_tension + cfg.external_force, linestyle=":", color="k", linewidth=0.5)
+
+    _forces.append(mt.current_total_force())
+    
+    # plot
+    forces_ax.plot(_timesteps, _forces, "b.")
+    
+    # save
+    forces_path: str = os.path.join(_plot_path, "Forces on leading edge.png")
+    forces_fig.savefig(forces_path, transparent=False, bbox_inches="tight")
+    plt.close(forces_fig)
 
 def _show_progress_graph(end: bool) -> None:
     progress_fig: Figure
@@ -588,6 +613,7 @@ def show_graphs(end: bool = False) -> None:
     if _timestep % 100 == 0 or end:
         _show_progress_graph(end)
         _show_bond_counts()
+        _show_forces()
 
     plot_interval: int = cfg.plot_interval
     
@@ -635,6 +661,7 @@ def get_state() -> dict:
     return {"timestep": _timestep,
             "bond_counts": _bonds_per_particle,
             "leading_edge_phi": _leading_edge_phi,
+            "forces": _forces,
             "timesteps": _timesteps,
             
             "tension_bin_axis_history": _tension_bin_axis_history,
@@ -661,7 +688,7 @@ def get_state() -> dict:
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _timestep, _bonds_per_particle, _leading_edge_phi, _timesteps
+    global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _timesteps
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _speeds_bin_axis_history, _median_speeds_history, _speeds_timestep_history
     global _strain_rates_by_speed_diffs_history
@@ -672,6 +699,7 @@ def set_state(d: dict) -> None:
     _timestep = d["timestep"]
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
+    _forces = d["forces"]
     _timesteps = d["timesteps"]
     
     _tension_bin_axis_history = d["tension_bin_axis_history"]

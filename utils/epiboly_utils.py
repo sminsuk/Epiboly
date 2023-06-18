@@ -2,6 +2,7 @@
 
 These are utility functions specific to this simulation.
 """
+import numpy as np
 from statistics import fmean
 from typing import Union
 
@@ -71,3 +72,10 @@ def internal_evl_max_phi() -> float:
     This is useful for plots that only consider the internal particles, like the binned tension plot
     """
     return max([embryo_phi(particle) for particle in g.Little.items()])
+
+def leading_edge_circumference() -> float:
+    hypotenuse: float = g.Big.radius + g.Little.radius
+    yolk: tf.ParticleHandle = g.Big.items()[0]
+    leading_edge_height: float = leading_edge_mean_z() - yolk.position.z()
+    leading_edge_radius: float = np.sqrt(np.square(hypotenuse) - np.square(leading_edge_height))
+    return 2 * np.pi * leading_edge_radius

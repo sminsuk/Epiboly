@@ -10,6 +10,7 @@ import tissue_forge as tf
 import config as cfg
 
 import biology.cell_division as cd
+import biology.microtubules as mt
 import utils.global_catalogs as gc
 import utils.tf_logging as logging
 import utils.plotting as plot
@@ -62,6 +63,7 @@ def _export_additional_state(filename: str) -> None:
     export_dict: dict = {"self": get_state(),
                          "video_export": vx.get_state(),
                          "cell_division": cd.get_state(),
+                         "forces": mt.get_state(),
                          "logging": logging.get_state(),
                          "plot": plot.get_state(),
                          }
@@ -79,6 +81,7 @@ def import_additional_state(import_path: str) -> None:
     plot.set_state(import_dict["plot"])
     logging.set_state(import_dict["logging"])
     cd.set_state(import_dict["cell_division"])
+    mt.set_state(import_dict["forces"])
     vx.set_state(import_dict["video_export"])
     
 def _export_state(filename: str) -> None:

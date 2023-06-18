@@ -83,10 +83,13 @@ harmonic_angle_tolerance: float = 0.008 * math.pi
 # yolk_cortical_tension: force generated within the yolk, balancing out the EVL internal tension
 #   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
 # external_force: additional force applied to drive epiboly.
+# constant_total_force: if True, total force on leading edge constant over time (force per unit length changes);
+#   if False, force per unit edge length constant over time (total force changes).
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
 external_force: int = 255   # +255 to produce full epiboly
+constant_total_force: bool = False
 run_balanced_force_control: bool = False
 
 # Potential.max any greater than this, numerical problems ensue

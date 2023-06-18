@@ -64,6 +64,7 @@ if not cfg.initialization_directory_name:
     
     setup.initialize_embryo()
     cd.initialize_division_rate_tracking()
+    mt.initialize_tangent_forces()
     
     # Call now so that state is exported after setup/equilibration but before any update events;
     # then again at the end so I get the final state if the script completes.
