@@ -65,6 +65,7 @@ def _export_additional_state(filename: str) -> None:
                          "cell_division": cd.get_state(),
                          "forces": mt.get_state(),
                          "logging": logging.get_state(),
+                         "config": cfg.get_state(),
                          "plot": plot.get_state(),
                          }
     
@@ -83,6 +84,7 @@ def import_additional_state(import_path: str) -> None:
     cd.set_state(import_dict["cell_division"])
     mt.set_state(import_dict["forces"])
     vx.set_state(import_dict["video_export"])
+    cfg.set_state(import_dict["config"])
     
 def _export_state(filename: str) -> None:
     path: str = os.path.join(_state_export_path, filename)

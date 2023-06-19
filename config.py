@@ -113,3 +113,61 @@ leading_edge_recruitment_limit: float = 2.0     # in number of radii
 # For the same reason, just some common numbers useful in a variety of contexts
 two_pi: float = math.pi * 2
 pi_over_2: float = math.pi / 2
+
+def get_state() -> dict:
+    """generate state to be saved to disk
+    
+    In this case, it's for an atypical purpose. Normally we export state that needs to survive
+    through termination and restart from import. Or, state that's needed for post-processing.
+    These are all constants so don't need that. Rather, this is to capture the config state
+    in a file stored with all the other simulation output, as a record of what the config WAS
+    when the simulation was run. Because it's starting to be too complex to record simply by
+    adding notes to the path name!
+    """
+    return {"show_equilibration": show_equilibration,
+            "sim_state_export_timestep_interval": sim_state_export_timestep_interval,
+            "sim_state_export_minutes_interval": sim_state_export_minutes_interval,
+            "sim_state_export_keep": sim_state_export_keep,
+            "screenshot_export_interval": screenshot_export_interval,
+            "cell_division_enabled": cell_division_enabled,
+            "calibrate_division_rate_to_timesteps": calibrate_division_rate_to_timesteps,
+            "total_epiboly_divisions": total_epiboly_divisions,
+            "cell_division_biased_by_tension": cell_division_biased_by_tension,
+            "tension_squared": tension_squared,
+            "plot_interval": plot_interval,
+            "plot_time_averages": plot_time_averages,
+            "plot_t0_as_single_timestep": plot_t0_as_single_timestep,
+            "angle_bonds_enabled": angle_bonds_enabled,
+            "space_filling_enabled": space_filling_enabled,
+            "epiboly_initial_percentage": epiboly_initial_percentage,
+            "num_leading_edge_points": num_leading_edge_points,
+            "num_spherical_positions": num_spherical_positions,
+            "min_neighbor_initial_distance_factor": min_neighbor_initial_distance_factor,
+            "harmonic_repulsion_spring_constant": harmonic_repulsion_spring_constant,
+            "harmonic_spring_constant": harmonic_spring_constant,
+            "harmonic_edge_spring_constant": harmonic_edge_spring_constant,
+            "harmonic_angle_spring_constant": harmonic_angle_spring_constant,
+            "harmonic_angle_tolerance": harmonic_angle_tolerance,
+            "yolk_cortical_tension": yolk_cortical_tension,
+            "external_force": external_force,
+            "constant_total_force": constant_total_force,
+            "run_balanced_force_control": run_balanced_force_control,
+            "max_potential_cutoff": max_potential_cutoff,
+            "stopping_condition_phi": stopping_condition_phi,
+            "min_neighbor_count": min_neighbor_count,
+            "max_edge_neighbor_count": max_edge_neighbor_count,
+            "target_neighbor_angle": target_neighbor_angle,
+            "target_edge_angle": target_edge_angle,
+            "leading_edge_recruitment_limit": leading_edge_recruitment_limit}
+
+def set_state(d: dict) -> None:
+    """Reconstitute state of module from what was saved.
+    
+    Since these are all constants, we don't actually need to reconstitute anything here.
+    Including this function only for consistency.
+    
+    Though, note to self: If I want to protect from my own manual edits intended for
+    future runs while a current run is executing, I could in fact import and reconstitute
+    everything, so that changes to this file would be ignored on terminate/restart/import.
+    """
+    pass
