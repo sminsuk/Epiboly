@@ -29,7 +29,7 @@ def initialize_division_rate_tracking() -> None:
     """Call this once, after simulation setup and equilibration, but before any additional timesteps
     
     Initially, used timestep calibration. Then switched to area calibration. But until it was completely
-    worked out, wanted to keep timestep calibration as an option for now. (Also, this module's tests use it.)
+    worked out, wanted to keep timestep calibration as an option for now.
     (I think area calibration is now in good shape.)
     
     Timestep calibration:
@@ -271,6 +271,12 @@ def set_state(d: dict) -> None:
     _expected_timesteps = d["expected_timesteps"]
     _expected_divisions_per_timestep = d["expected_divisions_per_timestep"]
 
+def _timestep_tracking_for_tests() -> tuple[int, float]:
+    expected_timesteps: int = 22000  # original length of the full sim before cell division was implemented
+    total_epiboly_divisions: int = 7500  # original estimate before I started adjusting it
+    expected_divisions_per_timestep = total_epiboly_divisions / expected_timesteps
+    return expected_timesteps, expected_divisions_per_timestep
+
 def _test1() -> None:
     """Testing whether this does what I want.
 
@@ -284,18 +290,23 @@ def _test1() -> None:
     
 def _test2() -> None:
     """With a tiny lambda does it generate the distribution I expect? It does!"""
-    lam: float = _expected_divisions_per_timestep
+    foo, expected_divisions_per_timestep = _timestep_tracking_for_tests()
+    lam: float = expected_divisions_per_timestep
     results: np.ndarray = _generator.poisson(lam=lam, size=35)
     print(f"lam = {round(lam, 3)}, length = {len(results)}, type = {type(results[0])}, mean = {np.mean(results)}")
     print(results)
 
-def _test3(size: int) -> None:
+def _test3(size: int = None) -> None:
     """With a larger output array, does the mean come closer to the target?
     
-    It does! I expect to call it once per timestep, so note the results with size=_expected_timesteps, which
-    represents the full sim.
+    It does! I expect to call it once per timestep, so note the results with size = expected_timesteps
+    (the original length of the full sim before cell division was implemented).
     """
-    lam: float = _expected_divisions_per_timestep
+    expected_timesteps, expected_divisions_per_timestep = _timestep_tracking_for_tests()
+    if size is None:
+        size = expected_timesteps
+    
+    lam: float = expected_divisions_per_timestep
     results: np.ndarray = _generator.poisson(lam=lam, size=size)
     print(f"lam = {round(lam, 3)}, length = {len(results)}, mean = {np.mean(results)}")
     
@@ -304,9 +315,10 @@ def _test4() -> None:
     
     Just like it should! Log scale on second plot so that it's possible to see the bars for the very rare values.
     """
-    lam: float = _expected_divisions_per_timestep
-    results: np.ndarray = _generator.poisson(lam=lam, size=_expected_timesteps)
-    print(f"Histogram of {_expected_timesteps} values; first linear, then log:")
+    expected_timesteps, expected_divisions_per_timestep = _timestep_tracking_for_tests()
+    lam: float = expected_divisions_per_timestep
+    results: np.ndarray = _generator.poisson(lam=lam, size=expected_timesteps)
+    print(f"Histogram of {expected_timesteps} values; first linear, then log:")
     print(f"max value = {max(results)}, total count = {sum(results)}")
     plt.hist(results,
              bins=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -338,8 +350,8 @@ if __name__ == '__main__':
     _test3(2000)
     _test3(2000)
     _test3(2000)
-    _test3(_expected_timesteps)
-    _test3(_expected_timesteps)
-    _test3(_expected_timesteps)
+    _test3()
+    _test3()
+    _test3()
     print()
     _test4()
