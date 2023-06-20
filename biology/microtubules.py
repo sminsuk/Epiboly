@@ -8,24 +8,36 @@ import config as cfg
 import utils.tf_utils as tfu
 import utils.epiboly_utils as epu
 
-_total_force_start: int = 0
-_force_to_circumf_ratio: float = 0.0
+# Linear relationship between circumference and force, y = mx + b:
+_m: float = 0.0
+_b: float = 0.0
 
 def initialize_tangent_forces() -> None:
-    """Establish the proportionality constant between total downward force on the leading edge, and its circumference
+    """Establish the linear relationship between total downward force on the leading edge, and its circumference
     
     This should be done after initial setup and equilibration but before any further timesteps, so that it's
     based on the initial circumference before any epiboly progression. (That's important so that the right value
     is used in the balanced-force control.) After that, never change it, but apply it to the gradually changing
-    circumference in order to determine the amount of force to use. Thus the ratio of force per unit length of
-    leading edge stays constant over time, which in theory should also result in constant speed of epiboly.
+    circumference in order to determine the amount of force to use.
+    
+    With the STEEP algorithm, the ratio of force per unit length of leading edge stays constant over time,
+    which was expected to also result in constant speed of epiboly. (Not what it actually does, though!)
     """
-    global _total_force_start, _force_to_circumf_ratio
+    global _m, _b
     
     external_force: int = 0 if cfg.run_balanced_force_control else cfg.external_force
-    _total_force_start = cfg.yolk_cortical_tension + external_force
-    _force_to_circumf_ratio = _total_force_start / epu.leading_edge_circumference()
-    # (Both stored and exported in sim state, but during sim we will use only one or the other, depending on cfg)
+    total_force_start: float = cfg.yolk_cortical_tension + external_force
+    force_algorithm: cfg.ForceAlgorithm = cfg.force_algorithm
+    
+    if force_algorithm == cfg.ForceAlgorithm.CONSTANT:
+        _m = 0
+        _b = total_force_start
+    elif force_algorithm == cfg.ForceAlgorithm.STEEP:
+        _m = total_force_start / epu.leading_edge_circumference()
+        _b = 0
+    elif force_algorithm == cfg.ForceAlgorithm.HALF:
+        _m = 0.5 * total_force_start / epu.leading_edge_circumference()
+        _b = total_force_start / 2
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""
@@ -84,18 +96,16 @@ def apply_even_tangent_forces() -> None:
         particle_data.phandle.force_init = tangent_force_vec.as_list()
 
 def current_total_force() -> float:
-    if cfg.constant_total_force:
-        return _total_force_start
-    else:
-        return _force_to_circumf_ratio * epu.leading_edge_circumference()
+    # x = circumference, y = force = mx + b
+    return _m * epu.leading_edge_circumference() + _b
     
 def get_state() -> dict:
     """generate state to be saved to disk"""
-    return {"total_force_start": _total_force_start,
-            "force_to_circumf_ratio": _force_to_circumf_ratio}
+    return {"m": _m,
+            "b": _b}
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _total_force_start, _force_to_circumf_ratio
-    _total_force_start = d["total_force_start"]
-    _force_to_circumf_ratio = d["force_to_circumf_ratio"]
+    global _m, _b
+    _m = d["m"]
+    _b = d["b"]

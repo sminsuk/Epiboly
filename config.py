@@ -2,6 +2,7 @@
 
 Flags and magic numbers, especially ones used in more than one place.
 """
+from enum import Enum
 import math
 
 # For normal initialization, leave blank. To start from a previously exported state, provide the
@@ -77,8 +78,13 @@ harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
 harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
-# Vegetalward forces applied to LeadingEdge. Probably will later want to change these dynamically,
-# but these are good initial values. These are highly dependent on the particle radius, spring constants, etc.,
+class ForceAlgorithm(Enum):
+    CONSTANT = 1    # Total force is constant, stays at its initial value
+    STEEP = 2       # Proportional; as circumference goes to zero, total force also goes to zero
+    HALF = 3        # Half as steep; as circumference goes to zero, total force goes to half its initial value
+
+# Vegetalward forces applied to LeadingEdge. Initial values from manual tuning.
+# These are highly dependent on the particle radius, spring constants, etc.,
 # so have to be tuned accordingly if those change.
 # yolk_cortical_tension: force generated within the yolk, balancing out the EVL internal tension
 #   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
@@ -89,7 +95,7 @@ harmonic_angle_tolerance: float = 0.008 * math.pi
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
 external_force: int = 255   # +255 to produce full epiboly
-constant_total_force: bool = False
+force_algorithm: ForceAlgorithm = ForceAlgorithm.HALF
 run_balanced_force_control: bool = False
 
 # Potential.max any greater than this, numerical problems ensue
@@ -150,7 +156,7 @@ def get_state() -> dict:
             "harmonic_angle_tolerance": harmonic_angle_tolerance,
             "yolk_cortical_tension": yolk_cortical_tension,
             "external_force": external_force,
-            "constant_total_force": constant_total_force,
+            "force_algorithm": force_algorithm.name,
             "run_balanced_force_control": run_balanced_force_control,
             "max_potential_cutoff": max_potential_cutoff,
             "stopping_condition_phi": stopping_condition_phi,

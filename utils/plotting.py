@@ -305,8 +305,8 @@ def _show_test_tension_v_phi(end: bool) -> None:
                        ylabel="Median particle tension",
                        ylim=(-0.05, 0.20),
                        axhline=0,  # compression/tension boundary
-                       legend_loc="lower right" if cfg.constant_total_force else None,
-                       end_legend_loc="upper left" if cfg.constant_total_force else None,
+                       legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
+                       end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                        end=end)
 
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
@@ -404,8 +404,8 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
                        ylim=(-0.005, 0.035),
                        axvline=np.pi/2,  # equator
                        axhline=0,        # stretch/compression boundary
-                       legend_loc="lower right" if cfg.constant_total_force else None,
-                       end_legend_loc="upper left" if cfg.constant_total_force else None,
+                       legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
+                       end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                        end=end)
 
 def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
@@ -511,7 +511,7 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
                            ylim=ylim,
                            axvline=np.pi/2,  # equator
                            axhline=0,        # stretch/compression boundary
-                           legend_loc=legend_loc if cfg.constant_total_force else None,
+                           legend_loc=legend_loc if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                            end=end)
 
 def _show_bond_counts() -> None:
@@ -545,7 +545,7 @@ def _show_bond_counts() -> None:
 
 def _show_forces() -> None:
     # print(f"Total force = {mt.current_total_force()}")
-    if cfg.constant_total_force:
+    if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT:
         # Nothing terribly interesting to plot!
         return
     
