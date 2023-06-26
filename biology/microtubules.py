@@ -20,7 +20,7 @@ def initialize_tangent_forces() -> None:
     is used in the balanced-force control.) After that, never change it, but apply it to the gradually changing
     circumference in order to determine the amount of force to use.
     
-    With the STEEP algorithm, the ratio of force per unit length of leading edge stays constant over time,
+    With the APPROACH_0 algorithm, the ratio of force per unit length of leading edge stays constant over time,
     which was expected to also result in constant speed of epiboly. (Not what it actually does, though!)
     """
     global _m, _b
@@ -32,12 +32,15 @@ def initialize_tangent_forces() -> None:
     if force_algorithm == cfg.ForceAlgorithm.CONSTANT:
         _m = 0
         _b = total_force_start
-    elif force_algorithm == cfg.ForceAlgorithm.STEEP:
+    elif force_algorithm == cfg.ForceAlgorithm.APPROACH_0:
         _m = total_force_start / epu.leading_edge_circumference()
         _b = 0
-    elif force_algorithm == cfg.ForceAlgorithm.HALF:
+    elif force_algorithm == cfg.ForceAlgorithm.APPROACH_PT5_F0:
         _m = 0.5 * total_force_start / epu.leading_edge_circumference()
-        _b = total_force_start / 2
+        _b = 0.5 * total_force_start
+    elif force_algorithm == cfg.ForceAlgorithm.APPROACH_PT25_F0:
+        _m = 0.75 * total_force_start / epu.leading_edge_circumference()
+        _b = 0.25 * total_force_start
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""

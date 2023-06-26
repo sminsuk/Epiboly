@@ -544,7 +544,6 @@ def _show_bond_counts() -> None:
     plt.close(bond_count_fig)
 
 def _show_forces() -> None:
-    # print(f"Total force = {mt.current_total_force()}")
     if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT:
         # Nothing terribly interesting to plot!
         return

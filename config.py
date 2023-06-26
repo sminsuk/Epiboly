@@ -79,9 +79,10 @@ harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
 class ForceAlgorithm(Enum):
-    CONSTANT = 1    # Total force is constant, stays at its initial value
-    STEEP = 2       # Proportional; as circumference goes to zero, total force also goes to zero
-    HALF = 3        # Half as steep; as circumference goes to zero, total force goes to half its initial value
+    CONSTANT = 1          # Total force is constant, stays at its initial value
+    APPROACH_0 = 2        # Proportional; as circumference goes to zero, total force also goes to zero
+    APPROACH_PT5_F0 = 3   # Half as steep; as circumference goes to zero, total force goes to 0.5 of its initial value
+    APPROACH_PT25_F0 = 4  # As circumference goes to zero, total force goes to 0.25 of its initial value
 
 # Vegetalward forces applied to LeadingEdge. Initial values from manual tuning.
 # These are highly dependent on the particle radius, spring constants, etc.,
@@ -89,13 +90,12 @@ class ForceAlgorithm(Enum):
 # yolk_cortical_tension: force generated within the yolk, balancing out the EVL internal tension
 #   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
 # external_force: additional force applied to drive epiboly.
-# constant_total_force: if True, total force on leading edge constant over time (force per unit length changes);
-#   if False, force per unit edge length constant over time (total force changes).
+# force_algorithm: Defines relationship between total force and circumference
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
 external_force: int = 255   # +255 to produce full epiboly
-force_algorithm: ForceAlgorithm = ForceAlgorithm.HALF
+force_algorithm: ForceAlgorithm = ForceAlgorithm.APPROACH_PT25_F0
 run_balanced_force_control: bool = False
 
 # Potential.max any greater than this, numerical problems ensue
