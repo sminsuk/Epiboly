@@ -27,20 +27,16 @@ def initialize_tangent_forces() -> None:
     
     external_force: int = 0 if cfg.run_balanced_force_control else cfg.external_force
     total_force_start: float = cfg.yolk_cortical_tension + external_force
+    initial_force_circumference_ratio: float = total_force_start / epu.leading_edge_circumference()
     force_algorithm: cfg.ForceAlgorithm = cfg.force_algorithm
     
     if force_algorithm == cfg.ForceAlgorithm.CONSTANT:
+        # Can fold this into the same formula, but for now I'm retaining the enums, so just leave it
         _m = 0
         _b = total_force_start
-    elif force_algorithm == cfg.ForceAlgorithm.APPROACH_0:
-        _m = total_force_start / epu.leading_edge_circumference()
-        _b = 0
-    elif force_algorithm == cfg.ForceAlgorithm.APPROACH_PT5_F0:
-        _m = 0.5 * total_force_start / epu.leading_edge_circumference()
-        _b = 0.5 * total_force_start
-    elif force_algorithm == cfg.ForceAlgorithm.APPROACH_PT25_F0:
-        _m = 0.75 * total_force_start / epu.leading_edge_circumference()
-        _b = 0.25 * total_force_start
+    elif force_algorithm == cfg.ForceAlgorithm.LINEAR:
+        _m = (1 - cfg.force_target_fraction) * initial_force_circumference_ratio
+        _b = cfg.force_target_fraction * total_force_start
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""

@@ -78,24 +78,25 @@ harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
 harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
+# ToDo: Maybe get rid of this entirely later? Or may try other algorithms?
 class ForceAlgorithm(Enum):
     CONSTANT = 1          # Total force is constant, stays at its initial value
-    APPROACH_0 = 2        # Proportional; as circumference goes to zero, total force also goes to zero
-    APPROACH_PT5_F0 = 3   # Half as steep; as circumference goes to zero, total force goes to 0.5 of its initial value
-    APPROACH_PT25_F0 = 4  # As circumference goes to zero, total force goes to 0.25 of its initial value
+    LINEAR = 2            # Total force vs circumference is linear; defined by force_target_fraction
 
 # Vegetalward forces applied to LeadingEdge. Initial values from manual tuning.
 # These are highly dependent on the particle radius, spring constants, etc.,
 # so have to be tuned accordingly if those change.
-# yolk_cortical_tension: force generated within the yolk, balancing out the EVL internal tension
+# yolk_cortical_tension: force generated within the yolk, balancing out the EVL internal tension (at T=0)
 #   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
 # external_force: additional force applied to drive epiboly.
 # force_algorithm: Defines relationship between total force and circumference
+# force_target_fraction: For LINEAR, fraction of initial force to approach as circumf approaches 0
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
 external_force: int = 255   # +255 to produce full epiboly
-force_algorithm: ForceAlgorithm = ForceAlgorithm.APPROACH_PT25_F0
+force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
+force_target_fraction: float = 0.1
 run_balanced_force_control: bool = False
 
 # Potential.max any greater than this, numerical problems ensue
@@ -157,6 +158,7 @@ def get_state() -> dict:
             "yolk_cortical_tension": yolk_cortical_tension,
             "external_force": external_force,
             "force_algorithm": force_algorithm.name,
+            "force_target_fraction": force_target_fraction,
             "run_balanced_force_control": run_balanced_force_control,
             "max_potential_cutoff": max_potential_cutoff,
             "stopping_condition_phi": stopping_condition_phi,
