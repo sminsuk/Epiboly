@@ -140,7 +140,7 @@ else:
             return tf.Universe.time > 700 + 215
         else:
             # Full epiboly:
-            return epu.leading_edge_max_phi() > cfg.stopping_condition_phi
+            return epu.leading_edge_mean_phi() > cfg.stopping_condition_phi
     
     while True:
         if sim_finished():
