@@ -43,8 +43,8 @@ cell_division_enabled: bool = True
 calibrate_division_rate_to_timesteps: bool = False
 total_epiboly_divisions: int = 7500  # currently throttled to 3064; TBD: how much to actually use
 # Spatial distribution of cell division events:
-cell_division_biased_by_tension: bool = True
-tension_squared: bool = True  # (ignored unless cell_division_biased_by_tension is True)
+cell_division_biased_by_tension: bool = False
+tension_squared: bool = False  # (ignored unless cell_division_biased_by_tension is True)
 
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
 plot_interval: int = 2000
