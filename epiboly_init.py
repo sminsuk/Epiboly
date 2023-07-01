@@ -60,6 +60,7 @@ def init_from_import() -> None:
     
     tf.init(load_file=latest_state_entry.path,
             dim=_dim,
+            dt=cfg.dt,
             # cutoff=2,
             windowless=not cfg.windowed_mode,
             window_size=_window_size,
@@ -98,6 +99,7 @@ def init() -> None:
     
     # Cutoff = largest potential.max in the sim, so that all necessary potentials will be evaluated:
     tf.init(dim=_dim,
+            dt=cfg.dt,
             # cutoff=2,
             windowless=not cfg.windowed_mode,
             window_size=_window_size,

@@ -15,6 +15,11 @@ initialization_directory_name: str = ""
 # But name this flag as a positive rather than a negative, to avoid confusing double negatives ("not windowless").
 windowed_mode: bool = False
 
+# Tissue Forge time increment. Tissue Forge default value is 0.01. If using a different value, consider
+# adjusting these other values to compensate, which are defined in terms of timesteps (they count dt intervals):
+# plot_interval, sim_state_export_timestep_interval, screenshot_export_interval, time_avg_accumulation_steps
+dt: float = 0.02
+
 # Whether to show the equilibration steps.
 # In windowless mode, whether to include them in any exported screenshots;
 # in windowed mode, whether to show them in the simulator window (and any exported screenshots), or hide in tf.step();
@@ -34,7 +39,7 @@ sim_state_export_keep: bool = False
 
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
-screenshot_export_interval: int = 10
+screenshot_export_interval: int = 5
 
 # Cell division: whether or not, and how, and how much:
 cell_division_enabled: bool = True
@@ -47,9 +52,11 @@ cell_division_biased_by_tension: bool = False
 tension_squared: bool = False  # (ignored unless cell_division_biased_by_tension is True)
 
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
-plot_interval: int = 2000
+plot_interval: int = 1000
 # Should certain metrics be plotted as time-averages, instead of as single timesteps?
 plot_time_averages: bool = True
+# How many timesteps?
+time_avg_accumulation_steps: int = 200
 # And if so, should that also be applied to the simulation start, or just plot T0 as a single timestep?
 plot_t0_as_single_timestep: bool = True  # (ignored unless plot_time_averages is True)
 
@@ -131,7 +138,8 @@ def get_state() -> dict:
     when the simulation was run. Because it's starting to be too complex to record simply by
     adding notes to the path name!
     """
-    return {"show_equilibration": show_equilibration,
+    return {"dt": dt,
+            "show_equilibration": show_equilibration,
             "sim_state_export_timestep_interval": sim_state_export_timestep_interval,
             "sim_state_export_minutes_interval": sim_state_export_minutes_interval,
             "sim_state_export_keep": sim_state_export_keep,
@@ -143,6 +151,7 @@ def get_state() -> dict:
             "tension_squared": tension_squared,
             "plot_interval": plot_interval,
             "plot_time_averages": plot_time_averages,
+            "time_avg_accumulation_steps": time_avg_accumulation_steps,
             "plot_t0_as_single_timestep": plot_t0_as_single_timestep,
             "angle_bonds_enabled": angle_bonds_enabled,
             "space_filling_enabled": space_filling_enabled,
