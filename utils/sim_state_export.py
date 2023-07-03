@@ -60,12 +60,12 @@ def _export_additional_state(filename: str) -> None:
     
     These and other modules also have state that can be reconstituted from scratch on reload
     """
-    export_dict: dict = {"self": get_state(),
+    export_dict: dict = {"config": cfg.get_state(),
+                         "self": get_state(),
                          "video_export": vx.get_state(),
                          "cell_division": cd.get_state(),
                          "forces": mt.get_state(),
                          "logging": logging.get_state(),
-                         "config": cfg.get_state(),
                          "plot": plot.get_state(),
                          }
     
