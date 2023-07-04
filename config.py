@@ -18,7 +18,7 @@ windowed_mode: bool = False
 # Tissue Forge time increment. Tissue Forge default value is 0.01. If using a different value, consider
 # adjusting these other values to compensate, which are defined in terms of timesteps (they count dt intervals):
 # plot_interval, sim_state_export_timestep_interval, screenshot_export_interval, time_avg_accumulation_steps
-dt: float = 0.02
+dt: float = 0.025
 
 # Whether to show the equilibration steps.
 # In windowless mode, whether to include them in any exported screenshots;
@@ -39,7 +39,7 @@ sim_state_export_keep: bool = False
 
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
-screenshot_export_interval: int = 5
+screenshot_export_interval: int = 4
 
 # Cell division: whether or not, and how, and how much:
 cell_division_enabled: bool = True
@@ -82,7 +82,10 @@ min_neighbor_initial_distance_factor: float = 1.5
 harmonic_repulsion_spring_constant: float = 5.0
 harmonic_spring_constant: float = 12.0
 harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
-harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
+# (angle spring constant can go back up to 1.0 if I need a sharper edge, but it will need dt to be
+# smaller to avoid blowing up. With k=1.0: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
+# Using k=0.5 allowed me to reduce time granularity a bit more to dt = 0.025.)
+harmonic_angle_spring_constant: float = 0.5  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
 # ToDo: Maybe get rid of this entirely later? Or may try other algorithms?
