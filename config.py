@@ -18,7 +18,7 @@ windowed_mode: bool = False
 # Tissue Forge time increment. Tissue Forge default value is 0.01. If using a different value, consider
 # adjusting these other values to compensate, which are defined in terms of timesteps (they count dt intervals):
 # plot_interval, sim_state_export_timestep_interval, screenshot_export_interval, time_avg_accumulation_steps
-dt: float = 0.025
+dt: float = 0.02
 
 # Whether to show the equilibration steps.
 # In windowless mode, whether to include them in any exported screenshots;
@@ -39,7 +39,7 @@ sim_state_export_keep: bool = False
 
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
-screenshot_export_interval: int = 4
+screenshot_export_interval: int = 5
 
 # Cell division: whether or not, and how, and how much:
 cell_division_enabled: bool = True
@@ -52,7 +52,7 @@ cell_division_biased_by_tension: bool = False
 tension_squared: bool = False  # (ignored unless cell_division_biased_by_tension is True)
 
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
-plot_interval: int = 1000
+plot_interval: int = 5000
 # Should certain metrics be plotted as time-averages, instead of as single timesteps?
 plot_time_averages: bool = True
 # How many timesteps?
@@ -82,10 +82,11 @@ min_neighbor_initial_distance_factor: float = 1.5
 harmonic_repulsion_spring_constant: float = 5.0
 harmonic_spring_constant: float = 12.0
 harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
-# (angle spring constant can go back up to 1.0 if I need a sharper edge, but it will need dt to be
-# smaller to avoid blowing up. With k=1.0: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
-# Using k=0.5 allowed me to reduce time granularity a bit more to dt = 0.025.)
-harmonic_angle_spring_constant: float = 0.5  # (for the Angles)
+# With k=1.0: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
+# Using k=0.5 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
+# some buckling of the leading edge at the very end of certain experiments.
+# So, probably best to stick with k=1.0 and dt = 0.02.
+harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
 # ToDo: Maybe get rid of this entirely later? Or may try other algorithms?
@@ -104,9 +105,9 @@ class ForceAlgorithm(Enum):
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
-external_force: int = 255   # +255 to produce full epiboly
+external_force: int = 100   # +additional to produce full epiboly (original "baseline" was 255)
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
-force_target_fraction: float = 0.1
+force_target_fraction: float = 0
 run_balanced_force_control: bool = False
 
 # Potential.max any greater than this, numerical problems ensue
