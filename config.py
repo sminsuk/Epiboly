@@ -10,6 +10,10 @@ import math
 # will search in the "Sim_state" subdirectory to find the most recent export, and start with that.
 initialization_directory_name: str = ""
 
+# Just like it says on the tin. Since config is saved as part of state export as metadata for this run, this
+# provides for a free-form comment at the top of that file, for a permanent commentary on the generated output.
+comment: str = ""
+
 # Whether to use TF windowless mode, in which the simulation is driven only by
 # tf.step() and never tf.show(), and no graphics are displayed.
 # But name this flag as a positive rather than a negative, to avoid confusing double negatives ("not windowless").
@@ -142,7 +146,8 @@ def get_state() -> dict:
     when the simulation was run. Because it's starting to be too complex to record simply by
     adding notes to the path name!
     """
-    return {"dt": dt,
+    return {"comment": comment,
+            "dt": dt,
             "show_equilibration": show_equilibration,
             "sim_state_export_timestep_interval": sim_state_export_timestep_interval,
             "sim_state_export_minutes_interval": sim_state_export_minutes_interval,
