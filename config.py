@@ -113,7 +113,7 @@ yolk_cortical_tension: int = 120    # just balances interior bonds at initializa
 external_force: int   # +additional to produce full epiboly; value is set below
 external_force_override_default_values: bool = False
 external_force_best_with_cell_division: int = 100
-external_force_best_without_cell_division: int = 255
+external_force_best_without_cell_division: int = 255  # ToDo: this may need adjusting! Note hole, in 2023-07-09 run
 if external_force_override_default_values:
     # External force: to override defaults, set flag to True and provide a more meaningful value:
     external_force = 999999
