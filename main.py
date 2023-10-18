@@ -20,7 +20,7 @@ import utils.video_export as vx
 
 # from control_flow.interactive import is_interactive, toggle_visibility
 # if is_interactive():
-if tf.system.is_terminal_interactive():
+if tf.system.is_terminal_interactive() or tf.system.is_jupyter_notebook():
     # Importing this at the global level causes PyCharm to keep deleting my epiboly_init import,
     # (ToDo: see if this is still true, now that I got rid of "import *".)
     # I guess because it thinks it's redundant; something about the "import *".
@@ -28,6 +28,8 @@ if tf.system.is_terminal_interactive():
     # (Edit: um, none of that is relevant anymore, after refactoring; no more vars from epiboly_init here.
     # But keep this comment for history until the whole interactivity mess gets resolved.)
     # (ToDo: also, turns out is_interactive() functionality is now provided in tf, I can probably lose mine.)
+    # (However, tf functionality is different: is_terminal_interactive() does not catch Jupyter, you have
+    # to test for that separately.)
     from control_flow.interactive import *
     print("Interactive module imported!")
 
