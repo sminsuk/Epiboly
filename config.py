@@ -109,7 +109,20 @@ class ForceAlgorithm(Enum):
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
-external_force: int = 100   # +additional to produce full epiboly (original "baseline" was 255)
+
+external_force: int   # +additional to produce full epiboly; value is set below
+external_force_override_default_values: bool = False
+external_force_best_with_cell_division: int = 100
+external_force_best_without_cell_division: int = 255
+if external_force_override_default_values:
+    # External force: to override defaults, set flag to True and provide a more meaningful value:
+    external_force = 999999
+else:
+    if cell_division_enabled:
+        external_force = external_force_best_with_cell_division
+    else:
+        external_force = external_force_best_without_cell_division
+
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
 run_balanced_force_control: bool = False
@@ -174,6 +187,7 @@ def get_state() -> dict:
             "harmonic_angle_spring_constant": harmonic_angle_spring_constant,
             "harmonic_angle_tolerance": harmonic_angle_tolerance,
             "yolk_cortical_tension": yolk_cortical_tension,
+            "external_force_override_default_values": external_force_override_default_values,
             "external_force": external_force,
             "force_algorithm": force_algorithm.name,
             "force_target_fraction": force_target_fraction,
