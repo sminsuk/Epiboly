@@ -212,11 +212,12 @@ def initialize_leading_edge_bending_resistance() -> None:
     done only AFTER the interior particles have equilibrated and been given their own bonds. So do a similar
     loop here and only call it after equilibration and all bond initialization is finished.
     """
-    print("Adding Angles to ring particles.")
-    
     if not cfg.angle_bonds_enabled:
+        print("Running without Angle bonds")
         return
     
+    print("Adding Angle bonds to ring particles.")
+
     edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=cfg.harmonic_angle_spring_constant,
                                                                      theta0=bonds.harmonic_angle_equilibrium_value(),
                                                                      tol=cfg.harmonic_angle_tolerance)
