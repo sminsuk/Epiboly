@@ -279,7 +279,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
         particle_phi.append(epu.embryo_phi(phandle))
     
     # plot
-    ylim: tuple[float, float] = (-0.075, 0.25)
+    ylim: tuple[float, float] = (-0.05, 0.25)
     if end:
         ylim = _expand_limits_if_needed(ylim, tensions)
     tensions_ax.set_ylim(*ylim)
@@ -401,7 +401,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
                        filename="Strain rates by speed bin diffs",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Strain rate (speed-bin differences)",
-                       ylim=(-0.005, 0.035),
+                       ylim=(-0.005, 0.04),
                        axvline=np.pi/2,  # equator
                        axhline=0,        # stretch/compression boundary
                        # legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
