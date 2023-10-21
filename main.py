@@ -60,6 +60,10 @@ else:
 
 events.initialize_master_event()
 
+# Uncomment to render bonds for publication printing. (Note: not performance-friendly.)
+# ToDo: customize radius of rendered bonds. Needs patch release to expose feature to python
+# tf.system.set_rendering_3d_bonds(True)
+
 # Setup and equilibration – unless importing saved state from a prior run
 if not cfg.initialization_directory_name:
     vx.init_camera_data()
