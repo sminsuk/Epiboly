@@ -12,6 +12,7 @@ initialization_directory_name: str = ""
 
 # Just like it says on the tin. Since config is saved as part of state export as metadata for this run, this
 # provides for a free-form comment at the top of that file, for a permanent commentary on the generated output.
+# That line at top of the export file can then be edited after the run is over to add comment on results.
 comment: str = ""
 
 # Whether to use TF windowless mode, in which the simulation is driven only by
