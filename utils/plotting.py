@@ -577,9 +577,6 @@ def _show_progress_graph(end: bool) -> None:
     _timesteps.append(_timestep)
     _leading_edge_phi.append(phi)
 
-    # ToDo? In windowless, technically we don't need to do this until once, at the end, just before
-    #  saving the plot. Test for that? Would that improve performance, since it would avoid rendering?
-    #  (In HPC? When executing manually?) Of course, need this for windowed mode, for live-updating plot.
     # Plot
     progress_ax.plot(_timesteps, _leading_edge_phi, "b.")
 
