@@ -127,6 +127,8 @@ else:
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
 run_balanced_force_control: bool = False
+test_recoil_after_completion: bool = True
+test_recoil_with_bond_remodeling: bool = True  # Note not so interesting a test when cell division enabled; no room!
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
@@ -193,6 +195,8 @@ def get_state() -> dict:
             "force_algorithm": force_algorithm.name,
             "force_target_fraction": force_target_fraction,
             "run_balanced_force_control": run_balanced_force_control,
+            "test_recoil_after_completion": test_recoil_after_completion,
+            "test_recoil_with_bond_remodeling": test_recoil_with_bond_remodeling,
             "max_potential_cutoff": max_potential_cutoff,
             "stopping_condition_phi": stopping_condition_phi,
             "min_neighbor_count": min_neighbor_count,

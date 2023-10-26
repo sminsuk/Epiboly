@@ -148,14 +148,68 @@ else:
             # Full epiboly:
             return epu.leading_edge_mean_phi() > cfg.stopping_condition_phi
     
-    while True:
-        if sim_finished():
-            break
-        if events.event_exception_was_thrown():
-            # Could sys.exit() here (it works here, just not inside a TF event invoke method), but even better,
-            # do any final graphing and movie making and THEN exit. The main thing is to get out of the loop.
-            break
-        tf.step()
+    def run_sim() -> None:
+        while True:
+            if sim_finished():
+                break
+            if events.event_exception_was_thrown():
+                # Could sys.exit() here (it works here, just not inside a TF event invoke method), but even better,
+                # do any final graphing and movie making and THEN exit. The main thing is to get out of the loop.
+                break
+            tf.step()
+
+    def recoil_test(remodel_bonds: bool, timestep_duration: int) -> None:
+        """Let the system equilibrate (no external force), with or without bond remodeling
+        
+        Without bond remodeling: reveals the instantaneous or short-time-scale elastic behavior.
+        With bond remodeling: reveals the ability for further viscoelastic deformation (reversal) under tension
+        
+        Note that running with bond remodeling may not be so interesting when cell division is enabled,
+        because all the space has been filled by additional particles, limiting how much shrinkage can occur.
+        """
+        # ToDo?
+        # Might want to do something with plotting, here, to capture plots at the moment we switch mode.
+        # It's a bit tricky, though, because of accumulating data for time averaging, so I haven't tried to implement.
+        # (And the simplest plots - one dot per time point like leading edge phi, and forces - don't really need
+        # a plot here anyway. It's the others, with separate plots vs. phi for each time point, that we'd like
+        # to capture. Of those, Aggregate Tension plot doesn't have time averaging, and it might be nice to capture
+        # just that one.)
+        
+        # Turn off the external force
+        mt.remove_tangent_forces()
+        
+        # Set up new task list. Include same observational monitoring as in the main sim, but omit external
+        # force application, and cell division. Include/exclude bond breaking/making as indicated.
+        tasks: list[events.Task] = [
+                {"invoke": vx.save_screenshot_repeatedly},
+                {"invoke": plot.show_graphs},
+                ]
+        if remodel_bonds:
+            tasks.append({"invoke": bonds.maintain_bonds})
+        tasks.append({"invoke": state.export_repeatedly})
+        events.execute_repeatedly(tasks=tasks)
+    
+        timesteps_since_recoil_start_time: int = 0
+        while True:
+            timesteps_since_recoil_start_time += 1
+            if timesteps_since_recoil_start_time > timestep_duration:
+                break
+            if events.event_exception_was_thrown():
+                break
+            tf.step()
+
+    run_sim()
+    
+    # Two recoil tests; depending on config, can run them in isolation or sequentially.
+    # Note that after this point, can't really restart sim after any crash or manual abort, unless I do some
+    # more work, because this gives state to the formerly stateless main module, which I'd need to capture.
+    # (With one exception, a commonly used workflow: it should work fine to abort in order to intentionally end the
+    # simulation prematurely, restarting with a truncated sim_finished() criterion only in order to do the cleanup —
+    # generate movie, get final screenshots. Just turn off the two recoil flags before restarting.)
+    if cfg.test_recoil_after_completion:
+        recoil_test(remodel_bonds=False, timestep_duration=5000)
+    if cfg.test_recoil_with_bond_remodeling:
+        recoil_test(remodel_bonds=True, timestep_duration=10000)
 
 # troubleshooting: call this one final time without having to be triggered by an edge transformation event.
 # bonds.test_ring_is_fucked_up()
