@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import math
 import os
 
-import moviepy.video.io.ImageSequenceClip as movieclip
+from moviepy.video.io import ImageSequenceClip
 
 import tissue_forge as tf
 import config as cfg
@@ -381,7 +381,7 @@ def make_movie(filename: str = None) -> None:
                            for entry in dir_entries_chron
                            if entry.name.endswith(f"{side}.jpg")]
         print(f"Assembling movie \"{side}\" from {len(image_filepaths)} images")
-        clip = movieclip.ImageSequenceClip(image_filepaths, fps=24)
+        clip = ImageSequenceClip.ImageSequenceClip(image_filepaths, fps=24)
         
         # Save the clip using tfu.export_directory() also as the movie name, and save it to the Screenshots subdirectory
         # (Or, if filename was provided, then __name__ == "__main__", see below.)
