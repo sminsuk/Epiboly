@@ -134,7 +134,7 @@ def _export_screenshot(filename: str) -> None:
         print(tfu.bluecolor + f"Something went wrong with screenshot export, result code = {result}" + tfu.endcolor)
 
 def _save_screenshot(filename: str, side: str = None, show_timestep: bool = True) -> None:
-    """side = "Front", "Back", "Left", "Right".
+    """side = "Front", "Back", "Left", "Right", "Top", "Bottom".
     
     Caller provides filename (no extension). Saves as jpg. All other formats crash the app, segfault!
     Timestep and side will be appended to filename unless show_timestep = False (and filename is not blank).
@@ -173,6 +173,12 @@ def save_screenshots(filename: str) -> None:
         _automated_camera_rotate()
         _save_screenshot(filename, "Front")
     else:
+        # First, top view. Location never changes, so no load/save of data, no rotating
+        tf.system.camera_view_top()
+        tf.system.camera_zoom_to(-12)
+        _save_screenshot(filename, "Top")
+        
+        # Then the four sides, keeping track of changing camera position
         for side in ["Left", "Right", "Back", "Front"]:
             _load_camera_data(side)
             _automated_camera_rotate()
@@ -373,7 +379,7 @@ def make_movie(filename: str = None) -> None:
     if not screenshot_export_enabled():
         return
 
-    sides: list[str] = ["Front"] if cfg.windowed_mode else ["Left", "Right", "Back", "Front"]
+    sides: list[str] = ["Front"] if cfg.windowed_mode else ["Left", "Right", "Back", "Front", "Top"]
     with os.scandir(_image_path) as dir_entries_it:
         dir_entries_chron: list[os.DirEntry] = sorted(dir_entries_it, key=lambda entry: entry.stat().st_mtime_ns)
     for side in sides:
