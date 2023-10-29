@@ -167,6 +167,7 @@ def save_screenshots(filename: str) -> None:
         
     precision: int = 4 if cfg.run_balanced_force_control else 2
     print(f"Saving screenshots for Timestep = {_current_screenshot_timestep};"
+          f" Universe.time = {round(tf.Universe.time, 2)};"
           f" mean phi = {round(epu.leading_edge_mean_phi(), precision)}")
 
     if cfg.windowed_mode:

@@ -159,7 +159,7 @@ else:
                 break
             tf.step()
 
-    def recoil_test(remodel_bonds: bool, timestep_duration: int) -> None:
+    def recoil_test(remodel_bonds: bool, duration: float) -> None:
         """Let the system equilibrate (no external force), with or without bond remodeling
         
         Without bond remodeling: reveals the instantaneous or short-time-scale elastic behavior.
@@ -167,6 +167,8 @@ else:
         
         Note that running with bond remodeling may not be so interesting when cell division is enabled,
         because all the space has been filled by additional particles, limiting how much shrinkage can occur.
+        
+        duration: should be in units of Universe.time
         """
         # ToDo?
         # Might want to do something with plotting, here, to capture plots at the moment we switch mode.
@@ -190,10 +192,9 @@ else:
         tasks.append({"invoke": state.export_repeatedly})
         events.execute_repeatedly(tasks=tasks)
     
-        timesteps_since_recoil_start_time: int = 0
+        recoil_start_time: float = tf.Universe.time
         while True:
-            timesteps_since_recoil_start_time += 1
-            if timesteps_since_recoil_start_time > timestep_duration:
+            if tf.Universe.time > recoil_start_time + duration:
                 break
             if events.event_exception_was_thrown():
                 break
@@ -207,10 +208,10 @@ else:
     # (With one exception, a commonly used workflow: it should work fine to abort in order to intentionally end the
     # simulation prematurely, restarting with a truncated sim_finished() criterion only in order to do the cleanup —
     # generate movie, get final screenshots. Just turn off the two recoil flags before restarting.)
-    if cfg.test_recoil_after_completion:
-        recoil_test(remodel_bonds=False, timestep_duration=5000)
+    if cfg.test_recoil_without_bond_remodeling:
+        recoil_test(remodel_bonds=False, duration=cfg.recoil_duration_without_remodeling)
     if cfg.test_recoil_with_bond_remodeling:
-        recoil_test(remodel_bonds=True, timestep_duration=10000)
+        recoil_test(remodel_bonds=True, duration=cfg.recoil_duration_with_remodeling)
 
 # troubleshooting: call this one final time without having to be triggered by an edge transformation event.
 # bonds.test_ring_is_fucked_up()
