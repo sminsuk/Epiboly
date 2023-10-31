@@ -85,6 +85,8 @@ def test_ring_is_fubar():
     if any(neighbor_fubar):
         # At least one LeadingEdge particle doesn't have exactly two LeadingEdge neighbors, as it should
         break_point = 0
+    if not cfg.angle_bonds_enabled:
+        return
     angle_lists: list[list[tf.AngleHandle]] = [p.angles for p in particles]
     angle_counts: list[int] = [len(angle_list) for angle_list in angle_lists]
     angle_fubar: list[bool] = [length != 3 for length in angle_counts]
