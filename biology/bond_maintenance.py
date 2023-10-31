@@ -179,9 +179,14 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                         # for breaking a bond and turning a Little into a LeadingEdge; it does not work
                         # for making a bond and turning a LeadingEdge into a Little, because all the particles
                         # are LeadingEdge and you can't tell the cases apart. Hence, created the "becoming"
-                        # parameter and handled it separately below, instead. And either way, I never got
-                        # the accept/reject criterion really working for edge transformations. (Hence the
-                        # addition of the ad hoc criterion, leading_edge_baseline, in recruit_from_internal().)
+                        # parameter and handled it separately below, instead. (Revisiting: I think it would
+                        # work to check, as before, whether p and previous_neighbor are both LeadingEdge, AND
+                        # also, whether those two are not already bonded to each other; that would identify
+                        # the edge angle needing the special target. This may be slightly more reliable than
+                        # the approach below, but it would also be a complexification. Decision for now: don't
+                        # fix it if it ain't broke!) Either way, the accept/reject criterion is still imperfect
+                        # for edge transformations. (Hence the addition of the ad hoc criterion,
+                        # leading_edge_baseline, in recruit_from_internal().)
                     elif previous_neighbor.id == other_p.id:
                         theta2 = tfu.angle_from_particles(previous_neighbor, vertex_particle, p)
                         
@@ -197,7 +202,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                 if becoming:
                     # Assume(?) that the two component angles are very different sizes; and that the
                     # larger one is the leading edge, so should have a bigger target.
-                    # (Note: probably a WRONG assumption, because I'm getting very bad behaviors.)
+                    # (Note: probably a WRONG assumption.)
                     if theta1 > theta2:
                         target1 = cfg.target_edge_angle
                     else:
