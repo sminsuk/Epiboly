@@ -235,7 +235,7 @@ def initialize_leading_edge_bending_resistance() -> None:
         before_previous_particle = previous_particle
         previous_particle = particle
         
-    # bonds.test_ring_is_fucked_up()
+    # bonds.test_ring_is_fubar()
 
 def replace_all_small_small_potentials(new_potential):
     """Wipes out old potential, replaces with new, for all small-small interactions"""

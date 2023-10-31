@@ -214,7 +214,7 @@ else:
         recoil_test(remodel_bonds=True, duration=cfg.recoil_duration_with_remodeling)
 
 # troubleshooting: call this one final time without having to be triggered by an edge transformation event.
-# bonds.test_ring_is_fucked_up()
+# bonds.test_ring_is_fubar()
 
 # Do final plot before final state export so that the final graphed data point is included in the export
 plot.show_graphs(end=True)

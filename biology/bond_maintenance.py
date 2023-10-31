@@ -73,7 +73,7 @@ def harmonic_angle_equilibrium_value() -> float:
     # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
     return math.pi - (cfg.two_pi / len(g.LeadingEdge.items()))
 
-def test_ring_is_fucked_up():
+def test_ring_is_fubar():
     """For debugging. Set breakpoints at the indicated locations. Stop there and examine these values."""
     particles: list[tf.ParticleHandle] = [p for p in g.LeadingEdge.items()]
     neighbor_lists: list[tf.ParticleList] = [nbrs.getBondedNeighbors(p) for p in particles]
@@ -81,14 +81,14 @@ def test_ring_is_fucked_up():
             [[n for n in neighbor_list if n.type_id == g.LeadingEdge.id]
              for neighbor_list in neighbor_lists])
     leading_edge_counts: list[int] = [len(neighbor_list) for neighbor_list in leading_edge_neighbor_lists]
-    neighbor_fuckedness: list[bool] = [length != 2 for length in leading_edge_counts]
-    if any(neighbor_fuckedness):
+    neighbor_fubar: list[bool] = [length != 2 for length in leading_edge_counts]
+    if any(neighbor_fubar):
         # At least one LeadingEdge particle doesn't have exactly two LeadingEdge neighbors, as it should
         break_point = 0
     angle_lists: list[list[tf.AngleHandle]] = [p.angles for p in particles]
     angle_counts: list[int] = [len(angle_list) for angle_list in angle_lists]
-    angle_fuckedness: list[bool] = [length != 3 for length in angle_counts]
-    if any(angle_fuckedness):
+    angle_fubar: list[bool] = [length != 3 for length in angle_counts]
+    if any(angle_fubar):
         # At least one LeadingEdge particle doesn't have exactly three Angle bonds, as it should
         break_point = 1
     return
@@ -481,17 +481,17 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 0
         
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
-            # test_ring_is_fucked_up()
+            # test_ring_is_fubar()
             _make_bond(neighbor1, neighbor2, verbose=verbose)
             p.become(g.Little)
             p.style.color = g.Little.style.color
             p.style.visible = gc.visibility_state
             p.force_init = [0, 0, 0]
 
-            # test_ring_is_fucked_up()
+            # test_ring_is_fubar()
             remodel_angles(neighbor1, neighbor2, p_becoming=p, add=False)
 
-            # test_ring_is_fucked_up()
+            # test_ring_is_fubar()
             return 1
         return 0
     
@@ -570,7 +570,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                                      if too_many_edge_neighbors(phandle)]
             for phandle in saturated_internal_neighbors:
                 gc.destroy_bond(tfu.bond_between(recruit, phandle))
-            # test_ring_is_fucked_up()
+            # test_ring_is_fubar()
             
             gc.destroy_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(g.LeadingEdge)
@@ -580,7 +580,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             
             remodel_angles(p, other_leading_edge_p, p_becoming=recruit, add=True)
             
-            # test_ring_is_fucked_up()
+            # test_ring_is_fubar()
             return 1, 1 + len(saturated_internal_neighbors)
         return 0, 0
 
