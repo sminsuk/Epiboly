@@ -77,7 +77,9 @@ plot_t0_as_single_timestep: bool = True  # (ignored unless plot_time_averages is
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
 # and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)
-angle_bonds_enabled: bool = True
+# (Deprecated: turns out these not actually needed, and Mullins lab (experimentalists) agree the model looks
+# much more like real zebrafish embryos without this. Leave False from now on.)
+angle_bonds_enabled: bool = False
 
 # Yet to be determined, whether to use this space-filling algorithm. It needs to be either abandoned or improved.
 # Currently alternating sims between having it on and off while I work on other things, and observing its behavior.
