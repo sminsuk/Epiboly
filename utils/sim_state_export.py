@@ -38,7 +38,7 @@ def init_export() -> None:
     global _state_export_path, _state_export_interval, _previous_export_seconds
     
     # Copy cfg property to module _protected; not caller-changeable at runtime. Ignore cfg henceforth and use this.
-    _state_export_interval = cfg.sim_state_export_timestep_interval
+    _state_export_interval = cfg.sim_state_timesteps_per_export
 
     if not cfg.sim_state_export_enabled:
         return
@@ -154,7 +154,7 @@ def export_repeatedly() -> None:
     # If keeping all exports, export every n timesteps, so that intervals are regular.
     # Otherwise (exporting for crash protection), export every 10 minutes so that no more than that is lost.
     export_trigger: bool
-    export_seconds_interval: float = cfg.sim_state_export_minutes_interval * 60
+    export_seconds_interval: float = cfg.sim_state_minutes_per_export * 60
     if cfg.sim_state_export_keep:
         elapsed_timesteps: int = _current_export_timestep - _previous_export_timestep
         export_trigger = (elapsed_timesteps % _state_export_interval == 0)

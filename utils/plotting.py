@@ -611,7 +611,7 @@ def show_graphs(end: bool = False) -> None:
         _show_bond_counts()
         _show_forces()
 
-    plot_interval: int = cfg.plot_interval
+    plot_interval: int = cfg.plotting_interval_timesteps
     
     if _timestep % plot_interval == 0 or end:
         # These aggregate graphs don't need to be time-averaged, so just call them exactly on the interval (including 0)

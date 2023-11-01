@@ -220,7 +220,7 @@ _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 
 # module's copy can be adjusted dynamically
-_screenshot_export_interval: int = cfg.screenshot_export_interval
+_screenshot_export_interval: int = cfg.screenshots_timesteps_per_export
 
 def screenshots_subdirectory() -> str:
     """Return subdirectory where screenshots are stored"""
@@ -242,7 +242,7 @@ def set_screenshot_export_interval(interval: int = None) -> None:
     global _screenshot_export_interval
     if screenshot_export_enabled():
         if interval is None:
-            interval = cfg.screenshot_export_interval
+            interval = cfg.screenshots_timesteps_per_export
         if interval > 0:
             _screenshot_export_interval = interval
             print(f"Screenshot export interval set to {interval} timesteps")
@@ -250,8 +250,8 @@ def set_screenshot_export_interval(interval: int = None) -> None:
             print(tfu.bluecolor + "Warning: screenshot export cannot be disabled after initialization" + tfu.endcolor)
 
 def screenshot_export_enabled() -> bool:
-    """Convenience function. Interpret cfg.screenshot_export_interval as flag for whether export is enabled"""
-    return cfg.screenshot_export_interval != 0
+    """Convenience function. Interpret cfg.screenshots_timesteps_per_export as flag for whether export is enabled"""
+    return cfg.screenshots_timesteps_per_export != 0
 
 # A dict of four CameraData objects, with keys "Front", "Back", "Left", "Right".
 # (For windowless only. In windowed mode, this data cannot be captured.)
