@@ -9,12 +9,11 @@ import os
 from statistics import fmean
 import sys
 import traceback
-from typing import Optional
 
 import tissue_forge as tf
 
 _tf_export_root: str = "TissueForge_export"
-_current_export_dir: Optional[str] = None
+_current_export_dir: str | None = None
 
 def init_export(directory_name: str = None) -> None:
     """Set up directories for all exported output: root directory for all output from the current script, ever;
@@ -229,7 +228,7 @@ def bonds_between(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.BondH
                  if p2 in bond.parts]
     return p1p2bonds
 
-def bond_between(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = True) -> Optional[tf.BondHandle]:
+def bond_between(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = True) -> tf.BondHandle | None:
     """returns one bond connecting two given particles.
 
     verbose: Set to False to suppress warnings. If True, warns when more than one bond found.
@@ -259,7 +258,7 @@ def strain(p: tf.ParticleHandle) -> float:
     return 0 if not p_bonds else fmean([bhandle.length - bhandle.potential.r0
                                         for bhandle in p_bonds])
     
-def particle_from_id(id: int, type: tf.ParticleType = None) -> Optional[tf.ParticleHandle]:
+def particle_from_id(id: int, type: tf.ParticleType = None) -> tf.ParticleHandle | None:
     """Temporary work around, delete after issue is fixed in future Tissue Forge release
 
     returns: None if particle not found
@@ -282,7 +281,7 @@ def particle_from_id(id: int, type: tf.ParticleType = None) -> Optional[tf.Parti
     use the constructor. If this turns out to be too slow, I'll set up my own mapping at the time of particle
     creation.
     """
-    p: Optional[tf.ParticleHandle]
+    p: tf.ParticleHandle | None
     
     if type is not None:
         # value was provided, so do this the easy way:

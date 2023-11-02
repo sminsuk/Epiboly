@@ -2,7 +2,6 @@
 
 import math
 import time
-from typing import Optional
 
 import tissue_forge as tf
 import epiboly_globals as g
@@ -93,11 +92,10 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     return neighbors
 
 def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
-                                    ptypes: list[tf.ParticleType] = None) -> Optional[tf.ParticleHandle]:
+                                    ptypes: list[tf.ParticleType] = None) -> tf.ParticleHandle | None:
     """Find the nearest non-bonded neighbor
     
-    Can return None (hence "Optional" in typing of function return value), but
-    with the iterative approach to search distance, it seems this never happens.
+    Can return None, but with the iterative approach to search distance, it seems this never happens.
     You can always find a nearest non-bonded neighbor, long before hitting the max allowable distance.
     """
     neighbors: list[tf.ParticleHandle] = get_nearest_non_bonded_neighbors(phandle, ptypes, min_neighbors=1)

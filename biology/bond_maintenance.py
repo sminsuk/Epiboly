@@ -3,7 +3,6 @@ import math
 import random
 from statistics import fmean
 import time
-from typing import Optional
 
 import tissue_forge as tf
 import epiboly_globals as g
@@ -170,8 +169,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                 #                       vertex_particle,
                 #                       ordered_neighbor_list[next_neighbor_index])
 
-                theta1: Optional[float] = None
-                theta2: Optional[float] = None
+                theta1: float | None = None
+                theta2: float | None = None
                 previous_neighbor: tf.ParticleHandle = ordered_neighbor_list[-1]
                 for p in ordered_neighbor_list:
                     if p.id == other_p.id:
@@ -372,7 +371,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                       tfu.endcolor)
                 angle.destroy()
         
-        def get_pivot_angle(p: tf.ParticleHandle) -> Optional[tf.AngleHandle]:
+        def get_pivot_angle(p: tf.ParticleHandle) -> tf.AngleHandle | None:
             """Return the particle's pivot Angle (the Angle that has this particle as the CENTER particle) - if any"""
             angle: tf.AngleHandle
             angles: list[tf.AngleHandle] = [angle for angle in p.angles
@@ -519,7 +518,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if random.random() < 0.5:
             leading_edge_neighbors.reverse()
             
-        other_leading_edge_p: Optional[tf.ParticleHandle] = None
+        other_leading_edge_p: tf.ParticleHandle | None = None
         shared_internal_bonded_neighbors: list[tf.ParticleHandle] = []
         for other_leading_edge_p in leading_edge_neighbors:
             shared_internal_bonded_neighbors = nbrs.get_shared_bonded_neighbors(p, other_leading_edge_p)

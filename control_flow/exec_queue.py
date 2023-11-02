@@ -2,7 +2,7 @@
 I may yet need parts of it.
 """
 from collections.abc import Callable
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 import tissue_forge as tf
 from utils import tf_utils as tfu
@@ -59,14 +59,14 @@ def execute_sequentially(queue: list[Task] = None):
     # the list and pop from the end. Alternatively, could import deque and popleft()
     queue.reverse()
 
-    invoke_func: Optional[Callable[..., None]] = None
-    invoke_args: Optional[dict] = None
-    wait_condition: Optional[Callable[..., bool]] = None
-    wait_args: Optional[dict] = None
+    invoke_func: Callable[..., None] | None = None
+    invoke_args: dict | None = None
+    wait_condition: Callable[..., bool] | None = None
+    wait_args: dict | None = None
     verbose: bool = True
     ready_for_next_invoke: bool = True
 
-    def condition_tester(condition: Callable[..., bool], args: Optional[dict]) -> bool:
+    def condition_tester(condition: Callable[..., bool], args: dict | None) -> bool:
         """Test the condition, wrapped in a try/except"""
 
         result = True

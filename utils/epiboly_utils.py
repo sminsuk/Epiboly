@@ -4,7 +4,6 @@ These are utility functions specific to this simulation.
 """
 import numpy as np
 from statistics import fmean
-from typing import Union
 
 import tissue_forge as tf
 import epiboly_globals as g
@@ -18,7 +17,7 @@ def reset_camera():
     tf.system.camera_view_front()
     tf.system.camera_zoom_to(-12)
 
-def embryo_phi(p: Union[tf.fVector3, tf.ParticleHandle]) -> float:
+def embryo_phi(p: tf.fVector3 | tf.ParticleHandle) -> float:
     """phi relative to the animal/vegetal axis
     
     Overload to get phi based on either a position or an existing particle.
@@ -26,7 +25,7 @@ def embryo_phi(p: Union[tf.fVector3, tf.ParticleHandle]) -> float:
     theta, phi = embryo_coords(p)
     return phi
 
-def embryo_theta(p: Union[tf.fVector3, tf.ParticleHandle]) -> float:
+def embryo_theta(p: tf.fVector3 | tf.ParticleHandle) -> float:
     """theta relative to the animal/vegetal axis
     
     Overload to get theta based on either a position or an existing particle.
@@ -34,7 +33,7 @@ def embryo_theta(p: Union[tf.fVector3, tf.ParticleHandle]) -> float:
     theta, phi = embryo_coords(p)
     return theta
 
-def embryo_coords(p: Union[tf.fVector3, tf.ParticleHandle]) -> tuple[float, float]:
+def embryo_coords(p: tf.fVector3 | tf.ParticleHandle) -> tuple[float, float]:
     """theta, phi relative to the animal/vegetal axis
     
     Overload to get theta, phi based on either a position or an existing particle.
