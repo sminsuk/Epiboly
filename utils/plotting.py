@@ -606,7 +606,9 @@ def show_graphs(end: bool = False) -> None:
         _init_graphs()
 
     # Don't need to add to the graphs every timestep.
-    if _timestep % 100 == 0 or end:
+    simtime_interval: float = 2
+    timestep_interval: int = round(simtime_interval / cfg.dt)
+    if _timestep % timestep_interval == 0 or end:
         _show_progress_graph(end)
         _show_bond_counts()
         _show_forces()
