@@ -210,7 +210,8 @@ else:
     # generate movie, get final screenshots. Just turn off the two recoil flags before restarting.)
     if cfg.test_recoil_without_bond_remodeling:
         recoil_test(remodel_bonds=False, duration=cfg.recoil_duration_without_remodeling)
-    if cfg.test_recoil_with_bond_remodeling:
+    if cfg.test_recoil_with_bond_remodeling and not cfg.cell_division_enabled:
+        # This one really only meaningful in the absence of cell division, so don't bother when cell division enabled.
         recoil_test(remodel_bonds=True, duration=cfg.recoil_duration_with_remodeling)
 
 # troubleshooting: call this one final time without having to be triggered by an edge transformation event.

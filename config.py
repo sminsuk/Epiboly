@@ -130,7 +130,7 @@ force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
 run_balanced_force_control: bool = False
 test_recoil_without_bond_remodeling: bool = True
-test_recoil_with_bond_remodeling: bool = True  # Note not so interesting a test when cell division enabled; no room!
+test_recoil_with_bond_remodeling: bool = True  # Ignored when cell division enabled, since not meaningful in that case
 recoil_duration_without_remodeling: float = 75
 recoil_duration_with_remodeling: float = 75
 
