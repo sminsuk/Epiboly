@@ -91,6 +91,20 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
 
     return neighbors
 
+def get_nearest_non_bonded_neighbors_constrained(phandle: tf.ParticleHandle,
+                                                 ptypes: list[tf.ParticleType] = None,
+                                                 min_neighbors: int = 1,
+                                                 max_neighbors: int = 1) -> list[tf.ParticleHandle]:
+    """Find an exactly specified number of nearest neighbors
+    
+    Will return a number of neighbors between min_neighbors and max_neighbors, inclusive (where max ≥ min).
+    """
+    if max_neighbors < min_neighbors:
+        max_neighbors = min_neighbors
+    neighbors: list[tf.ParticleHandle] = get_nearest_non_bonded_neighbors(phandle, ptypes, min_neighbors)
+    neighbors.sort(key=lambda neighbor: phandle.distance(neighbor))
+    return neighbors[:max_neighbors]
+
 def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
                                     ptypes: list[tf.ParticleType] = None) -> tf.ParticleHandle | None:
     """Find the nearest non-bonded neighbor

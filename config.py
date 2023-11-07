@@ -139,6 +139,21 @@ max_potential_cutoff: float = 6
 
 stopping_condition_phi: float = math.pi * 0.95
 
+# Bond-making. Method for when cell division disabled. (When cell division enabled, just gets nearest non-bonded
+# neighbor, which is equivalent to BOUNDED with min = max = 1, or UNIFORM with min = 1, max = 2.)
+class BondableNeighborDiscovery(Enum):
+    OPEN_ENDED = 1  # request a minimum of 1 bondable neighbor; select at random from however many come back.
+    BOUNDED = 2     # request between min and max bondable neighbors; select at random from however many come back.
+    UNIFORM = 3     # request exactly randrange(min, max) bondable neighbors; select at random from those.
+    # (These each behave a bit differently because of how the underlying neighbor search algorithm works. These
+    # are in order of increasingly more predictable/understandable. The first two suffer from dependence on the
+    # implementation details of that underlying search, resulting in strange distributions of the size of the
+    # search result set. UNIFORM should decouple the result from the underlying search; each search decides in
+    # advance (using randrange) how many neighbor particles to select from; the result set will be exactly that size.)
+bondable_neighbor_discovery: BondableNeighborDiscovery = BondableNeighborDiscovery.BOUNDED
+bondable_neighbors_min_candidates: int = 1  # (_min_ and _max_ ignored for OPEN_ENDED)
+bondable_neighbors_max_candidates: int = 7
+
 # For neighbor count criterion. Pre-energy-calculation limits.
 # (If exceeded, don't bother calculating energy, just reject the change.)
 # (min, also for initialization: ensure this constraint from beginning)
@@ -205,6 +220,9 @@ def get_state() -> dict:
                 "recoil_duration_with_remodeling": recoil_duration_with_remodeling,
                 "max_potential_cutoff": max_potential_cutoff,
                 "stopping_condition_phi": stopping_condition_phi,
+                "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
+                "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
+                "bondable_neighbors_max_candidates": bondable_neighbors_max_candidates,
                 "min_neighbor_count": min_neighbor_count,
                 "max_edge_neighbor_count": max_edge_neighbor_count,
                 "target_neighbor_angle": target_neighbor_angle,

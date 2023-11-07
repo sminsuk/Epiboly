@@ -324,17 +324,74 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         return 0
     
     def attempt_make_bond(p: tf.ParticleHandle) -> int:
-        """For internal, bond to the closest unbonded neighbor (either type); for leading edge, bond to
-        the closest unbonded *internal* neighbor only.
+        """For internal, bond to a particle selected from nearby unbonded neighbors (either type); for leading edge,
+        select from unbonded *internal* neighbors only.
         
         returns: number of bonds created
         """
-        other_p: tf.ParticleHandle
-        if p.type_id == g.LeadingEdge.id:
-            # Don't make a bond between two LeadingEdge particles
-            other_p = nbrs.get_nearest_non_bonded_neighbor(p, [g.Little])
+        # Don't make a bond between two LeadingEdge particles
+        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
+
+        other_p: tf.ParticleHandle | None
+        if cfg.cell_division_enabled:
+            # With cell division, just get nearest unbonded neighbor to bond to.
+            # The approach used below to prevent holes in the absence of cell division, was not helpful for the
+            # cell division case (which didn't actually have holes in the first place), and resulted in particle
+            # crowding (negative tension) at the animal pole. So, handling this case separately.
+            other_p = nbrs.get_nearest_non_bonded_neighbor(p, allowed_types)
         else:
-            other_p = nbrs.get_nearest_non_bonded_neighbor(p, [g.Little, g.LeadingEdge])
+            # When cell division disabled, need to grab particles from further away sometimes, to prevent holes.
+            # (And after all this effort, it seems this doesn't quite salvage it. Works only sometimes!)
+            #
+            # Get a bunch of nearby candidates.
+            # A few approaches:
+        
+            bondable_neighbors: list[tf.ParticleHandle]
+            match cfg.bondable_neighbor_discovery:
+                case cfg.BondableNeighborDiscovery.OPEN_ENDED:
+                    # request minimum 1, but length of returned list commonly ranges from 1 up to 12, or more.
+                    # This approach worked okay, though may be a bit harder to explain in paper, so prefer the
+                    # approach below.
+                    bondable_neighbors = nbrs.get_nearest_non_bonded_neighbors(p,
+                                                                               allowed_types,
+                                                                               min_neighbors=1)
+                    # print(f"Asked for minimum 1 particles, got {len(bondable_neighbors)}")
+                case cfg.BondableNeighborDiscovery.BOUNDED:
+                    # Get between min and max nearby candidates.
+                    # This approach did not work when min = max, regardless of the value! It seems to be important
+                    # to have variation in how far out we look for candidate particles. It also didn't work to have
+                    # min = 5, max = 8, which captured the bulk of the distribution from the open-ended method; but it
+                    # did work with min = 1, max = 7. So it seems it's important to have a lower min, so that we
+                    # frequently stick close to home, even though it's the larger values that prevent the holes. So
+                    # it requires a balance: SOMETIMES have the possibility to bond with distant candidate particles,
+                    # in order to prevent holes; but not so often that you create too much tension in the EVL.
+                    minimum: int = cfg.bondable_neighbors_min_candidates
+                    maximum: int = cfg.bondable_neighbors_max_candidates
+                    bondable_neighbors = nbrs.get_nearest_non_bonded_neighbors_constrained(p,
+                                                                                           allowed_types,
+                                                                                           min_neighbors=minimum,
+                                                                                           max_neighbors=maximum)
+                    # print(f"Asked for strictly {minimum}-{maximum} particles, got {len(bondable_neighbors)}")
+                case cfg.BondableNeighborDiscovery.UNIFORM:
+                    # Get between min and max nearby candidates, but with a known uniform distribution, by deciding
+                    # in advance how many we'll get this time.
+                    # Note the difference between BOUNDED and UNIFORM: with BOUNDED, we will always get between min
+                    # and max candidate neighbors, but there's no telling how many on any given call. In contrast,
+                    # with UNIFORM, we will always get between min and max candidate neighbors, but we decide each
+                    # time, exactly how many we will request, and we know we'll get exactly that many.
+                    # This doesn't seem to have been terribly helpful, however: cleaner, but not more successful.
+                    num_neighbors: int = random.randrange(cfg.bondable_neighbors_min_candidates,
+                                                          cfg.bondable_neighbors_max_candidates)
+                    bondable_neighbors = nbrs.get_nearest_non_bonded_neighbors_constrained(p,
+                                                                                           allowed_types,
+                                                                                           min_neighbors=num_neighbors,
+                                                                                           max_neighbors=num_neighbors)
+                    # print(f"Asked for exactly {num_neighbors} particles, got {len(bondable_neighbors)}")
+                case _:
+                    bondable_neighbors = []
+                    
+            # select one at random to bond to:
+            other_p = None if not bondable_neighbors else random.choice(bondable_neighbors)
         
         if not other_p:
             # Possible in theory, but with the iterative approach to distance_factor, it seems this never happens.
