@@ -51,7 +51,7 @@ sim_state_export_keep: bool = False
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
-screenshots_simtime_per_export: float = 0.6
+screenshots_simtime_per_export: float = 0.9
 screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 0 else
                                          max(1, round(screenshots_simtime_per_export / dt)))
 
