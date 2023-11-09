@@ -124,8 +124,8 @@ class ForceAlgorithm(Enum):
 # force_target_fraction: For LINEAR, fraction of initial force to approach as circumf approaches 0
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
-yolk_cortical_tension: int = 120 if cell_division_enabled else 65  # just balances interior bonds at initialization
-external_force: int = 100 if cell_division_enabled else 310  # +additional to produce full epiboly
+yolk_cortical_tension: int = 92 if cell_division_enabled else 65  # just balances interior bonds at initialization
+external_force: int = 128 if cell_division_enabled else 310  # +additional to produce full epiboly
 
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
