@@ -95,7 +95,7 @@ def test_ring_is_fubar():
     return
 
 def _make_break_or_become(k_neighbor_count: float, k_angle: float,
-                          k_edge_neighbor_count: float, k_edge_angle: float, verbose: bool = False) -> None:
+                          k_edge_neighbor_count: float, k_edge_angle: float) -> None:
     """
     All the "k": coefficient, like lambda for each energy term in the Potts model, but "lambda" is python reserved word.
     Energy terms: neighbor-count constraint (like Potts model volume constraint), angle constraint.
@@ -269,8 +269,6 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         p2current_count: int = len(p2.bonded_neighbors)
         if breaking and (p1current_count <= cfg.min_neighbor_count or
                          p2current_count <= cfg.min_neighbor_count):
-            if verbose:     # and p1.type_id == g.LeadingEdge.id and p2.type_id == g.LeadingEdge.id:
-                print(f"Rejecting break because particles have {p1current_count} and {p2current_count} bonds")
             return False
         
         # Internal particles may not acquire more than a maximum threshold of bonds to the leading edge
@@ -280,9 +278,6 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             edge_neighbor_count: int = len([phandle for phandle in nbrs.getBondedNeighbors(p_internal)
                                             if phandle.type_id == g.LeadingEdge.id])
             if edge_neighbor_count >= cfg.max_edge_neighbor_count:
-                if verbose:
-                    print(f"Rejecting new bond between internal and leading edge because internal particle"
-                          f" is already bonded to {edge_neighbor_count} LeadingEdge particles")
                 return False
 
         delta_energy: float = (delta_energy_neighbor_count(p1, p2)
@@ -292,13 +287,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return True
         else:
             probability: float = math.exp(-delta_energy)
-            if random.random() < probability:
-                return True
-            else:
-                if verbose:     # and p1.type_id == g.LeadingEdge.id and p2.type_id == g.LeadingEdge.id:
-                    print(f"Rejecting {'break' if breaking else 'make'} because unfavorable; particles have"
-                          f" {p1current_count} and {p2current_count} bonds")
-                return False
+            return random.random() < probability
 
     def attempt_break_bond(p: tf.ParticleHandle) -> int:
         """For internal, break any bond; for leading edge, break any bond to an internal particle
@@ -317,8 +306,6 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         bhandle: tf.BondHandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
         if accept(p, other_p, breaking=True):
-            if verbose:
-                print(f"Breaking bond {bhandle.id} between particles {p.id} and {other_p.id}")
             gc.destroy_bond(bhandle)
             return 1
         return 0
@@ -396,11 +383,9 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if not other_p:
             # Possible in theory, but with the iterative approach to distance_factor, it seems this never happens.
             # You can always find a non-bonded neighbor.
-            if verbose:
-                print("Can't make bond: No particles available")
             return 0
         if accept(p, other_p, breaking=False):
-            _make_bond(p, other_p, verbose=verbose)
+            _make_bond(p, other_p, verbose=False)
             return 1
         return 0
     
@@ -540,7 +525,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         
         if accept(neighbor1, neighbor2, breaking=False, becoming=True):
             # test_ring_is_fubar()
-            _make_bond(neighbor1, neighbor2, verbose=verbose)
+            _make_bond(neighbor1, neighbor2, verbose=False)
             p.become(g.Little)
             p.style.color = g.Little.style.color
             p.style.visible = gc.visibility_state
@@ -766,7 +751,7 @@ def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
                    k_particle_diffusion: float = 40,  # (was 20; now experimenting with 40 vs. disabled)
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
     _make_break_or_become(k_neighbor_count, k_angle,
-                          k_edge_neighbor_count, k_edge_angle, verbose=False)
+                          k_edge_neighbor_count, k_edge_angle)
     if cfg.space_filling_enabled:
         _move_toward_open_space(k_particle_diffusion)
     _relax(relaxation_saturation_factor, viscosity)
