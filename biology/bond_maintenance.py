@@ -102,7 +102,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     k_edge_neighbor_count, k_edge_angle: same, for the leading-edge transformations, so they can be tuned separately.
     """
 
-    def accept(p1: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool, becoming: bool = False) -> bool:
+    def accept(particle: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool, becoming: bool = False) -> bool:
         """Decide whether the bond between these two particles may be made/broken
         
         breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
@@ -257,31 +257,31 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             
         bonded_neighbor_ids: list[int] = [phandle.id for phandle in nbrs.getBondedNeighbors(p2)]
         if breaking:
-            assert p1.id in bonded_neighbor_ids,\
-                f"Attempting to break bond between non-bonded particles: id={p1.id} ({p1.type()})," \
-                f" id={p2.id} ({p2.type()}), particle identity = {p1 == p2}"
+            assert particle.id in bonded_neighbor_ids,\
+                f"Attempting to break bond between non-bonded particles: id={particle.id} ({particle.type()})," \
+                f" id={p2.id} ({p2.type()}), particle identity = {particle == p2}"
         else:
-            assert p1.id not in bonded_neighbor_ids,\
-                f"Attempting to make bond between already bonded particles: {p1.id}, {p2.id}"
+            assert particle.id not in bonded_neighbor_ids,\
+                f"Attempting to make bond between already bonded particles: {particle.id}, {p2.id}"
             
         # Neither particle may go below the minimum threshold for number of bonds
-        p1current_count: int = len(p1.bonded_neighbors)
+        particle_current_count: int = len(particle.bonded_neighbors)
         p2current_count: int = len(p2.bonded_neighbors)
-        if breaking and (p1current_count <= cfg.min_neighbor_count or
+        if breaking and (particle_current_count <= cfg.min_neighbor_count or
                          p2current_count <= cfg.min_neighbor_count):
             return False
         
         # Internal particles may not acquire more than a maximum threshold of bonds to the leading edge
-        if p1.type_id != p2.type_id and not breaking:
+        if particle.type_id != p2.type_id and not breaking:
             phandle: tf.ParticleHandle
-            p_internal: tf.ParticleHandle = p1 if p1.type_id == g.Little.id else p2
+            p_internal: tf.ParticleHandle = particle if particle.type_id == g.Little.id else p2
             edge_neighbor_count: int = len([phandle for phandle in nbrs.getBondedNeighbors(p_internal)
                                             if phandle.type_id == g.LeadingEdge.id])
             if edge_neighbor_count >= cfg.max_edge_neighbor_count:
                 return False
 
-        delta_energy: float = (delta_energy_neighbor_count(p1, p2)
-                               + delta_energy_angle(p1, p2))
+        delta_energy: float = (delta_energy_neighbor_count(particle, p2)
+                               + delta_energy_angle(particle, p2))
     
         if delta_energy <= 0:
             return True
