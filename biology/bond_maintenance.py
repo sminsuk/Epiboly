@@ -343,6 +343,17 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             probability: float = math.exp(-delta_energy)
             return random.random() < probability
 
+    def find_breakable_bond(p: tf.ParticleHandle, allowed_types: list[tf.ParticleType]) -> tf.BondHandle | None:
+        """Randomly select a bond on p that can be broken"""
+        breakable_bonds: list[tf.BondHandle] = nbrs.bonds_to_neighbors_of_types(p, allowed_types)
+
+        if not breakable_bonds:
+            # can be empty if p is not bonded to any particle of the allowed types
+            return None
+        
+        # select one at random to break:
+        return random.choice(breakable_bonds)
+
     def attempt_break_bond(p: tf.ParticleHandle) -> int:
         """For internal, break any bond; for leading edge, break any bond to an internal particle
         
@@ -350,36 +361,26 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         """
         # Don't break bond between two LeadingEdge particles
         allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
-        breakable_bonds: list[tf.BondHandle] = nbrs.bonds_to_neighbors_of_types(p, allowed_types)
         
-        if not breakable_bonds:
-            # can be empty if p is a LeadingEdge particle and is *only* bonded to other LeadingEdge particles
+        bhandle: tf.BondHandle = find_breakable_bond(p, allowed_types)
+        if not bhandle:
+            # can be None if p is a LeadingEdge particle and is *only* bonded to other LeadingEdge particles
             return 0
         
-        # select one at random to break:
-        bhandle: tf.BondHandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
         if accept(p, breaking_particle=other_p):
             gc.destroy_bond(bhandle)
             return 1
         return 0
     
-    def attempt_make_bond(p: tf.ParticleHandle) -> int:
-        """For internal, bond to a particle selected from nearby unbonded neighbors (either type); for leading edge,
-        select from unbonded *internal* neighbors only.
-        
-        returns: number of bonds created
-        """
-        # Don't make a bond between two LeadingEdge particles
-        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
-
-        other_p: tf.ParticleHandle | None
+    def find_bondable_neighbor(p: tf.ParticleHandle, allowed_types: list[tf.ParticleType]) -> tf.ParticleHandle | None:
+        """Find nearby candidate particles to which p can bond, and randomly select one of them"""
         if cfg.cell_division_enabled:
             # With cell division, just get nearest unbonded neighbor to bond to.
             # The approach used below to prevent holes in the absence of cell division, was not helpful for the
             # cell division case (which didn't actually have holes in the first place), and resulted in particle
             # crowding (negative tension) at the animal pole. So, handling this case separately.
-            other_p = nbrs.get_nearest_non_bonded_neighbor(p, allowed_types)
+            return nbrs.get_nearest_non_bonded_neighbor(p, allowed_types)
         else:
             # When cell division disabled, need to grab particles from further away sometimes, to prevent holes.
             # (And after all this effort, it seems this doesn't quite salvage it. Works only sometimes!)
@@ -430,10 +431,20 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                     # print(f"Asked for exactly {num_neighbors} particles, got {len(bondable_neighbors)}")
                 case _:
                     bondable_neighbors = []
-                    
-            # select one at random to bond to:
-            other_p = None if not bondable_neighbors else random.choice(bondable_neighbors)
         
+            # select one at random to bond to:
+            return None if not bondable_neighbors else random.choice(bondable_neighbors)
+    
+    def attempt_make_bond(p: tf.ParticleHandle) -> int:
+        """For internal, bond to a particle selected from nearby unbonded neighbors (either type); for leading edge,
+        select from unbonded *internal* neighbors only.
+        
+        returns: number of bonds created
+        """
+        # Don't make a bond between two LeadingEdge particles
+        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
+
+        other_p: tf.ParticleHandle = find_bondable_neighbor(p, allowed_types)
         if not other_p:
             # Possible in theory, but with the iterative approach to distance_factor, it seems this never happens.
             # You can always find a non-bonded neighbor.
