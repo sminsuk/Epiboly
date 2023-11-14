@@ -102,11 +102,17 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     k_edge_neighbor_count, k_edge_angle: same, for the leading-edge transformations, so they can be tuned separately.
     """
 
-    def accept(particle: tf.ParticleHandle, p2: tf.ParticleHandle, breaking: bool, becoming: bool = False) -> bool:
-        """Decide whether the bond between these two particles may be made/broken
+    def accept(main_particle: tf.ParticleHandle,
+               making_particle: tf.ParticleHandle = None,
+               breaking_particle: tf.ParticleHandle = None,
+               becoming: bool = False) -> bool:
+        """Decide whether the indicated transformation between these particles is valid and energetically permissible
         
-        breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
-        becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
+        :param main_particle: the main particle
+        :param making_particle: the particle that main_particle is making a bond with
+        :param breaking_particle: the particle that main_particle is breaking a bond with
+        :param becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
+        :return: True if the transformation is accepted
         """
         def delta_energy_neighbor_count(p1: tf.ParticleHandle,
                                         making_particle: tf.ParticleHandle,
@@ -287,38 +293,49 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             else:
                 return k_angle_energy * delta_energy_making
             
-        bonded_neighbor_ids: list[int] = [phandle.id for phandle in nbrs.getBondedNeighbors(p2)]
-        if breaking:
-            assert particle.id in bonded_neighbor_ids,\
-                f"Attempting to break bond between non-bonded particles: id={particle.id} ({particle.type()})," \
-                f" id={p2.id} ({p2.type()}), particle identity = {particle == p2}"
-        else:
-            assert particle.id not in bonded_neighbor_ids,\
-                f"Attempting to make bond between already bonded particles: {particle.id}, {p2.id}"
+        assert making_particle or breaking_particle, "Making and breaking particles both equal None!"
+        
+        bonded_neighbor_ids: list[int]
+        if breaking_particle:
+            bonded_neighbor_ids = [phandle.id for phandle in nbrs.getBondedNeighbors(breaking_particle)]
+            assert main_particle.id in bonded_neighbor_ids,\
+                f"Attempting to break bond between non-bonded particles:" \
+                f" id={main_particle.id} ({main_particle.type()})," \
+                f" id={breaking_particle.id} ({breaking_particle.type()})," \
+                f" particle identity = {main_particle == breaking_particle}"
             
-        # Neither particle may go below the minimum threshold for number of bonds
-        particle_current_count: int = len(particle.bonded_neighbors)
-        p2current_count: int = len(p2.bonded_neighbors)
-        if breaking and (particle_current_count <= cfg.min_neighbor_count or
-                         p2current_count <= cfg.min_neighbor_count):
-            return False
+        if making_particle:
+            bonded_neighbor_ids = [phandle.id for phandle in nbrs.getBondedNeighbors(making_particle)]
+            assert main_particle.id not in bonded_neighbor_ids,\
+                f"Attempting to make bond between already bonded particles: {main_particle.id}, {making_particle.id}"
+            
+        # No particle may go below the minimum threshold for number of bonds
+        if making_particle and breaking_particle:
+            # Only need to test breaking_particle; main_particle will gain a bond and lose a bond, so break even
+            breaking_particle_current_count: int = len(breaking_particle.bonded_neighbors)
+            if breaking_particle_current_count <= cfg.min_neighbor_count:
+                return False
+        elif breaking_particle:
+            # both main_particle and breaking_particle will lose a bond
+            main_particle_current_count: int = len(main_particle.bonded_neighbors)
+            breaking_particle_current_count: int = len(breaking_particle.bonded_neighbors)
+            if (main_particle_current_count <= cfg.min_neighbor_count or
+                    breaking_particle_current_count <= cfg.min_neighbor_count):
+                return False
         
         # Internal particles may not acquire more than a maximum threshold of bonds to the leading edge
-        if particle.type_id != p2.type_id and not breaking:
-            phandle: tf.ParticleHandle
-            p_internal: tf.ParticleHandle = particle if particle.type_id == g.Little.id else p2
-            edge_neighbor_count: int = len([phandle for phandle in nbrs.getBondedNeighbors(p_internal)
-                                            if phandle.type_id == g.LeadingEdge.id])
-            if edge_neighbor_count >= cfg.max_edge_neighbor_count:
-                return False
+        if making_particle:
+            if main_particle.type_id != making_particle.type_id:
+                phandle: tf.ParticleHandle
+                p_internal: tf.ParticleHandle = (main_particle if main_particle.type_id == g.Little.id
+                                                 else making_particle)
+                edge_neighbor_count: int = len([phandle for phandle in nbrs.getBondedNeighbors(p_internal)
+                                                if phandle.type_id == g.LeadingEdge.id])
+                if edge_neighbor_count >= cfg.max_edge_neighbor_count:
+                    return False
 
-        # Temporary, for incremental refactor. ToDo: clean this up
-        # For now, only one can exist, not both. As always, we are either making, or we are breaking.
-        making_particle: tf.ParticleHandle = None if breaking else p2
-        breaking_particle: tf.ParticleHandle = p2 if breaking else None
-        
-        delta_energy: float = (delta_energy_neighbor_count(particle, making_particle, breaking_particle)
-                               + delta_energy_angle(particle, making_particle, breaking_particle))
+        delta_energy: float = (delta_energy_neighbor_count(main_particle, making_particle, breaking_particle)
+                               + delta_energy_angle(main_particle, making_particle, breaking_particle))
     
         if delta_energy <= 0:
             return True
@@ -342,7 +359,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # select one at random to break:
         bhandle: tf.BondHandle = random.choice(breakable_bonds)
         other_p: tf.ParticleHandle = tfu.other_particle(p, bhandle)
-        if accept(p, other_p, breaking=True):
+        if accept(p, breaking_particle=other_p):
             gc.destroy_bond(bhandle)
             return 1
         return 0
@@ -421,7 +438,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # Possible in theory, but with the iterative approach to distance_factor, it seems this never happens.
             # You can always find a non-bonded neighbor.
             return 0
-        if accept(p, other_p, breaking=False):
+        if accept(p, making_particle=other_p):
             _make_bond(p, other_p, verbose=False)
             return 1
         return 0
@@ -560,7 +577,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # the operation. (Of course, embryo_phi() also uses trig, but at least tf handles it in C++.)
             return 0
         
-        if accept(neighbor1, neighbor2, breaking=False, becoming=True):
+        if accept(neighbor1, making_particle=neighbor2, becoming=True):
             # test_ring_is_fubar()
             _make_bond(neighbor1, neighbor2, verbose=False)
             p.become(g.Little)
@@ -617,8 +634,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # Hoped that algorithm improvements would make this unnecessary. Would prefer to understand the cause,
         # but we can at least prevent by a rule. Disallow recruitment if the recruited particle is too far from
         # the leading edge.
-        # (Note, use of mean radius anticipates that in the near future, radii will not all be the same,
-        # after implementing cell division.)
+        # (Note, currently, radii of particles are all the same. Use of mean radius was anticipating that I might
+        # change that. So far I have not.)
         leading_edge_baseline_phi: float = max(epu.embryo_phi(p), epu.embryo_phi(other_leading_edge_p))
         mean_particle_radius: float = fmean([p.radius, other_leading_edge_p.radius, recruit.radius])
         leading_edge_recruitment_limit_distance: float = cfg.leading_edge_recruitment_limit * mean_particle_radius
@@ -635,7 +652,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         if num_bonds_to_leading_edge > 2:
             return 0, 0
 
-        if accept(p, other_leading_edge_p, breaking=True, becoming=True):
+        if accept(p, breaking_particle=other_leading_edge_p, becoming=True):
             # In case recruit is bonded to an *internal* particle that already has the maximum edge bonds,
             # break the bond with that particle. Recruit will become LeadingEdge, which means bonded neighbors
             # will get an additional bond to the edge. So, if internal neighbor is already bonded to the maximum,
