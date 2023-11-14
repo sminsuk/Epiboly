@@ -108,14 +108,30 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         breaking: if True, decide whether to break a bond; if False, decide whether to make a new one
         becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
         """
-        def delta_energy_neighbor_count(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+        def delta_energy_neighbor_count(p1: tf.ParticleHandle,
+                                        making_particle: tf.ParticleHandle,
+                                        breaking_particle: tf.ParticleHandle) -> float:
+            """Return the neighbor-count term of the energy of this bond-remodeling event.
+            
+            :param p1: the main particle
+            :param making_particle: the particle that p1 is making a bond with
+            :param breaking_particle: the particle that p1 is breaking a bond with
+            :return: neighbor-count term of the energy of this remodeling event
+            """
+            if making_particle and breaking_particle:
+                # If p1 is both making a bond and breaking a bond, then its total number of bonds will not
+                # change; so the energy is 0 and there's nothing to calculate
+                return 0
+            
+            p2: tf.ParticleHandle = making_particle or breaking_particle
+
             k_neighbor_count_energy: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
             if k_neighbor_count_energy == 0:
                 return 0
             
             p1current_count: int = len(p1.bonded_neighbors)
             p2current_count: int = len(p2.bonded_neighbors)
-            delta_count: int = -1 if breaking else 1
+            delta_count: int = -1 if breaking_particle else 1
             p1final_count: int = p1current_count + delta_count
             p2final_count: int = p2current_count + delta_count
     
@@ -133,7 +149,16 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
             return k_neighbor_count_energy * delta_energy
         
-        def delta_energy_angle(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+        def delta_energy_angle(main_particle: tf.ParticleHandle,
+                               making_particle: tf.ParticleHandle,
+                               breaking_particle: tf.ParticleHandle) -> float:
+            """Return the bond-angle term of the energy of this bond-remodeling event.
+            
+            :param main_particle: the main particle
+            :param making_particle: the particle that main_particle is making a bond with
+            :param breaking_particle: the particle that main_particle is breaking a bond with
+            :return: bond-angle term of the energy of this remodeling event
+            """
             def get_component_angles(vertex_particle: tf.ParticleHandle,
                                      ordered_neighbor_list: list[tf.ParticleHandle],
                                      other_p: tf.ParticleHandle) -> tuple[tuple[float, float],
@@ -218,39 +243,46 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             if k_angle_energy == 0:
                 return 0
             
-            p1_extra: tf.ParticleHandle = None if breaking else p2
-            p2_extra: tf.ParticleHandle = None if breaking else p1
-            p1_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p1, extra_neighbor=p1_extra)
+            # Temporary for incremental refactor: assume exactly one of these particles is None.
+            # So p2 gets the one that isn't None. ToDo: plenty; don't forget to fix this comment
+            p2: tf.ParticleHandle = making_particle or breaking_particle
+            
+            particle_extra: tf.ParticleHandle = making_particle
+            p2_extra: tf.ParticleHandle = main_particle if making_particle else None
+            particle_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(
+                    main_particle,
+                    extra_neighbor=particle_extra)
             p2_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p2, extra_neighbor=p2_extra)
             
-            p1_angles: tuple[float, float]
-            p1_targets: tuple[float, float]
+            particle_angles: tuple[float, float]
+            particle_targets: tuple[float, float]
             p2_angles: tuple[float, float]
             p2_targets: tuple[float, float]
-            p1_fused_target: float
+            particle_fused_target: float
             p2_fused_target: float
 
-            p1_angles, p1_targets, p1_fused_target = get_component_angles(vertex_particle=p1,
-                                                                          ordered_neighbor_list=p1_neighbors,
-                                                                          other_p=p2)
+            particle_angles, particle_targets, particle_fused_target = get_component_angles(
+                    vertex_particle=main_particle,
+                    ordered_neighbor_list=particle_neighbors,
+                    other_p=p2)
             p2_angles, p2_targets, p2_fused_target = get_component_angles(vertex_particle=p2,
                                                                           ordered_neighbor_list=p2_neighbors,
-                                                                          other_p=p1)
+                                                                          other_p=main_particle)
             
-            p1_component_energy: float = ((p1_angles[0] - p1_targets[0]) ** 2 +
-                                          (p1_angles[1] - p1_targets[1]) ** 2)
+            particle_component_energy: float = ((particle_angles[0] - particle_targets[0]) ** 2 +
+                                                (particle_angles[1] - particle_targets[1]) ** 2)
             p2_component_energy: float = ((p2_angles[0] - p2_targets[0]) ** 2 +
                                           (p2_angles[1] - p2_targets[1]) ** 2)
-            p1_fused: float = p1_angles[0] + p1_angles[1]
+            particle_fused: float = particle_angles[0] + particle_angles[1]
             p2_fused: float = p2_angles[0] + p2_angles[1]
-            p1_fused_energy: float = (p1_fused - p1_fused_target) ** 2
+            particle_fused_energy: float = (particle_fused - particle_fused_target) ** 2
             p2_fused_energy: float = (p2_fused - p2_fused_target) ** 2
             
-            delta_energy_making: float = ((p1_component_energy + p2_component_energy) -
-                                          (p1_fused_energy + p2_fused_energy))
+            delta_energy_making: float = ((particle_component_energy + p2_component_energy) -
+                                          (particle_fused_energy + p2_fused_energy))
             delta_energy_breaking: float = -delta_energy_making
             
-            if breaking:
+            if breaking_particle:
                 return k_angle_energy * delta_energy_breaking
             else:
                 return k_angle_energy * delta_energy_making
@@ -280,8 +312,13 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             if edge_neighbor_count >= cfg.max_edge_neighbor_count:
                 return False
 
-        delta_energy: float = (delta_energy_neighbor_count(particle, p2)
-                               + delta_energy_angle(particle, p2))
+        # Temporary, for incremental refactor. ToDo: clean this up
+        # For now, only one can exist, not both. As always, we are either making, or we are breaking.
+        making_particle: tf.ParticleHandle = None if breaking else p2
+        breaking_particle: tf.ParticleHandle = p2 if breaking else None
+        
+        delta_energy: float = (delta_energy_neighbor_count(particle, making_particle, breaking_particle)
+                               + delta_energy_angle(particle, making_particle, breaking_particle))
     
         if delta_energy <= 0:
             return True
