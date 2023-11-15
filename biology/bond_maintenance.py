@@ -108,27 +108,30 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                becoming: bool = False) -> bool:
         """Decide whether the indicated transformation between these particles is valid and energetically permissible
         
-        :param main_particle: the main particle
-        :param making_particle: the particle that main_particle is making a bond with
-        :param breaking_particle: the particle that main_particle is breaking a bond with
+        making_particle and breaking_particle - but not both - can be None
+        
+        :param main_particle: the particle being visited; is making and/or breaking bonds to other particles
+        :param making_particle: if not None, the particle that main_particle is making a bond with
+        :param breaking_particle: if not None, the particle that main_particle is breaking a bond with
         :param becoming: if True, this is one of the leading edge transformations, flagging some special case behavior
         :return: True if the transformation is accepted
         """
-        def delta_energy_neighbor_count(p1: tf.ParticleHandle,
+        def delta_energy_neighbor_count(main_particle: tf.ParticleHandle,
                                         making_particle: tf.ParticleHandle,
                                         breaking_particle: tf.ParticleHandle) -> float:
             """Return the neighbor-count term of the energy of this bond-remodeling event.
             
-            :param p1: the main particle
-            :param making_particle: the particle that p1 is making a bond with
-            :param breaking_particle: the particle that p1 is breaking a bond with
+            :param main_particle: the main particle
+            :param making_particle: the particle that main_particle is making a bond with
+            :param breaking_particle: the particle that main_particle is breaking a bond with
             :return: neighbor-count term of the energy of this remodeling event
             """
             if making_particle and breaking_particle:
-                # If p1 is both making a bond and breaking a bond, then its total number of bonds will not
-                # change; so the energy is 0 and there's nothing to calculate
+                # If main_particle is both making a bond and breaking a bond, then its total number of bonds will not
+                # change; so the energy change is 0 and there's nothing to calculate
                 return 0
             
+            p1: tf.ParticleHandle = main_particle
             p2: tf.ParticleHandle = making_particle or breaking_particle
 
             k_neighbor_count_energy: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
@@ -165,134 +168,219 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             :param breaking_particle: the particle that main_particle is breaking a bond with
             :return: bond-angle term of the energy of this remodeling event
             """
-            def get_component_angles(vertex_particle: tf.ParticleHandle,
-                                     ordered_neighbor_list: list[tf.ParticleHandle],
-                                     other_p: tf.ParticleHandle) -> tuple[tuple[float, float],
-                                                                          tuple[float, float],
-                                                                          float]:
-                """returns the angles that will change when a bond is made/broken:
+            class ConstrainedAngle:
+                def __init__(self, value: float, target: float):
+                    self.value = value
+                    self.target = target
+    
+                def energy(self) -> float:
+                    return (self.value - self.target) ** 2
+
+            class AngleStateChange:
+                def __init__(self, before: list[ConstrainedAngle], after: list[ConstrainedAngle]):
+                    """Contains the bond angles on a given particle that will change during a bond remodeling event
+
+                    :param before: all the angles that are present before the event, that will disappear as a result
+                    of the change.
+                    :param after: all the angles that will appear as a result of the change, that didn't exist before.
+                    """
+                    self.before = before
+                    self.after = after
+    
+                def delta_energy(self) -> float:
+                    energy_before: float = sum([angle.energy() for angle in self.before])
+                    energy_after: float = sum([angle.energy() for angle in self.after])
+                    return energy_after - energy_before
+
+            def get_angle_state_change(vertex_particle: tf.ParticleHandle,
+                                       making_particle: tf.ParticleHandle | None,
+                                       breaking_particle: tf.ParticleHandle | None) -> AngleStateChange:
+                """Returns the angles that will change on vertex_particle as a result of this bond-remodeling event
                 
-                first sub-tuple: the two component angles
-                second sub-tuple: the target angle for each respective component angle,
-                    which will differ depending on whether it represents the leading edge.
+                making_particle or breaking_particle – but not both - can be None. If one of them is None,
+                then it means vertex_particle is undergoing a pure bond-breaking, or bond-making, event.
+                If neither of them is None, then vertex_particle is breaking one bond, and making another.
+                
+                (Note that when an edge bond is being made or broken (accept()'s "becoming" == True),
+                we will never be making and breaking a bond at the same time, so either making_particle
+                or breaking_particle will be None.)
+                
+                Return value contains a list of constrained bond angles present before the remodeling
+                (when a bond to breaking_particle still exists and a bond to making_particle has not yet
+                been created), and a list of bond angles present after the remodeling (when the bond to
+                breaking_particle has been broken and the bond to making_particle has been created).
+                The lengths of each list can vary, as follows:
+                
+                If breaking_particle is None: we are only making a bond, so the "before" list contains a
+                    single angle, and the "after" list contains two angles;
+                If making_particle is None: we are only breaking a bond, so the "before" list contains two
+                    angles, and the "after" list contains a single angle;
+                If there is both a breaking_particle and a making_particle, and they are adjacent (angularly
+                    situated between the same two other bonded particles around vertex_particle; not
+                    separated by any other bonds on vertex_particle), then the "before" and "after" lists
+                    will each contain two angles;
+                If there is both a breaking_particle and a making_particle, and they are NOT adjacent (they are
+                    angularly separated by at least one other bond on vertex_particle), then the "before" and
+                    "after" lists will each contain three angles.
                     
-                I.e., the two angles (bonded_neighbor -> vertex_particle -> other_p) that will come into
-                existence if a bond to other_p is added, or that will fuse into a larger angle
-                (bonded_neighbor -> vertex_particle -> consecutive_bonded_neighbor) if an existing bond to
-                other_p is broken.
-                
-                final element of tuple: the target angle for the fused angle (i.e. if the bond in
-                    question gets broken, or doesn't get made)
+                Each of these constrained bond angles has a target value, which depends on whether the bond
+                represents the EVL leading edge.
                 """
-                # Find the two angles before and after other_p. I.e., the angles between other_p and
-                # its two ordered neighbors, each with vertex_particle as the vertex
+                def get_flanking_angles(other_p: tf.ParticleHandle,
+                                        leading_index: int,
+                                        trailing_index: int) -> list[ConstrainedAngle]:
+                    """Angles flanking the other (non-vertex) particle, and their composite
+                    
+                    :param other_p: the making_ or breaking_ particle, as the case may be
+                    :param leading_index: location in ordered_neighbor_list of the first flanking particle
+                    :param trailing_index: location in ordered_neighbor_list of the second flanking particle
+                    :return: the leading, trailing, and composite angle. Leading and trailing are the angles
+                    that exist when the bond to other_p is present (has been made, or has not yet been broken),
+                    and composite is the angle that exists when the bond to other_p is absent (has not yet been
+                    made, or has been broken).
+                    """
+                    theta_leading: float
+                    theta_trailing: float
+                    target_leading: float
+                    target_trailing: float
+                    target_composite: float
+                    
+                    theta_leading = tfu.angle_from_particles(ordered_neighbor_list[leading_index],
+                                                             vertex_particle,
+                                                             other_p)
+                    theta_trailing = tfu.angle_from_particles(other_p,
+                                                              vertex_particle,
+                                                              ordered_neighbor_list[trailing_index])
+    
+                    target_leading = target_trailing = target_composite = cfg.target_neighbor_angle
+                    if becoming:
+                        # Assume(?) that the two component angles are very different sizes; and that the
+                        # larger one is the EVL leading edge, so should have a bigger target.
+                        # (Note: is this assumption correct?)
+                        if theta_leading > theta_trailing:
+                            target_leading = cfg.target_edge_angle
+                        else:
+                            target_trailing = cfg.target_edge_angle
+        
+                        # And when the bond is absent, the composite angle will be the EVL leading edge
+                        target_composite = cfg.target_edge_angle
+                    
+                    return [ConstrainedAngle(value=theta_leading, target=target_leading),
+                            ConstrainedAngle(value=theta_trailing, target=target_trailing),
+                            ConstrainedAngle(value=theta_leading + theta_trailing, target=target_composite)]
+
+                ordered_neighbor_list: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(
+                        vertex_particle,
+                        extra_neighbor=making_particle
+                        )
+
+                # Note, with newer versions of Tissue Forge, the list.index() function should work for finding
+                # ParticleHandles, so we no longer need to traverse the list looking for them as previously,
+                # but should be able to go right to them.
+                breaking_index: int = -1
+                making_index: int = -1
+                if breaking_particle:
+                    assert breaking_particle in ordered_neighbor_list, "Breaking particle missing from neighbors!"
+                    breaking_index = ordered_neighbor_list.index(breaking_particle)
+                if making_particle:
+                    assert making_particle in ordered_neighbor_list, "Making particle missing from neighbors!"
+                    making_index = ordered_neighbor_list.index(making_particle)
+
+                # If there are both a making_ and a breaking_ particle, determine whether they are adjacent in
+                # ordered_neighbor_list, because it will affect the algorithm and the shape of the return value.
+                adjacent: bool = False
+                index_diff: int = 0
+                if breaking_particle and making_particle:
+                    index_diff = abs(making_index - breaking_index)
+                    adjacent = (index_diff == 1 or
+                                index_diff == len(ordered_neighbor_list) - 1)
+
+                # Find the bond angles on vertex_particle that are changing. I.e., the angles
+                # that will disappear when bonds are made/broken, and those that will appear when
+                # bonds are made/broken. These are the angles with vertex_particle at the vertex,
+                # one ray along the bond being made/broken, and the other ray through that particle's
+                # two ordered neighbors.
+                before: list[ConstrainedAngle] = []
+                after: list[ConstrainedAngle] = []
+
+                leading_index: int
+                trailing_index: int
+                leading: ConstrainedAngle
+                trailing: ConstrainedAngle
+                composite: ConstrainedAngle
+                if adjacent:
+                    # There are *both* making_ and breaking_ particles; and becoming == False
+                    # The before and after angles we want are overlapping pairs, with one or the
+                    # other particle present.
                 
-                # I don't trust doing this until the next release, because it's not
-                # entirely clear that .index() would recognize the one in the list is "equal" to other_p,
-                # even if it actually "is" other_p. For now, loop and compare the ids instead.
-                # other_p_index: int = ordered_neighbor_list.index(other_p)
-                # previous_neighbor_index: int = other_p_index - 1    # works even for 0, because of negative indexing
-                # next_neighbor_index: int = (other_p_index + 1) % len(ordered_neighbor_list)
-                # theta1: float = angle(ordered_neighbor_list[previous_neighbor_index],
-                #                       vertex_particle,
-                #                       other_p)
-                # theta2: float = angle(other_p,
-                #                       vertex_particle,
-                #                       ordered_neighbor_list[next_neighbor_index])
-
-                theta1: float | None = None
-                theta2: float | None = None
-                previous_neighbor: tf.ParticleHandle = ordered_neighbor_list[-1]
-                for p in ordered_neighbor_list:
-                    if p.id == other_p.id:
-                        theta1 = tfu.angle_from_particles(previous_neighbor, vertex_particle, p)
-                        # Previously tried here, and might come back to it again: if p and previous_neighbor
-                        # are both LeadingEdge, then set edge target angle based on that. But, it works
-                        # for breaking a bond and turning a Little into a LeadingEdge; it does not work
-                        # for making a bond and turning a LeadingEdge into a Little, because all the particles
-                        # are LeadingEdge and you can't tell the cases apart. Hence, created the "becoming"
-                        # parameter and handled it separately below, instead. (Revisiting: I think it would
-                        # work to check, as before, whether p and previous_neighbor are both LeadingEdge, AND
-                        # also, whether those two are not already bonded to each other; that would identify
-                        # the edge angle needing the special target. This may be slightly more reliable than
-                        # the approach below, but it would also be a complexification. Decision for now: don't
-                        # fix it if it ain't broke!) Either way, the accept/reject criterion is still imperfect
-                        # for edge transformations. (Hence the addition of the ad hoc criterion,
-                        # leading_edge_baseline, in recruit_from_internal().)
-                    elif previous_neighbor.id == other_p.id:
-                        theta2 = tfu.angle_from_particles(previous_neighbor, vertex_particle, p)
-                        
-                    if theta1 is not None and theta2 is not None:
-                        break
-                        
-                    previous_neighbor = p
-                    
-                target1: float
-                target2: float
-                fused_target: float
-                target1 = target2 = fused_target = cfg.target_neighbor_angle
-                if becoming:
-                    # Assume(?) that the two component angles are very different sizes; and that the
-                    # larger one is the leading edge, so should have a bigger target.
-                    # (Note: probably a WRONG assumption.)
-                    if theta1 > theta2:
-                        target1 = cfg.target_edge_angle
+                    if index_diff == 1:
+                        # expected, normally (the two particles are adjacent in the list)
+                        leading_index = min(breaking_index, making_index) - 1
+                        # works even for 0, because of negative indexing
                     else:
-                        target2 = cfg.target_edge_angle
+                        # when one is at index 0 and the other is at the end of the list
+                        # (so they are not adjacent in the linear list, but are considered adjacent
+                        # in the circularized sequence of ordered neighbors)
+                        leading_index = -2
+                    trailing_index = (leading_index + 3) % len(ordered_neighbor_list)
                     
-                    # And if the bond gets broken / does not get made, then the fused angle will be the leading edge
-                    fused_target = cfg.target_edge_angle
+                    # Get the "before" angles: the angles when breaking_ is present and making_ is absent
+                    # (we won't use the composite angle, since it doesn't exist either before or after, in this case)
+                    leading, trailing, composite = get_flanking_angles(breaking_particle, leading_index, trailing_index)
+                    before.extend([leading, trailing])
+                    
+                    # Get the "after" angles: the angles when breaking_ is absent and making_ is present
+                    leading, trailing, composite = get_flanking_angles(making_particle, leading_index, trailing_index)
+                    after.extend([leading, trailing])
+                else:
+                    # Each of the two particles (if present) is flanked by particles whose bonds
+                    # are not changing, so the before and after component angles for each particle are
+                    # a single angle, and a pair of angles.
+                    if breaking_particle:
+                        leading_index = breaking_index - 1  # works even for 0, because of negative indexing
+                        trailing_index = (breaking_index + 1) % len(ordered_neighbor_list)
+                        leading, trailing, composite = get_flanking_angles(breaking_particle,
+                                                                           leading_index,
+                                                                           trailing_index)
+                        before.extend([leading, trailing])
+                        after.append(composite)
+                    if making_particle:
+                        leading_index = making_index - 1
+                        trailing_index = (making_index + 1) % len(ordered_neighbor_list)
+                        leading, trailing, composite = get_flanking_angles(making_particle,
+                                                                           leading_index,
+                                                                           trailing_index)
+                        before.append(composite)
+                        after.extend([leading, trailing])
 
-                return (theta1, theta2), (target1, target2), fused_target
+                return AngleStateChange(before, after)
             
             k_angle_energy: float = k_edge_angle if becoming else k_angle
             if k_angle_energy == 0:
                 return 0
             
-            # Temporary for incremental refactor: assume exactly one of these particles is None.
-            # So p2 gets the one that isn't None. ToDo: plenty; don't forget to fix this comment
-            p2: tf.ParticleHandle = making_particle or breaking_particle
+            main_p_state_change: AngleStateChange
+            breaking_p_state_change = AngleStateChange(before=[], after=[])
+            making_p_state_change = AngleStateChange(before=[], after=[])
             
-            particle_extra: tf.ParticleHandle = making_particle
-            p2_extra: tf.ParticleHandle = main_particle if making_particle else None
-            particle_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(
-                    main_particle,
-                    extra_neighbor=particle_extra)
-            p2_neighbors: list[tf.ParticleHandle] = nbrs.get_ordered_bonded_neighbors(p2, extra_neighbor=p2_extra)
-            
-            particle_angles: tuple[float, float]
-            particle_targets: tuple[float, float]
-            p2_angles: tuple[float, float]
-            p2_targets: tuple[float, float]
-            particle_fused_target: float
-            p2_fused_target: float
-
-            particle_angles, particle_targets, particle_fused_target = get_component_angles(
-                    vertex_particle=main_particle,
-                    ordered_neighbor_list=particle_neighbors,
-                    other_p=p2)
-            p2_angles, p2_targets, p2_fused_target = get_component_angles(vertex_particle=p2,
-                                                                          ordered_neighbor_list=p2_neighbors,
-                                                                          other_p=main_particle)
-            
-            particle_component_energy: float = ((particle_angles[0] - particle_targets[0]) ** 2 +
-                                                (particle_angles[1] - particle_targets[1]) ** 2)
-            p2_component_energy: float = ((p2_angles[0] - p2_targets[0]) ** 2 +
-                                          (p2_angles[1] - p2_targets[1]) ** 2)
-            particle_fused: float = particle_angles[0] + particle_angles[1]
-            p2_fused: float = p2_angles[0] + p2_angles[1]
-            particle_fused_energy: float = (particle_fused - particle_fused_target) ** 2
-            p2_fused_energy: float = (p2_fused - p2_fused_target) ** 2
-            
-            delta_energy_making: float = ((particle_component_energy + p2_component_energy) -
-                                          (particle_fused_energy + p2_fused_energy))
-            delta_energy_breaking: float = -delta_energy_making
-            
+            main_p_state_change = get_angle_state_change(vertex_particle=main_particle,
+                                                         making_particle=making_particle,
+                                                         breaking_particle=breaking_particle)
             if breaking_particle:
-                return k_angle_energy * delta_energy_breaking
-            else:
-                return k_angle_energy * delta_energy_making
+                breaking_p_state_change = get_angle_state_change(vertex_particle=breaking_particle,
+                                                                 making_particle=None,
+                                                                 breaking_particle=main_particle)
+            if making_particle:
+                making_p_state_change = get_angle_state_change(vertex_particle=making_particle,
+                                                               making_particle=main_particle,
+                                                               breaking_particle=None)
+
+            delta_energy: float = (main_p_state_change.delta_energy() +
+                                   making_p_state_change.delta_energy() +
+                                   breaking_p_state_change.delta_energy())
+            return k_angle_energy * delta_energy
             
+        # Test for basic validity: screen for configurations that shouldn't happen at all
         assert making_particle or breaking_particle, "Making and breaking particles both equal None!"
         
         bonded_neighbor_ids: list[int]
@@ -309,9 +397,11 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             assert main_particle.id not in bonded_neighbor_ids,\
                 f"Attempting to make bond between already bonded particles: {main_particle.id}, {making_particle.id}"
             
+        # Test for illegal changes: these things will happen, but we reject them:
+        
         # No particle may go below the minimum threshold for number of bonds
         if making_particle and breaking_particle:
-            # Only need to test breaking_particle; main_particle will gain a bond and lose a bond, so break even
+            # Only need to test breaking_particle; main_particle will gain a bond and lose a bond, so no net change
             breaking_particle_current_count: int = len(breaking_particle.bonded_neighbors)
             if breaking_particle_current_count <= cfg.min_neighbor_count:
                 return False
@@ -334,6 +424,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                 if edge_neighbor_count >= cfg.max_edge_neighbor_count:
                     return False
 
+        # If we get this far, the change is valid and legal; now we can test for energetic favorability
         delta_energy: float = (delta_energy_neighbor_count(main_particle, making_particle, breaking_particle)
                                + delta_energy_angle(main_particle, making_particle, breaking_particle))
     
@@ -454,6 +545,48 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 1
         return 0
     
+    def attempt_coupled_make_break_bond(p: tf.ParticleHandle) -> int:
+        """Break a bond to one internal particle, and make a bond to a different internal particle
+        
+        (ToDo: implemented but not yet called. Test out the new code with only uncoupled events first,
+          to make sure I haven't broken anything.)
+        (ToDo: Is this restriction - excluding internal-to-edge bonding from the coupled events - correct?
+          Make this assumption for now, see how complicated it is. Then decide if want
+          to try loosening it up. That would mean no change for edge particles (they can only break from
+          internal and bond to internal), but 4 permutations for internal particles:
+          - break from an internal and bond to an internal;
+          - break from an internal and bond to an edge;
+          - break from an edge and bond to an internal;
+          - break from an edge and bond to an edge!)
+
+        :param p: the particle that will have an existing bond broken and a new one made
+        :return: number of bond pairs modified (1 or 0)
+        """
+        # For now, only break and make bonds to internal particles, regardless of whether p is internal or edge
+        allowed_types: list[tf.ParticleType] = [g.Little]
+
+        # Find a bond to break
+        bhandle: tf.BondHandle = find_breakable_bond(p, allowed_types)
+        if not bhandle:
+            # Can be None if p is a LeadingEdge particle and is *only* bonded to other LeadingEdge particles.
+            # If there's no bond to break, we can't do this coupled operation.
+            return 0
+        breaking_particle: tf.ParticleHandle = tfu.other_particle(p, bhandle)
+
+        # Find an unbonded neighbor particle to bond to
+        making_particle: tf.ParticleHandle = find_bondable_neighbor(p, allowed_types)
+        if not making_particle:
+            # Possible in theory, but with the iterative approach to distance_factor, it seems this never happens.
+            # You can always find a non-bonded neighbor.
+            # If there's no particle to bond to, we can't do this coupled operation.
+            return 0
+
+        if accept(p, making_particle, breaking_particle):
+            gc.destroy_bond(bhandle)
+            _make_bond(p, making_particle, verbose=False)
+            return 1
+        return 0
+
     def remodel_angles(p1: tf.ParticleHandle, p2: tf.ParticleHandle, p_becoming: tf.ParticleHandle, add: bool) -> None:
         """Handle the transformation of the Angle bonds accompanying the transformation of a leading edge particle
         
