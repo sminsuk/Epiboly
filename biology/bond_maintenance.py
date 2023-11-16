@@ -548,22 +548,11 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     def attempt_coupled_make_break_bond(p: tf.ParticleHandle) -> int:
         """Break a bond to one internal particle, and make a bond to a different internal particle
         
-        (ToDo: implemented but not yet called. Test out the new code with only uncoupled events first,
-          to make sure I haven't broken anything.)
-        (ToDo: Is this restriction - excluding internal-to-edge bonding from the coupled events - correct?
-          Make this assumption for now, see how complicated it is. Then decide if want
-          to try loosening it up. That would mean no change for edge particles (they can only break from
-          internal and bond to internal), but 4 permutations for internal particles:
-          - break from an internal and bond to an internal;
-          - break from an internal and bond to an edge;
-          - break from an edge and bond to an internal;
-          - break from an edge and bond to an edge!)
-
         :param p: the particle that will have an existing bond broken and a new one made
         :return: number of bond pairs modified (1 or 0)
         """
         # For now, only break and make bonds to internal particles, regardless of whether p is internal or edge
-        allowed_types: list[tf.ParticleType] = [g.Little]
+        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
 
         # Find a bond to break
         bhandle: tf.BondHandle = find_breakable_bond(p, allowed_types)
@@ -832,24 +821,40 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                                                              f"k_edge_angle = {k_edge_angle}"
     total_bonded: int = 0
     total_broken: int = 0
+    total_coupled: int = 0
     total_to_internal: int = 0
     total_to_edge: int = 0
     result: int
     p: tf.ParticleHandle
+    ran: float
+    
+    # Constrain to between 0 and 1
+    uncoupled_bond_remodeling_freq: float = 1 - max(0.0, min(1.0, cfg.coupled_bond_remodeling_freq))
     
     start = time.perf_counter()
     for p in g.Little.items():
-        if random.random() < 0.5:
+        ran = random.random()
+        if ran < uncoupled_bond_remodeling_freq / 2:
             total_bonded += attempt_make_bond(p)
-        else:
+        elif ran < uncoupled_bond_remodeling_freq:
             total_broken += attempt_break_bond(p)
+        else:
+            result = attempt_coupled_make_break_bond(p)
+            total_broken += result
+            total_bonded += result
+            total_coupled += result
         
     for p in g.LeadingEdge.items():
-        ran: float = random.random()
-        if ran < 0.25:
+        ran = random.random()
+        if ran < uncoupled_bond_remodeling_freq / 4:
             total_bonded += attempt_make_bond(p)
-        elif ran < 0.5:
+        elif ran < uncoupled_bond_remodeling_freq / 2:
             total_broken += attempt_break_bond(p)
+        elif ran < 0.5:
+            result = attempt_coupled_make_break_bond(p)
+            total_broken += result
+            total_bonded += result
+            total_coupled += result
         elif ran < 0.75:
             result = attempt_become_internal(p)
             total_bonded += result
@@ -860,7 +865,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             total_to_edge += became_edge
     end = time.perf_counter()
 
-    print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {round(end - start, 2)} sec. "
+    print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {round(end - start, 2)} sec.; "
+          f"of those, {total_coupled} were coupled; "
           f"{total_to_edge} became edge; {total_to_internal} became internal")
     
 def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:

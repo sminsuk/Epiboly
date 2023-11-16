@@ -155,6 +155,14 @@ bondable_neighbor_discovery: BondableNeighborDiscovery = BondableNeighborDiscove
 bondable_neighbors_min_candidates: int = 1  # (_min_ and _max_ ignored for OPEN_ENDED)
 bondable_neighbors_max_candidates: int = 7
 
+# For other than the special edge-transformations, what fraction of the bond-making and -breaking should
+# be coupled (break an existing bond and make a new one to a different particle at the same time)? The
+# remaining fraction will be uncoupled. Value should be between 0 and 1 inclusive. Note, 1 = all remodeling
+# is coupled, would mean the total number of bonds in the system can never change (except along the leading edge),
+# and this is really bad. 0 = all remodeling is uncoupled, would mean just like before, no way to apply
+# bond-angle constraint to a pair of bonds and decide whether to switch them.
+coupled_bond_remodeling_freq: float = 0.3
+
 # For neighbor count criterion. Pre-energy-calculation limits.
 # (If exceeded, don't bother calculating energy, just reject the change.)
 # (min, also for initialization: ensure this constraint from beginning)
@@ -224,6 +232,7 @@ def get_state() -> dict:
                 "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
                 "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
                 "bondable_neighbors_max_candidates": bondable_neighbors_max_candidates,
+                "coupled_bond_remodeling_freq": coupled_bond_remodeling_freq,
                 "min_neighbor_count": min_neighbor_count,
                 "max_edge_neighbor_count": max_edge_neighbor_count,
                 "target_neighbor_angle": target_neighbor_angle,
