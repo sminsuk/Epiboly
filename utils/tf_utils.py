@@ -22,8 +22,6 @@ def init_export(directory_name: str = None) -> None:
     To access a previously generated directory (i.e., after the program quits or crashes), provide a directory name
     to get the path to that directory. This should be the main directory with the datetime in the name, not any
     subdirectory.
-    
-    Maybe ToDo: output a text file to that directory? With lots of metadata. DateTime, params, etc.? Better: use logging
     """
 
     def timestring() -> str:
@@ -37,8 +35,10 @@ def init_export(directory_name: str = None) -> None:
     global _current_export_dir
 
     if directory_name is None:
-        # subdirectory with unique name for all output of the current run:
-        _current_export_dir = timestring()
+        # subdirectory with unique name for all output of the current run.
+        # Include process id, otherwise timestring() isn't enough for uniqueness if this script is executed
+        # in multiple separate processes in the same minute, or, more importantly, anticipating batch runs.
+        _current_export_dir = f"{timestring()}_{os.getpid()}"
     
         # Creates the user's unique TF export directory if it doesn't yet exist;
         # and the subdirectory for the current run if it doesn't yet exist (it shouldn't):
