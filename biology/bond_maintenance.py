@@ -942,12 +942,13 @@ def _move_toward_open_space() -> None:
             # Can't add diffusion force for particles bound to leading edge, or they'll go careening into that
             # open space. Particularly particles immediately after transforming from edge to internal type.
             phandle.force_init = [0, 0, 0]
-        else:
-            bonded_neighbor_positions: tuple[tf.fVector3] = nbrs.getBondedNeighbors(phandle).positions
-            vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
-            centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
-            force: tf.fVector3 = (phandle.position - centroid) * cfg.k_particle_diffusion
-            phandle.force_init = force.as_list()
+            continue
+        
+        bonded_neighbor_positions: tuple[tf.fVector3] = nbrs.getBondedNeighbors(phandle).positions
+        vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
+        centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
+        force: tf.fVector3 = (phandle.position - centroid) * cfg.k_particle_diffusion
+        phandle.force_init = force.as_list()
         
 
 def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
