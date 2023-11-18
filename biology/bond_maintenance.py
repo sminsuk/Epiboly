@@ -466,7 +466,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     
     def find_bondable_neighbor(p: tf.ParticleHandle, allowed_types: list[tf.ParticleType]) -> tf.ParticleHandle | None:
         """Find nearby candidate particles to which p can bond, and randomly select one of them"""
-        if cfg.cell_division_enabled:
+        if cfg.cell_division_enabled or cfg.bondable_neighbor_discovery == cfg.BondableNeighborDiscovery.NEAREST:
             # With cell division, just get nearest unbonded neighbor to bond to.
             # The approach used below to prevent holes in the absence of cell division, was not helpful for the
             # cell division case (which didn't actually have holes in the first place), and resulted in particle

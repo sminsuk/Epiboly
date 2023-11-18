@@ -144,16 +144,17 @@ stopping_condition_phi: float = math.pi * 0.95
 # Bond-making. Method for when cell division disabled. (When cell division enabled, just gets nearest non-bonded
 # neighbor, which is equivalent to BOUNDED with min = max = 1, or UNIFORM with min = 1, max = 2.)
 class BondableNeighborDiscovery(Enum):
-    OPEN_ENDED = 1  # request a minimum of 1 bondable neighbor; select at random from however many come back.
-    BOUNDED = 2     # request between min and max bondable neighbors; select at random from however many come back.
-    UNIFORM = 3     # request exactly randrange(min, max) bondable neighbors; select at random from those.
+    NEAREST = 1     # request the nearest non-bonded neighbor, and just bond to that one (the "classic" algorithm)
+    OPEN_ENDED = 2  # request a minimum of 1 bondable neighbor; select at random from however many come back.
+    BOUNDED = 3     # request between min and max bondable neighbors; select at random from however many come back.
+    UNIFORM = 4     # request exactly randrange(min, max) bondable neighbors; select at random from those.
     # (These each behave a bit differently because of how the underlying neighbor search algorithm works. These
     # are in order of increasingly more predictable/understandable. The first two suffer from dependence on the
     # implementation details of that underlying search, resulting in strange distributions of the size of the
     # search result set. UNIFORM should decouple the result from the underlying search; each search decides in
     # advance (using randrange) how many neighbor particles to select from; the result set will be exactly that size.)
 bondable_neighbor_discovery: BondableNeighborDiscovery = BondableNeighborDiscovery.BOUNDED
-bondable_neighbors_min_candidates: int = 1  # (_min_ and _max_ ignored for OPEN_ENDED)
+bondable_neighbors_min_candidates: int = 1  # (_min_ and _max_ ignored for NEAREST and OPEN_ENDED)
 bondable_neighbors_max_candidates: int = 7
 
 # For other than the special edge-transformations, what fraction of the bond-making and -breaking should
