@@ -86,6 +86,7 @@ angle_bonds_enabled: bool = False
 # Prevent holes (especially when cell division is disabled) by giving particles a nudge away from the
 # particles they are bound to, and hence toward open space.
 space_filling_enabled: bool = True
+k_particle_diffusion: float = 20
 
 # real value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
@@ -212,6 +213,7 @@ def get_state() -> dict:
                 "plot_t0_as_single_timestep": plot_t0_as_single_timestep,
                 "angle_bonds_enabled": angle_bonds_enabled,
                 "space_filling_enabled": space_filling_enabled,
+                "k_particle_diffusion": k_particle_diffusion,
                 "epiboly_initial_percentage": epiboly_initial_percentage,
                 "num_leading_edge_points": num_leading_edge_points,
                 "num_spherical_positions": num_spherical_positions,

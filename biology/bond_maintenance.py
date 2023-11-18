@@ -928,7 +928,7 @@ def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
         
         relax_bond(bhandle, r0, r, viscosity, p1, p2)
             
-def _move_toward_open_space(k_particle_diffusion: float) -> None:
+def _move_toward_open_space() -> None:
     """Prevent gaps from opening up by giving particles a nudge to move toward open space.
     
     This should prevent the situation where particles look for potential bonding partners but can't find one
@@ -946,18 +946,17 @@ def _move_toward_open_space(k_particle_diffusion: float) -> None:
             bonded_neighbor_positions: tuple[tf.fVector3] = nbrs.getBondedNeighbors(phandle).positions
             vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
             centroid: tf.fVector3 = vecsum / len(bonded_neighbor_positions)
-            force: tf.fVector3 = (phandle.position - centroid) * k_particle_diffusion
+            force: tf.fVector3 = (phandle.position - centroid) * cfg.k_particle_diffusion
             phandle.force_init = force.as_list()
         
 
 def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
                    k_edge_neighbor_count: float = 2, k_edge_angle: float = 2,
-                   k_particle_diffusion: float = 40,  # (was 20; now experimenting with 40 vs. disabled)
                    relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
     _make_break_or_become(k_neighbor_count, k_angle,
                           k_edge_neighbor_count, k_edge_angle)
     if cfg.space_filling_enabled:
-        _move_toward_open_space(k_particle_diffusion)
+        _move_toward_open_space()
     _relax(relaxation_saturation_factor, viscosity)
     
     # Notes on parameters: with relaxation disabled (viscosity=0), k_particle_diffusion=20 works well.
