@@ -83,9 +83,9 @@ plot_t0_as_single_timestep: bool = True  # (ignored unless plot_time_averages is
 # much more like real zebrafish embryos without this. Leave False from now on.)
 angle_bonds_enabled: bool = False
 
-# Yet to be determined, whether to use this space-filling algorithm. It needs to be either abandoned or improved.
-# Currently alternating sims between having it on and off while I work on other things, and observing its behavior.
-space_filling_enabled: bool = False
+# Prevent holes (especially when cell division is disabled) by giving particles a nudge away from the
+# particles they are bound to, and hence toward open space.
+space_filling_enabled: bool = True
 
 # real value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
@@ -161,7 +161,10 @@ bondable_neighbors_max_candidates: int = 7
 # is coupled, would mean the total number of bonds in the system can never change (except along the leading edge),
 # and this is really bad. 0 = all remodeling is uncoupled, would mean just like before, no way to apply
 # bond-angle constraint to a pair of bonds and decide whether to switch them.
-coupled_bond_remodeling_freq: float = 0.3
+# (Conclusion: best result was with 0.3, but this is still not good enough. Need to use space-filling algorithm
+# instead. "Instead" because with space-filling, coupled-bond remodeling does no harm but is also not needed,
+# so just abandon it and eliminate unneeded complexity in the model. So settling on 0.)
+coupled_bond_remodeling_freq: float = 0
 
 # For neighbor count criterion. Pre-energy-calculation limits.
 # (If exceeded, don't bother calculating energy, just reject the change.)
