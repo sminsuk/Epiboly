@@ -869,65 +869,6 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
           f"of those, {total_coupled} were coupled; "
           f"{total_to_edge} became edge; {total_to_internal} became internal")
     
-def _relax(relaxation_saturation_factor: float, viscosity: float) -> None:
-    def relax_bond(bhandle: tf.BondHandle, r0: float, r: float, viscosity: float,
-                   p1: tf.ParticleHandle, p2: tf.ParticleHandle
-                   ) -> None:
-        """Relaxing a bond means to partially reduce the energy (hence the generated force) by changing
-        the r0 toward the current r.
-
-        viscosity: how much relaxation per timestep. In range [0, 1].
-            v = 0 is completely elastic (no change to r0, ever; so if a force is applied that stretches the bond, and
-                then released, the bond will recoil and tend to shrink back to its original length)
-            v = 1 is completely plastic (r0 instantaneously takes the value of r; so if a force is applied that
-                stretches the bond, and then released, there will be no recoil at all)
-            0 < v < 1 means r0 will change each timestep, but only by that fraction of the difference (r-r0). So bonds
-                will always be under some tension, but the longer a bond remains stretched, the less recoil there will
-                be if the force is released.
-        """
-        # Because existing bonds can't be modified, we destroy it and replace it with a new one, with new properties
-        gc.destroy_bond(bhandle)
-        
-        delta_r0: float
-        saturation_distance: float = relaxation_saturation_factor * g.Little.radius
-        if r > r0 + saturation_distance:
-            delta_r0 = viscosity * saturation_distance
-        elif r < r0 - saturation_distance:
-            # ToDo: this case is completely wrong; it needs its own, different saturation_distance.
-            # Minor issue but should fix this.
-            delta_r0 = viscosity * -saturation_distance
-        else:
-            delta_r0 = viscosity * (r - r0)
-        new_r0: float = r0 + delta_r0
-
-        k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
-        potential: tf.Potential = tf.Potential.harmonic(r0=new_r0,
-                                                        k=k,
-                                                        max=cfg.max_potential_cutoff
-                                                        )
-        gc.create_bond(potential, p1, p2)
-    
-    assert 0 <= viscosity <= 1, "viscosity out of bounds"
-    assert relaxation_saturation_factor > 0, "relaxation_saturation_factor out of bounds"
-    if viscosity == 0:
-        # 0 is the off-switch. No relaxation. (Calculations work, but are just an expensive no-op.)
-        return
-    
-    bhandle: tf.BondHandle
-    potential: tf.Potential
-
-    print(f"Relaxing all {len(tf.BondHandle.items())} bonds")
-    for bhandle in tf.BondHandle.items():
-        p1: tf.ParticleHandle
-        p2: tf.ParticleHandle
-        p1, p2 = bhandle.parts
-        potential = bhandle.potential
-        r0: float = potential.r0
-        # print(f"r0 = {r0}")
-        r: float = p1.distance(p2)
-        
-        relax_bond(bhandle, r0, r, viscosity, p1, p2)
-            
 def _move_toward_open_space() -> None:
     """Prevent gaps from opening up by giving particles a nudge to move toward open space.
     
@@ -965,18 +906,8 @@ def _move_toward_open_space() -> None:
         
 
 def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
-                   k_edge_neighbor_count: float = 2, k_edge_angle: float = 2,
-                   relaxation_saturation_factor: float = 2, viscosity: float = 0) -> None:
+                   k_edge_neighbor_count: float = 2, k_edge_angle: float = 2) -> None:
     _make_break_or_become(k_neighbor_count, k_angle,
                           k_edge_neighbor_count, k_edge_angle)
     if cfg.space_filling_enabled:
         _move_toward_open_space()
-    _relax(relaxation_saturation_factor, viscosity)
-    
-    # Notes on parameters: with relaxation disabled (viscosity=0), k_particle_diffusion=20 works well.
-    # When relaxation is enabled (viscosity=0.001), surprisingly, we get more holes, not fewer. A higher
-    # value of k_particle_diffusion seems to be needed, then. 40 works okay, might try a little higher,
-    # but 50 was way too much and produced instability. Also, a higher viscosity may be needed because
-    # the recoil after disabling the external force seems like still too much.
-    #
-    # To be revisited later after I reconsider/retool the particle diffusion algorithm.
