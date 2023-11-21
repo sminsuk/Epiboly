@@ -742,8 +742,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         assert len(leading_edge_neighbors) == 2, f"Leading edge particle {p.id} has {len(leading_edge_neighbors)}" \
                                                  f" leading edge neighbors??? Should always be exactly 2!"
         
-        # Select one neighbor at random; if it doesn't work with that one, try the other one.
-        # By doing it this way, I can simply try them in list order without introducing a bias.
+        # Select one neighbor at random; if it doesn't work with that one, try the other one. First, randomize the
+        # order of the list (of 2 particles), so I can simply try them in list order without introducing a bias.
         if random.random() < 0.5:
             leading_edge_neighbors.reverse()
             
