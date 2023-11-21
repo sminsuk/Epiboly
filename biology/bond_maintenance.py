@@ -772,8 +772,10 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         leading_edge_baseline_phi: float = max(epu.embryo_phi(p), epu.embryo_phi(other_leading_edge_p))
         mean_particle_radius: float = fmean([p.radius, other_leading_edge_p.radius, recruit.radius])
         leading_edge_recruitment_limit_distance: float = cfg.leading_edge_recruitment_limit * mean_particle_radius
-        # ratio of any arc's length in distance units, to the radians it represents, always =
-        # full circumference of circle / radians in a full circle (i.e., 2*pi) = r
+        # ratio of any arc's length in distance units, to the radians it represents, is always:
+        # distance_to_radians_ratio =
+        # full circumference of circle (i.e. 2*pi*r) / radians in a full circle (i.e. 2*pi), which = r;
+        # hence if we know the distance, then the radians = distance / r
         embryo_radius: float = g.Big.radius + mean_particle_radius
         leading_edge_recruitment_limit_radians: float = leading_edge_recruitment_limit_distance / embryo_radius
         if epu.embryo_phi(recruit) < leading_edge_baseline_phi + leading_edge_recruitment_limit_radians:
