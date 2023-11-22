@@ -129,6 +129,12 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             if making_particle and breaking_particle:
                 # If main_particle is both making a bond and breaking a bond, then its total number of bonds will not
                 # change; so the energy change is 0 and there's nothing to calculate
+                # (Oops: this was not correct! The energy of main_particle indeed won't change; however, the energy
+                # of making_ and breaking_particle will both change, and not necessarily by amounts that exactly cancel,
+                # so that needs to be taken into account. Currently I'm not using the coupled-event feature (i.e.,
+                # having a making_ and breaking_particle at the same time), but if I decide to try it again, then:
+                # ToDo: fix this! It just means that we were miscalculating the energy change for such events, so,
+                #  may have accepted or rejected some of these events erroneously.)
                 return 0
             
             p1: tf.ParticleHandle = main_particle
