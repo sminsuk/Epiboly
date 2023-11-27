@@ -886,20 +886,6 @@ def _move_toward_open_space() -> None:
     """
     phandle: tf.ParticleHandle
     for phandle in g.Little.items():
-        # ToDo: I am reviving this algorithm after not using it for awhile. Originally, it needed to make
-        #  this exception, disabling the functionality for particles near the edge, for the reason stated
-        #  in its comment. But now I wasn't sure the exception was needed, and it seemed overly restrictive because it
-        #  results in gaps near the edge where the force isn't added (see runs from 2023-11-17). Running sims that way
-        #  it was better without the exception, and with bumping up the k. However, when I ran the balanced-force
-        #  "control", it definitely needs the exception to prevent those big problems. Perhaps a gentler
-        #  alternative? Possibilities:
-        #  1) near the edge, use half the force, instead of none?
-        #  2) Don't add force if the particle is too close to the edge? Like center within 1 radius?
-        #  3) Only screen out the particles with exactly TWO bonds to the leading edge? (i.e. the state
-        #  of former edge particles immediately after becoming internal.)
-        #  Number 1) seems simplest and most predictable, and is an easy knob to adjust.
-        #  For now, refactor a bit more to make it easier to test.
-        
         bonded_neighbors: tf.ParticleList = nbrs.getBondedNeighbors(phandle)
         bonded_neighbor_positions: tuple[tf.fVector3] = bonded_neighbors.positions
         vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))
@@ -909,10 +895,13 @@ def _move_toward_open_space() -> None:
         neighbor: tf.ParticleHandle
         bonded_edge_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in bonded_neighbors
                                                           if neighbor.type() == g.LeadingEdge]
-        if len(bonded_edge_neighbors) > 0:
+        if len(bonded_edge_neighbors) == 2:
+            # We want to add the diffusion force whenever possible, because it helps maintain tissue integrity;
+            # but it doesn't work in the following scenario, so screen it out:
             # Can't add diffusion force for particles bound to leading edge, or they'll go careening into that
             # open space. Particularly particles immediately after transforming from edge to internal type.
-            # Or, just if the leading edge is moving slowly and the particles are close together.
+            # Select for those by counting bonded edge neighbors (because there are always 2 at the moment a cell
+            # becomes internal), and for those cells, don't add a force.
             force = tf.fVector3([0, 0, 0])
             
         phandle.force_init = force.as_list()

@@ -86,7 +86,7 @@ angle_bonds_enabled: bool = False
 # Prevent holes (especially when cell division is disabled) by giving particles a nudge away from the
 # particles they are bound to, and hence toward open space.
 space_filling_enabled: bool = True
-k_particle_diffusion: float = 20
+k_particle_diffusion: float = 25
 
 # real value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
@@ -153,7 +153,7 @@ class BondableNeighborDiscovery(Enum):
     # implementation details of that underlying search, resulting in strange distributions of the size of the
     # search result set. UNIFORM should decouple the result from the underlying search; each search decides in
     # advance (using randrange) how many neighbor particles to select from; the result set will be exactly that size.)
-bondable_neighbor_discovery: BondableNeighborDiscovery = BondableNeighborDiscovery.BOUNDED
+bondable_neighbor_discovery: BondableNeighborDiscovery = BondableNeighborDiscovery.NEAREST
 bondable_neighbors_min_candidates: int = 1  # (_min_ and _max_ ignored for NEAREST and OPEN_ENDED)
 bondable_neighbors_max_candidates: int = 7
 
