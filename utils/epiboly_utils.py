@@ -105,6 +105,6 @@ def phi_for_epiboly(epiboly_percentage: float):
     cosine_phi: float = adjacent / 100
     phi_rads = np.arccos(cosine_phi)
     # print("intermediate results: radius_percentage, adjacent, cosine_phi, degrees =",
-    #       radius_percentage, adjacent, cosine_phi, math.degrees(phi_rads))
+    #       radius_percentage, adjacent, cosine_phi, np.rad2deg(phi_rads))
     print(f"{epiboly_percentage}% epiboly = {round(phi_rads, 4)} radians or {round(np.rad2deg(phi_rads), 2)} degrees")
     return phi_rads
