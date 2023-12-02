@@ -880,9 +880,17 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
 def _move_toward_open_space() -> None:
     """Prevent gaps from opening up by giving particles a nudge to move toward open space.
     
-    This should prevent the situation where particles look for potential bonding partners but can't find one
-    in the direction in which they are most needed (the direction of a hole). For the moment, this applies only
-    to internal particles.
+    Where "toward open space" means: away from the centroid of all the bonded neighbors. This should prevent the
+    situation where particles look for potential bonding partners but can't find one in the direction in which
+    they are most needed (the direction of an incipient hole, i.e., toward areas where particles are most
+    stretched apart).
+    
+    This applies only to internal particles. Furthermore, for particles bonded directly to the leading edge, a
+    modified version of this is applied, to prevent anomalies near the edge. (The empty area below the leading edge
+    would be seen as a "hole", and edge-bonded internal particles would get ejected into it.) For those edge-bonded
+    particles, whenever the centroid-based force vector would push the particle closer to the leading edge,
+    remove the edge-directed (vegetalward) component of the vector, leaving only the horizontal (circumferential)
+    component, and use that.
     """
     phandle: tf.ParticleHandle
     for phandle in g.Little.items():
@@ -895,14 +903,38 @@ def _move_toward_open_space() -> None:
         neighbor: tf.ParticleHandle
         bonded_edge_neighbors: list[tf.ParticleHandle] = [neighbor for neighbor in bonded_neighbors
                                                           if neighbor.type() == g.LeadingEdge]
-        if len(bonded_edge_neighbors) == 2:
+        if len(bonded_edge_neighbors) > 0:
             # We want to add the diffusion force whenever possible, because it helps maintain tissue integrity;
-            # but it doesn't work in the following scenario, so screen it out:
-            # Can't add diffusion force for particles bound to leading edge, or they'll go careening into that
-            # open space. Particularly particles immediately after transforming from edge to internal type.
-            # Select for those by counting bonded edge neighbors (because there are always 2 at the moment a cell
-            # becomes internal), and for those cells, don't add a force.
-            force = tf.fVector3([0, 0, 0])
+            # but it doesn't work as-is for particles bound to the leading edge, so need special case behavior:
+            # Adding force based on the centroid can cause these cells to go careening into the open vegetal
+            # space. Particularly particles immediately after transforming from edge to internal type; or when
+            # particles are closely packed (as in the balanced-force control or when cell division is enabled).
+            # So, refrain from pushing edge-bonded particles toward the leading edge / vegetal pole. Remove
+            # the component of the force that is pushing in that direction.
+            
+            # ToDo: Hmm, in the calculations below, it might be more correct to use centroid rather than phandle
+            #  to get the initial coordinates? (Or maybe even, a point mid-way between the two?) But I've done a ton
+            #  of testing using phandle, and if it ain't broke don't fix it, so stick with this for now and maybe
+            #  consider that later. The two points are very close to one another, so how much does it matter?
+            
+            # Find the vertical tangent direction (along the longitude line) at this point, to decide whether the
+            # force vector is pointing toward or away from vegetal; this will be more reliable, when the leading
+            # edge is near the vegetal pole, than just using the z component of the vector.
+            tangent_point_theta, tangent_point_phi = epu.embryo_coords(phandle)
+            polar_theta: float = tangent_point_theta
+            animalward_phi: float = tangent_point_phi - math.pi / 2
+            animalward_tangent_direction: tf.fVector3 = tfu.cartesian_from_spherical([1, polar_theta, animalward_phi])
+            force_toward_vegetal: bool = force.dot(animalward_tangent_direction) < 0
+            if force_toward_vegetal:
+                # If the force vector points toward animal, then it's fine; just use it. But if it points
+                # toward vegetal, project it onto the horizontal. I.e., just use the horizonal component of
+                # the force, and not the vegetelward component. (Vegetalward is not the same as "down", so
+                # not as simple as just setting z=0.)
+                # Find the horizontal tangent direction (latitude line), to project the calculated force vector onto:
+                horizontal_theta: float = tangent_point_theta + math.pi / 2
+                horizontal_phi: float = math.pi / 2
+                horizontal_tangent_direction = tfu.cartesian_from_spherical([1, horizontal_theta, horizontal_phi])
+                force = force.projectedOntoNormalized(horizontal_tangent_direction)
             
         phandle.force_init = force.as_list()
         
