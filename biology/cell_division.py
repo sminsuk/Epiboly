@@ -20,6 +20,7 @@ _cumulative_cell_divisions: int = 0
 # Because surface area of a slice of a sphere = 2πrh, area increase will be proportional to height increase.
 _expected_divisions_per_height_unit: float = 0
 _evl_previous_z: float = 0
+_cell_division_cessation_phi: float = 0
 
 # For calibrating division rate to time.
 _expected_timesteps: int = 0
@@ -65,13 +66,18 @@ def _initialize_timestep_tracking() -> None:
 
 def _initialize_evl_area_tracking() -> None:
     """Calibrate division rate to the changes in EVL area"""
-    global _expected_divisions_per_height_unit, _evl_previous_z
+    global _expected_divisions_per_height_unit, _evl_previous_z, _cell_division_cessation_phi
     
-    evl_final_height: float = 2 * (g.Big.radius + g.Little.radius)
-    evl_initial_height: float = evl_final_height * cfg.epiboly_initial_percentage / 100
-    evl_total_height_increase: float = evl_final_height - evl_initial_height
+    embryo_radius: float = g.Big.radius + g.Little.radius
+    embryo_height: float = 2 * embryo_radius
+    evl_initial_height: float = embryo_height * cfg.epiboly_initial_percentage / 100
+    cell_division_cessation_height: float = embryo_height * cfg.cell_division_cessation_percentage / 100
+    evl_total_height_increase: float = cell_division_cessation_height - evl_initial_height
 
-    # Calculate whether the increased area is enough to accommodate the requested number of particles without crowding.
+    _cell_division_cessation_phi = epu.phi_for_epiboly(epiboly_percentage=cfg.cell_division_cessation_percentage)
+
+    # Calculate whether the increased area (from epiboly_initial_percentage to cell_division_cessation_percentage)
+    # is enough to accommodate the requested number of particles without crowding.
     # This deals with the fact that particles have a fixed size and if density is high, adding new
     # particles will result in repulsion that drives further area increase. We don't want that because:
     # (perhaps three ways of saying the same thing)
@@ -87,13 +93,12 @@ def _initialize_evl_area_tracking() -> None:
     # change that config, this now provides an algorithm to tune the particle radius / particle count automatically.
     
     # some geometry:
-    embryo_radius: float = g.Big.radius + g.Little.radius
     area_to_height_ratio = 2 * np.pi * embryo_radius  # from area of spherical segment = 2 pi R h
     circumscribed_hexagon_ratio = 2 * np.sqrt(3) / np.pi  # area ratio of hexagon circumscribed around a circle
 
     # Would the area occupied by the requested particles in a hexagonal packing, fit in the EVL area increase?
     total_area_increase: float = evl_total_height_increase * area_to_height_ratio
-    particle_area: float = np.pi * g.Little.radius * g.Little.radius  # area occupied by rendered particle itself
+    particle_area: float = np.pi * (g.Little.radius ** 2)  # area occupied by rendered particle itself
     circumscribed_hexagon_area: float = particle_area * circumscribed_hexagon_ratio
     elbow_room_factor: float = 1.0  # For now. We may need fudge factor > 1 to realistically avoid crowding.
     particle_footprint: float = elbow_room_factor * circumscribed_hexagon_area  # approx. because based on plane
@@ -213,6 +218,9 @@ def cell_division() -> None:
     if cfg.calibrate_division_rate_to_timesteps:
         num_divisions = _generator.poisson(lam=_expected_divisions_per_timestep)
     else:
+        if epu.leading_edge_mean_phi() > _cell_division_cessation_phi:
+            return
+            
         # Note that z coordinate *decreases* as epiboly progresses
         evl_current_z: float = epu.leading_edge_mean_z()
         delta_z: float = _evl_previous_z - evl_current_z
@@ -258,16 +266,19 @@ def get_state() -> dict:
     return {"cumulative_cell_divisions": _cumulative_cell_divisions,
             "expected_divisions_per_height_unit": _expected_divisions_per_height_unit,
             "evl_previous_z": _evl_previous_z,
+            "cell_division_cessation_phi": _cell_division_cessation_phi,
             "expected_timesteps": _expected_timesteps,
             "expected_divisions_per_timestep": _expected_divisions_per_timestep}
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _cumulative_cell_divisions, _expected_divisions_per_height_unit, _evl_previous_z
+    global _cell_division_cessation_phi
     global _expected_timesteps, _expected_divisions_per_timestep
     _cumulative_cell_divisions = d["cumulative_cell_divisions"]
     _expected_divisions_per_height_unit = d["expected_divisions_per_height_unit"]
     _evl_previous_z = d["evl_previous_z"]
+    _cell_division_cessation_phi = d["cell_division_cessation_phi"]
     _expected_timesteps = d["expected_timesteps"]
     _expected_divisions_per_timestep = d["expected_divisions_per_timestep"]
 

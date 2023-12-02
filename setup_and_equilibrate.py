@@ -119,33 +119,11 @@ def add_interior_bonds():
     print(f"Created {len(tf.BondHandle.items())} bonds.")
 
 def initialize_bonded_edge():
-    def phi_for_epiboly(epiboly_percentage=40):
-        """Convert % epiboly into phi for spherical coordinates (in radians)
-
-        epiboly_percentage: % of *vertical* distance from animal to vegetal pole (not % of arc).
-        From staging description at zfin.org:
-
-        'The extent to which the blastoderm has spread over across the yolk cell provides an extremely useful staging
-        index from this stage until epiboly ends. We define percent-epiboly to mean the fraction of the yolk cell that
-        the blastoderm covers; percent-coverage would be a more precise term for what we mean to say, but
-        percent-epiboly immediately focuses on the process and is in common usage. Hence, at 30%-epiboly the blastoderm
-        margin is at 30% of the entire distance between the animal and vegetal poles, as one estimates along the
-        animal-vegetal axis.'
-        """
-        radius_percentage = 2 * epiboly_percentage
-        adjacent = 100 - radius_percentage
-        cosine_phi = adjacent / 100
-        phi_rads = math.acos(cosine_phi)
-        # print("intermediate results: radius_percentage, adjacent, cosine_phi, degrees =",
-        #       radius_percentage, adjacent, cosine_phi, math.degrees(phi_rads))
-        return phi_rads
-    
     def create_ring():
         print("Generating leading edge particles.")
         
         # Where the edge should go
-        leading_edge_phi = phi_for_epiboly(epiboly_percentage=cfg.epiboly_initial_percentage)
-        #         print("leading edge: phi =", math.degrees(leading_edge_phi))
+        leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cfg.epiboly_initial_percentage)
         
         # some basic needed quantities
         big_particle: tf.ParticleHandle = g.Big.items()[0]

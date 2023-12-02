@@ -78,3 +78,33 @@ def leading_edge_circumference() -> float:
     leading_edge_height: float = leading_edge_mean_z() - yolk.position.z()
     leading_edge_radius: float = np.sqrt(np.square(hypotenuse) - np.square(leading_edge_height))
     return 2 * np.pi * leading_edge_radius
+
+def phi_for_epiboly(epiboly_percentage: float):
+    """Convert % epiboly into phi for spherical coordinates (in radians)
+
+    epiboly_percentage: % of *vertical* distance from animal to vegetal pole (not % of arc).
+    Note that % of vertical distance equals % of embryo surface area, because the two are directly proportional.
+    From staging description at zfin.org:
+
+    'The extent to which the blastoderm has spread over across the yolk cell provides an extremely useful staging
+    index from this stage until epiboly ends. We define percent-epiboly to mean the fraction of the yolk cell that
+    the blastoderm covers; percent-coverage would be a more precise term for what we mean to say, but
+    percent-epiboly immediately focuses on the process and is in common usage. Hence, at 30%-epiboly the blastoderm
+    margin is at 30% of the entire distance between the animal and vegetal poles, as one estimates along the
+    animal-vegetal axis.'
+    
+    (Note, it's not really true! The NAME of the developmental stage "30% epiboly" is not quantitative. Placing the
+    leading-edge cells at 30% epiboly by this definition, produces a configuration not resembling any published
+    photo of a "30% epiboly" stage embryo, but instead has an abnormally high leading edge. By trial and error,
+    I find that placing the leading-edge cells at 43% epiboly, comes closest to resembling those published photos.
+    Thus, embryos customarily referred to as "30% epiboly" actually are at around 43% epiboly, using the
+    quantitative definition.)
+    """
+    radius_percentage: float = 2 * epiboly_percentage
+    adjacent: float = 100 - radius_percentage
+    cosine_phi: float = adjacent / 100
+    phi_rads = np.arccos(cosine_phi)
+    # print("intermediate results: radius_percentage, adjacent, cosine_phi, degrees =",
+    #       radius_percentage, adjacent, cosine_phi, math.degrees(phi_rads))
+    print(f"{epiboly_percentage}% epiboly = {round(phi_rads, 4)} radians or {round(np.rad2deg(phi_rads), 2)} degrees")
+    return phi_rads

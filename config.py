@@ -60,7 +60,11 @@ cell_division_enabled: bool = True
 # Cell division rate parameters. See justification in docstring of cell_division.cell_division().
 # Calibrate either to timesteps, or to EVL area increase:
 calibrate_division_rate_to_timesteps: bool = False
+# Approximate number of divisions to take place (the actual value will be stochastically determined):
 total_epiboly_divisions: int = 7500  # currently throttled to 3064; TBD: how much to actually use
+# The percentage of epiboly by which total_epiboly_divisions (as entered or throttled) will be
+# reached, and after which cell division (if enabled) ceases:
+cell_division_cessation_percentage: int = 100
 # Spatial distribution of cell division events:
 cell_division_biased_by_tension: bool = False
 tension_squared: bool = False  # (ignored unless cell_division_biased_by_tension is True)
@@ -88,7 +92,7 @@ angle_bonds_enabled: bool = False
 space_filling_enabled: bool = True
 k_particle_diffusion: float = 25
 
-# real value for the misnomer "30% epiboly")
+# Starting point of the simulation. Note that 43% is the true value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
 
 # How many leading edge and interior cells to make (for entire sphere, prior to filtering out the ones below the edge)
@@ -206,6 +210,7 @@ def get_state() -> dict:
                 "cell_division_enabled": cell_division_enabled,
                 "calibrate_division_rate_to_timesteps": calibrate_division_rate_to_timesteps,
                 "total_epiboly_divisions": total_epiboly_divisions,
+                "cell_division_cessation_percentage": cell_division_cessation_percentage,
                 "cell_division_biased_by_tension": cell_division_biased_by_tension,
                 "tension_squared": tension_squared,
                 "plotting_interval_simtime": plotting_interval_simtime,
