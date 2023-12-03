@@ -177,16 +177,10 @@ coupled_bond_remodeling_freq: float = 0
 min_neighbor_count: int = 3
 max_edge_neighbor_count: int = 3
 
-# For neighbor angle energy calculations. Not only to avoid magic numbers,
-# but also because these would otherwise be calculated millions of times,
-# which is wasteful, even for an inexpensive operation.
+# For neighbor angle energy calculations
 target_neighbor_angle: float = math.pi / 3
 target_edge_angle: float = math.pi
 leading_edge_recruitment_limit: float = 2.0     # in number of radii
-
-# For the same reason, just some common numbers useful in a variety of contexts
-two_pi: float = math.pi * 2
-pi_over_2: float = math.pi / 2
 
 def get_state() -> dict:
     """generate state to be saved to disk

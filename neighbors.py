@@ -187,7 +187,7 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                 return theta
             else:
                 # < 0: vector angle > pi/2; particle on the opposite side from reference_cross;
-                return cfg.two_pi - theta
+                return 2 * math.pi - theta
     
         big_particle: tf.ParticleHandle = g.Big.items()[0]
         normal_vector: tf.fVector3 = p.position - big_particle.position

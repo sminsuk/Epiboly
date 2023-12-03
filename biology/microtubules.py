@@ -75,8 +75,8 @@ def apply_even_tangent_forces() -> None:
     # First loop: collect (and sum) all the weights
     previous_particle_data: ParticleData = sorted_on_theta[-1]
     before_previous_particle_data: ParticleData = sorted_on_theta[-2]
-    previous_theta: float = previous_particle_data.theta - cfg.two_pi
-    before_previous_theta: float = before_previous_particle_data.theta - cfg.two_pi
+    previous_theta: float = previous_particle_data.theta - 2 * math.pi
+    before_previous_theta: float = before_previous_particle_data.theta - 2 * math.pi
     particle_data: ParticleData
     weight_total: float = 0
     for particle_data in sorted_on_theta:
@@ -94,7 +94,7 @@ def apply_even_tangent_forces() -> None:
     # Second loop: now that we have all the weights and the total, we can calculate the forces
     for particle_data in sorted_on_theta:
         mag: float = current_total_force() * particle_data.weight / weight_total
-        tangent_phi = particle_data.phi + cfg.pi_over_2
+        tangent_phi = particle_data.phi + math.pi / 2
         tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([mag, particle_data.theta, tangent_phi])
         
         # The assignment runs into the copy-constructor bug! So change to plain list

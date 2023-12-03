@@ -70,7 +70,7 @@ def harmonic_angle_equilibrium_value() -> float:
     # dynamically updated to be that precise. If the number of particles changes, they'll "try" to reach a target angle
     # that is not quite right, but will be opposed by the same force acting on the neighbor particles, so hopefully
     # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
-    return math.pi - (cfg.two_pi / len(g.LeadingEdge.items()))
+    return math.pi - (2 * math.pi / len(g.LeadingEdge.items()))
 
 def test_ring_is_fubar():
     """For debugging. Set breakpoints at the indicated locations. Stop there and examine these values."""
