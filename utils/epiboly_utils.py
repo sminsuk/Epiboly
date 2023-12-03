@@ -98,7 +98,8 @@ def phi_for_epiboly(epiboly_percentage: float):
     photo of a "30% epiboly" stage embryo, but instead has an abnormally high leading edge. By trial and error,
     I find that placing the leading-edge cells at 43% epiboly, comes closest to resembling those published photos.
     Thus, embryos customarily referred to as "30% epiboly" actually are at around 43% epiboly, using the
-    quantitative definition.)
+    quantitative definition. In fact, from the canonical figure 8F in Kimmel et al. 1995, also found here:
+    https://zfin.org/zf_info/zfbook/stages/figs/fig8.html - it turns out you can measure the 43% directly!)
     """
     radius_percentage: float = 2 * epiboly_percentage
     adjacent: float = 100 - radius_percentage
