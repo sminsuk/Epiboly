@@ -291,31 +291,27 @@ def move_ring_z(destination: float) -> None:
 def setup_global_potentials() -> None:
     # Potentials, bound at the level of types:
     #
-    # Large-small: LJ, originally max = equilibrium distance = sum of radii (for only repulsion), but then
+    # Large-small: originally max = equilibrium distance = sum of radii (for only repulsion), but then
     # expanded max to include attraction for the purposes of bringing particles down to the surface.
-    # Should eventually switch this to Morse (or maybe harmonic) for ease of use (and consistency),
-    # if I ever need to change it again.
-    #
-    # Small-small (both types, to themselves and to each other):
-    # harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
-    # applied only inside the equilibrium distance).
-    
-    # Big-small equilibrium distance = 3.08
-    # (ToDo: Probably should switch this to harmonic for consistency.)
-    # Note, with LJ, to adjust well-depth with minimal change to equilibrium distance, keep A/B constant.
-    big_small_pot = tf.Potential.lennard_jones_12_6(min=0.275, max=5, A=7.3e6, B=17088)
+    big_small_pot = tf.Potential.harmonic(k=40,
+                                          r0=g.Big.radius + g.Little.radius,
+                                          min=0.275,
+                                          max=5)
     tf.bind.types(big_small_pot, g.Big, g.LeadingEdge)
     
     # Also bind to Little (interior) particles.
     tf.bind.types(big_small_pot, g.Big, g.Little)
     
+    # Small-small (both types, to themselves and to each other):
+    # harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
+    # applied only inside the equilibrium distance). (Attraction will be applied on a cell-by-cell
+    # basis, i.e. via explicit bonds.)
     r0 = g.LeadingEdge.radius * 2
     
     # All small particles repel each other all the time, inside r0
     small_small_repulsion = tf.Potential.harmonic(r0=r0,
                                                   k=cfg.harmonic_repulsion_spring_constant,
-                                                  max=r0
-                                                  )
+                                                  max=r0)
     
     replace_all_small_small_potentials(new_potential=small_small_repulsion)
 
