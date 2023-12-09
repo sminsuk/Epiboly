@@ -14,6 +14,7 @@ import biology.microtubules as mt
 import utils.global_catalogs as gc
 import utils.tf_logging as logging
 import utils.plotting as plot
+import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
 import utils.video_export as vx
 
@@ -62,6 +63,7 @@ def _export_additional_state(filename: str) -> None:
     """
     export_dict: dict = {"config": cfg.get_state(),
                          "self": get_state(),
+                         "epiboly": epu.get_state(),
                          "video_export": vx.get_state(),
                          "cell_division": cd.get_state(),
                          "forces": mt.get_state(),
@@ -79,6 +81,7 @@ def import_additional_state(import_path: str) -> None:
         import_dict = json.load(fp)
     
     set_state(import_dict["self"])
+    epu.set_state(import_dict["epiboly"])
     plot.set_state(import_dict["plot"])
     logging.set_state(import_dict["logging"])
     cd.set_state(import_dict["cell_division"])

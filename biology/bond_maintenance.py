@@ -876,6 +876,8 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
     print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {round(end - start, 2)} sec.; "
           f"of those, {total_coupled} were coupled; "
           f"{total_to_edge} became edge; {total_to_internal} became internal")
+    epu.cumulative_to_edge += total_to_edge
+    epu.cumulative_from_edge += total_to_internal
     
 def _move_toward_open_space() -> None:
     """Prevent gaps from opening up by giving particles a nudge to move toward open space.

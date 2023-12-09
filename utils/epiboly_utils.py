@@ -8,6 +8,11 @@ from statistics import fmean
 import tissue_forge as tf
 import epiboly_globals as g
 
+# parking place for some cumulative measures that other modules can write to, and read from:
+# Keep track of movement of EVL cells into and out of the leading edge:
+cumulative_to_edge: int = 0
+cumulative_from_edge: int = 0
+
 def reset_camera():
     """A good place to park the camera for epiboly
     
@@ -109,3 +114,14 @@ def phi_for_epiboly(epiboly_percentage: float):
     #       radius_percentage, adjacent, cosine_phi, np.rad2deg(phi_rads))
     print(f"{epiboly_percentage}% epiboly = {round(phi_rads, 4)} radians or {round(np.rad2deg(phi_rads), 2)} degrees")
     return phi_rads
+
+def get_state() -> dict:
+    """In composite runs, save state of accumulated cell migration statistics"""
+    return {"cumulative_from_edge": cumulative_from_edge,
+            "cumulative_to_edge": cumulative_to_edge}
+
+def set_state(d: dict) -> None:
+    """Reconstitute state of module from what was saved."""
+    global cumulative_from_edge, cumulative_to_edge
+    cumulative_from_edge = d["cumulative_from_edge"]
+    cumulative_to_edge = d["cumulative_to_edge"]
