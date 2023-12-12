@@ -36,6 +36,10 @@ import utils.tf_utils as tfu
 _leading_edge_phi: list[float] = []
 _bonds_per_particle: list[float] = []
 _forces: list[float] = []
+_straightness: list[float] = []
+_margin_count: list[int] = []
+_margin_cum_in: list[int] = []
+_margin_cum_out: list[int] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
@@ -514,6 +518,56 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
                            # legend_loc=legend_loc if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                            end=end)
 
+def _show_straightness() -> None:
+    """Plot straightness index of the leading edge
+
+    Straightness index = "D/L, where D is the beeline distance between the first and last points in the trajectory,
+    and L is the path length travelled. It is a value between 0 (infinitely tortuous) to 1 (a straight line)."
+    https://search.r-project.org/CRAN/refmans/trajr/html/TrajStraightness.html
+    """
+    straightness_fig: Figure
+    straightness_ax: Axes
+    
+    straightness_fig, straightness_ax = plt.subplots()
+    straightness_ax.set_ylabel("Straightness Index")
+    
+    # Sort all the edge particles on theta, into a new list (copy, not live)
+    sorted_particles: list[tf.ParticleHandle] = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
+    
+    # Calculate the path distance from particle to particle
+    p: tf.ParticleHandle
+    previous_p: tf.ParticleHandle = sorted_particles[-1]  # last one
+    path_length: float = 0
+    for p in sorted_particles:
+        path_length += p.distance(previous_p)
+        previous_p = p
+    
+    # Beeline is not the circumference, it's a polygon. Project each particle along a longitude line
+    # to a circle located at the mean phi position. That's the polygon to measure
+    r: float = g.Big.radius + g.LeadingEdge.radius
+    beeline_phi: float = epu.leading_edge_mean_phi()
+    beeline_positions: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi])
+                                            for p in sorted_particles]
+    
+    # Calculate the path distance from position to position in the beeline
+    pos: tf.fVector3
+    previous_pos: tf.fVector3 = beeline_positions[-1]
+    beeline_path_length: float = 0
+    for pos in beeline_positions:
+        vector_diff: tf.fVector3 = pos - previous_pos
+        beeline_path_length += vector_diff.length()
+        previous_pos = pos
+    
+    _straightness.append(beeline_path_length / path_length)
+    
+    # ToDo: do this vs phi so that it's easier to see "when" it gets straight. Epiboly position = time!
+    straightness_ax.plot(_timesteps, _straightness, "b.")
+    
+    # save
+    straightness_path: str = os.path.join(_plot_path, "Straightness Index of leading edge.png")
+    straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
+    plt.close(straightness_fig)
+    
 def _show_bond_counts() -> None:
     bond_count_fig: Figure
     bond_count_ax: Axes
@@ -542,6 +596,31 @@ def _show_bond_counts() -> None:
     bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle.png")
     bond_count_fig.savefig(bond_count_path, transparent=False, bbox_inches="tight")
     plt.close(bond_count_fig)
+
+def _show_margin_population() -> None:
+    # ToDo: this needs to be with respect to phi, not time, because especially for non-cell-division,
+    #  the simulation slows down which distorts the curve.
+    margin_fig: Figure
+    margin_ax: Axes
+    
+    margin_fig, margin_ax = plt.subplots()
+    margin_ax.set_ylabel("Number of cells")
+    
+    _margin_count.append(len(g.LeadingEdge.items()))
+    _margin_cum_in.append(epu.cumulative_to_edge)
+    _margin_cum_out.append(epu.cumulative_from_edge)
+    
+    # plot
+    margin_ax.plot(_timesteps, _margin_count, "b.", label="Total margin cell count")
+    margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
+    margin_ax.plot(_timesteps, _margin_cum_out, "-.b", label="Cumulative out")
+    margin_ax.legend()
+
+    # save
+    margin_path: str = os.path.join(_plot_path, "Margin cell rearrangement.png")
+    margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")
+    plt.close(margin_fig)
+    margin_ax.legend()
 
 def _show_forces() -> None:
     if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT:
@@ -612,6 +691,8 @@ def show_graphs(end: bool = False) -> None:
         _show_progress_graph(end)
         _show_bond_counts()
         _show_forces()
+        _show_straightness()
+        _show_margin_population()
 
     plot_interval: int = cfg.plotting_interval_timesteps
     
@@ -659,6 +740,10 @@ def get_state() -> dict:
             "bond_counts": _bonds_per_particle,
             "leading_edge_phi": _leading_edge_phi,
             "forces": _forces,
+            "straightness": _straightness,
+            "margin_count": _margin_count,
+            "margin_cum_in": _margin_cum_in,
+            "margin_cum_out": _margin_cum_out,
             "timesteps": _timesteps,
             
             "tension_bin_axis_history": _tension_bin_axis_history,
@@ -685,7 +770,8 @@ def get_state() -> dict:
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _timesteps
+    global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _straightness, _timesteps
+    global _margin_count, _margin_cum_in, _margin_cum_out
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _speeds_bin_axis_history, _median_speeds_history, _speeds_timestep_history
     global _strain_rates_by_speed_diffs_history
@@ -697,6 +783,10 @@ def set_state(d: dict) -> None:
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
     _forces = d["forces"]
+    _straightness = d["straightness"]
+    _margin_count = d["margin_count"]
+    _margin_cum_in = d["margin_cum_in"]
+    _margin_cum_out = d["margin_cum_out"]
     _timesteps = d["timesteps"]
     
     _tension_bin_axis_history = d["tension_bin_axis_history"]
