@@ -604,7 +604,7 @@ def _show_margin_population() -> None:
     margin_ax: Axes
     
     margin_fig, margin_ax = plt.subplots()
-    margin_ax.set_ylabel("Number of cells")
+    margin_ax.set_ylabel("Number of margin cells")
     
     _margin_count.append(len(g.LeadingEdge.items()))
     _margin_cum_in.append(epu.cumulative_to_edge)
@@ -612,9 +612,9 @@ def _show_margin_population() -> None:
     
     # plot
     margin_ax.plot(_timesteps, _margin_count, "b.", label="Total margin cell count")
-    margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
-    margin_ax.plot(_timesteps, _margin_cum_out, "-.b", label="Cumulative out")
-    margin_ax.legend()
+    # margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
+    # margin_ax.plot(_timesteps, _margin_cum_out, "-.b", label="Cumulative out")
+    # margin_ax.legend()
 
     # save
     margin_path: str = os.path.join(_plot_path, "Margin cell rearrangement.png")
