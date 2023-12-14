@@ -90,7 +90,7 @@ angle_bonds_enabled: bool = False
 # Prevent holes (especially when cell division is disabled) by giving particles a nudge away from the
 # particles they are bound to, and hence toward open space.
 space_filling_enabled: bool = True
-k_particle_diffusion: float = 25
+k_particle_diffusion: float = 1.7
 
 # Starting point of the simulation. Note that 43% is the true value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
@@ -103,14 +103,15 @@ num_spherical_positions: int = 5000
 min_neighbor_initial_distance_factor: float = 1.5
 
 # Some items for Potential- and Bond-making:
-harmonic_repulsion_spring_constant: float = 5.0
-harmonic_spring_constant: float = 12.0
-harmonic_edge_spring_constant: float = 12.0  # (for the Bonds)
-# With k=1.0: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
-# Using k=0.5 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
+harmonic_repulsion_spring_constant: float = 0.3
+harmonic_spring_constant: float = 0.8
+harmonic_edge_spring_constant: float = 0.8  # (for the Bonds)
+harmonic_yolk_evl_spring_constant: float = 2.7
+# With k=0.067: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
+# Using k=0.033 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
 # some buckling of the leading edge at the very end of certain experiments.
-# So, probably best to stick with k=1.0 and dt = 0.02.
-harmonic_angle_spring_constant: float = 1.0  # (for the Angles)
+# So, probably best to stick with k=0.067 and dt = 0.02.
+harmonic_angle_spring_constant: float = 0.067  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
 # ToDo: Maybe get rid of this entirely later? Or may try other algorithms?
@@ -128,8 +129,8 @@ class ForceAlgorithm(Enum):
 # force_target_fraction: For LINEAR, fraction of initial force to approach as circumf approaches 0
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
-yolk_cortical_tension: int = 120    # just balances interior bonds at initialization
-external_force: int = 100 if cell_division_enabled else 255  # +additional to produce full epiboly
+yolk_cortical_tension: float = 8  # just balances interior bonds at initialization
+external_force: float = 7 if cell_division_enabled else 17  # +additional to produce full epiboly
 
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
@@ -220,6 +221,7 @@ def get_state() -> dict:
                 "harmonic_repulsion_spring_constant": harmonic_repulsion_spring_constant,
                 "harmonic_spring_constant": harmonic_spring_constant,
                 "harmonic_edge_spring_constant": harmonic_edge_spring_constant,
+                "harmonic_yolk_evl_spring_constant": harmonic_yolk_evl_spring_constant,
                 "harmonic_angle_spring_constant": harmonic_angle_spring_constant,
                 "harmonic_angle_tolerance": harmonic_angle_tolerance,
                 "yolk_cortical_tension": yolk_cortical_tension,

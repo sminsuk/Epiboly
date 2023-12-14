@@ -11,13 +11,13 @@ import utils.tf_utils as tfu
 import utils.video_export as vx
 
 class LittleType(tf.ParticleTypeSpec):
-    mass = 15
+    mass = 1.0
     radius = 0.08
     dynamics = tf.Overdamped
 
 class BigType(tf.ParticleTypeSpec):
-    mass = 1000
-    radius = 3
+    mass = 70.0
+    radius = 3.0
     dynamics = tf.Overdamped
 
 # Same as LittleType, but they will have different potentials and maybe other properties.

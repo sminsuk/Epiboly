@@ -28,7 +28,7 @@ def initialize_tangent_forces() -> None:
     global _m, _b, force_enabled
     
     force_enabled = True
-    external_force: int = 0 if cfg.run_balanced_force_control else cfg.external_force
+    external_force: float = 0 if cfg.run_balanced_force_control else cfg.external_force
     total_force_start: float = cfg.yolk_cortical_tension + external_force
     initial_force_circumference_ratio: float = total_force_start / epu.leading_edge_circumference()
     force_algorithm: cfg.ForceAlgorithm = cfg.force_algorithm

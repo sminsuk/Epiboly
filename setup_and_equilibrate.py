@@ -293,7 +293,7 @@ def setup_global_potentials() -> None:
     #
     # Large-small: originally max = equilibrium distance = sum of radii (for only repulsion), but then
     # expanded max to include attraction for the purposes of bringing particles down to the surface.
-    big_small_pot = tf.Potential.harmonic(k=40,
+    big_small_pot = tf.Potential.harmonic(k=cfg.harmonic_yolk_evl_spring_constant,
                                           r0=g.Big.radius + g.Little.radius,
                                           min=0.275,
                                           max=5)
