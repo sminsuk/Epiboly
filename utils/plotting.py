@@ -561,10 +561,11 @@ def _show_straightness() -> None:
     _straightness.append(beeline_path_length / path_length)
     
     # ToDo: do this vs phi so that it's easier to see "when" it gets straight. Epiboly position = time!
-    straightness_ax.plot(_timesteps, _straightness, "b.")
+    straightness_ax.set_ylim(0.94, 1.001)  # Sometimes goes a little lower; this is usually good enough
+    straightness_ax.plot(_timesteps, _straightness, ".-b")
     
     # save
-    straightness_path: str = os.path.join(_plot_path, "Straightness Index of leading edge.png")
+    straightness_path: str = os.path.join(_plot_path, "Straightness Index of EVL margin.png")
     straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
     plt.close(straightness_fig)
     
@@ -685,7 +686,7 @@ def show_graphs(end: bool = False) -> None:
         _init_graphs()
 
     # Don't need to add to the graphs every timestep.
-    simtime_interval: float = 2
+    simtime_interval: float = 4
     timestep_interval: int = round(simtime_interval / cfg.dt)
     if _timestep % timestep_interval == 0 or end:
         _show_progress_graph(end)
