@@ -69,7 +69,7 @@ events.initialize_master_event()
 if not cfg.initialization_directory_name:
     vx.init_camera_data()
     
-    setup.initialize_embryo()
+    setup.initialize_embryo_with_margin_discovery()
     cd.initialize_division_rate_tracking()
     mt.initialize_tangent_forces()
     

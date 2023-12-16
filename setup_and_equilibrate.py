@@ -13,6 +13,7 @@ import config as cfg
 
 from biology import bond_maintenance as bonds
 from control_flow import events
+import neighbors as nbrs
 from utils import tf_utils as tfu,\
     epiboly_utils as epu,\
     global_catalogs as gc,\
@@ -99,6 +100,52 @@ def initialize_full_sphere_evl_cells() -> None:
     # print("scaling (and converting to list) takes:", scaled_time - filtered_time, "seconds")
     # print("filtering/scaling/converting all together take:", scaled_time - random_points_time, "seconds")
     # print("instantiating takes:", finished - scaled_time, "seconds")
+
+def find_leading_edge() -> None:
+    """Figure out which particles should be the leading edge, and change their type"""
+    def propagate(p: tf.ParticleHandle) -> None:
+        """Recursively make this particle leading edge, then find its neighbors that should be"""
+        p.become(g.LeadingEdge)
+        p.style.color = g.LeadingEdge.style.color
+        
+        bonded_neighbors: list[tf.ParticleHandle]
+        bonded_neighbors = nbrs.get_ordered_bonded_neighbors(p)
+        assert len(bonded_neighbors) > 1, "Having trouble finding neighbors"
+        
+        # List of neighbors sweeps from one side of vegetalward to the other, so the ones we
+        # want are the first and last items in the list.
+        n1: tf.ParticleHandle = bonded_neighbors[0]
+        n2: tf.ParticleHandle = bonded_neighbors[-1]
+        if n1.type() != g.LeadingEdge:
+            propagate(n1)
+        elif n2.type() != g.LeadingEdge:
+            propagate(n2)
+        # Recursion end condition is when the particle is already flanked by two LeadingEdge particles.
+
+    # Find the vegetalmost particle; this will be our first leading edge particle
+    vegetalmost: tf.ParticleHandle = max(g.Little.items(), key=epu.embryo_phi)
+    propagate(vegetalmost)
+    
+    # Now break and remake all the bonds between the leading edge particles,
+    # so that they'll use the right spring constant.
+    bhandle: tf.BondHandle
+    for bhandle in tf.BondHandle.items():
+        p1: tf.ParticleHandle
+        p2: tf.ParticleHandle
+        p1, p2 = bhandle.parts
+        if p1.type() == p2.type() == g.LeadingEdge:
+            gc.destroy_bond(bhandle)
+            bonds.make_bond(p1, p2)
+
+def filter_evl_to_animal_cap_phi(leading_edge_phi: float) -> None:
+    """Filter to include only the ones above where the leading edge will be."""
+    phandle: tf.ParticleHandle
+    vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
+                                                  if epu.embryo_phi(phandle) > leading_edge_phi]
+    for phandle in vegetal_particles:
+        gc.destroy_particle(phandle)
+    
+    print(f"{len(g.Little.items())} particles remaining")
 
 def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
     """Filter to include only the ones above where the ring will be."""
@@ -319,6 +366,31 @@ def setup_global_potentials() -> None:
     # big_small_pot.plot(potential=True, force=True, ymin=-1e2, ymax=1e2)
     # small_small_repulsion.plot(potential=True, force=True, ymin=-0.1, ymax=0.01)
     
+def initialize_embryo_with_margin_discovery() -> None:
+    """Just create all internal particles; then run an algorithm to figure out which ones should be designated edge"""
+    setup_global_potentials()
+    show_equilibrating_message()
+
+    big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
+    big_particle.frozen = True
+    
+    # Where the edge should go
+    leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cfg.epiboly_initial_percentage)
+    
+    initialize_full_sphere_evl_cells()
+    screenshot_true_zero()
+    initialize_export_tasks()
+
+    equilibrate(100)
+    filter_evl_to_animal_cap_phi(leading_edge_phi)
+
+    # This last bit, quite long, removes most of the particle overlap as shown by the tension graphs at T=0
+    equilibrate(400)
+
+    add_interior_bonds()
+    find_leading_edge()
+    initialize_leading_edge_bending_resistance()
+
 def initialize_embryo() -> None:
     """Based on the experiments done in alt_initialize_embryo(), but with the development scaffolding removed
     
