@@ -16,7 +16,7 @@ import neighbors as nbrs
 def is_edge_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> bool:
     return p1.type_id == p2.type_id == g.LeadingEdge.id
 
-def _make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
+def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
     """Return a potential tailored to these 2 particles
     
     [generates no force because r0 = their current distance.]
@@ -58,7 +58,7 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
                                                       min_neighbors=additional_neighbors_needed,
                                                       min_distance=cfg.min_neighbor_initial_distance_factor)
     for neighbor in neighbors:
-        _make_bond(neighbor, phandle, verbose)
+        make_bond(neighbor, phandle, verbose)
         
     assert len(phandle.bonded_neighbors) >= cfg.min_neighbor_count, \
         "Failed particle bonding: particle can't find enough nearby neighbors to bond to."
@@ -547,7 +547,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # You can always find a non-bonded neighbor.
             return 0
         if accept(p, making_particle=other_p):
-            _make_bond(p, other_p, verbose=False)
+            make_bond(p, other_p, verbose=False)
             return 1
         return 0
     
@@ -578,7 +578,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
 
         if accept(p, making_particle, breaking_particle):
             gc.destroy_bond(bhandle)
-            _make_bond(p, making_particle, verbose=False)
+            make_bond(p, making_particle, verbose=False)
             return 1
         return 0
 
@@ -718,7 +718,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         
         if accept(neighbor1, making_particle=neighbor2, becoming=True):
             # test_ring_is_fubar()
-            _make_bond(neighbor1, neighbor2, verbose=False)
+            make_bond(neighbor1, neighbor2, verbose=False)
             p.become(g.Little)
             p.style.color = g.Little.style.color
             p.style.visible = gc.visibility_state

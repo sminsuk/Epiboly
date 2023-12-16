@@ -7,6 +7,7 @@ from statistics import fmean
 
 import tissue_forge as tf
 import epiboly_globals as g
+import utils.tf_utils as tfu
 
 # parking place for some cumulative measures that other modules can write to, and read from:
 # Keep track of movement of EVL cells into and out of the leading edge:
@@ -50,6 +51,11 @@ def embryo_coords(p: tf.fVector3 | tf.ParticleHandle) -> tuple[float, float]:
     
     return theta, phi
 
+def vegetalward(p: tf.ParticleHandle) -> tf.fVector3:
+    """Return a unit vector pointing in the vegetalward direction from particle p"""
+    theta, phi = embryo_coords(p)
+    return tf.fVector3(tfu.cartesian_from_spherical([1, theta, phi + np.pi / 2]))
+    
 def leading_edge_max_phi() -> float:
     """phi of the most progressed leading edge particle"""
     return max([embryo_phi(particle) for particle in g.LeadingEdge.items()])

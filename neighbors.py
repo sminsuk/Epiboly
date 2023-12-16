@@ -6,6 +6,7 @@ import time
 import tissue_forge as tf
 import epiboly_globals as g
 import config as cfg
+import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
 
 def getBondedNeighbors(p: tf.ParticleHandle) -> tf.ParticleList:
@@ -148,13 +149,20 @@ def bonded_neighbors_of_types(p: tf.ParticleHandle, ptypes: list[tf.ParticleType
 def count_neighbors_of_types(p: tf.ParticleHandle, ptypes: list[tf.ParticleType]) -> int:
     return len(bonded_neighbors_of_types(p, ptypes))
 
-def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
-                                 extra_neighbor: tf.ParticleHandle = None) -> list[tf.ParticleHandle]:
-    """Get bonded neighbors, ordered according to their relative angles, so that iterating over the result
-    would trace a simple closed polygon around particle p
+def get_ordered_neighbors_and_angles(p: tf.ParticleHandle,
+                                     neighbors: tf.ParticleList | list[tf.ParticleHandle]
+                                     ) -> list[tuple[tf.ParticleHandle, float]]:
+    """Return a sorted list of neighbors and angles (relative to a reference vector)
     
-    extra_neighbor: a particle not currently bonded, but for which a bond might be created. So that we
-        can get its order relative to the existing bonds.
+    Returned list is sorted in order of those relative angles, so that iterating over the result would trace
+    a simple closed polygon around particle p.
+    
+    Uses the vegetalward direction from p as the reference vector. Therefore, the returned list starts with the most
+    vegetalward neighbor on one side of vertical, and ends with the most vegetalward neighbor on the other side.
+    
+    neighbors: list of neighbors to sort (really any set of particles, not including p)
+    return: list of tuples, in which the first element is the neighbor, and the second element is the angle that
+        neighbor forms with the vegetalward direction, in the range [0..2pi).
     """
     
     def disambiguate(original_angles: list[float],
@@ -196,22 +204,11 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
                                          for i, theta in enumerate(original_angles)]
         return corrected_angles
 
-    neighbors: tf.ParticleList = getBondedNeighbors(p)
-    neighbors_id_list = [neighbor.id for neighbor in neighbors]   # #### Until next release lets me fix the following
-    if extra_neighbor:
-        # doesn't work (until next release?)
-        # assert extra_neighbor not in neighbors, f"Extra neighbor id={extra_neighbor.id} is already bonded"
-        # Try this instead:
-        assert extra_neighbor.id not in neighbors_id_list, f"Extra neighbor id={extra_neighbor.id} is already bonded"
-        neighbors.insert(extra_neighbor)
-        
-    if len(neighbors) < 4:
-        # It does not matter what order you traverse these. The existing order is fine.
-        return list(neighbors)
-
-    neighbor_unit_vectors: list[tf.fVector3] = [(position - p.position).normalized()
-                                                for position in neighbors.positions]
-    reference_vector: tf.fVector3 = neighbor_unit_vectors[0]
+    neighbor: tf.ParticleHandle
+    neighbor_unit_vectors: list[tf.fVector3] = [(neighbor.position - p.position).normalized()
+                                                for neighbor in neighbors]
+    reference_vector: tf.fVector3 = epu.vegetalward(p)
+    
     # Note: speed-ups I tried, all skipping the function call and doing the work right here instead:
     # 1) control: do it here with a single list comprehension (just no func call overhead);
     # 2) just get the dotprods in a list comprehension, then pass the list to numpy.arccos;
@@ -232,7 +229,46 @@ def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
     neighbors_and_angles_to_reference: list[tuple[tf.ParticleHandle, float]] = list(zip(neighbors, corrected_angles))
     sorted_tuples: list[tuple[tf.ParticleHandle, float]] = sorted(neighbors_and_angles_to_reference,
                                                                   key=lambda tup: tup[1])
-    return [tup[0] for tup in sorted_tuples]
+    return sorted_tuples
+
+def get_ordered_bonded_neighbors_and_angles(p: tf.ParticleHandle,
+                                            extra_neighbor: tf.ParticleHandle = None
+                                            ) -> list[tuple[tf.ParticleHandle, float]]:
+    """Get bonded neighbors of p, and their angles (relative to a reference vector), sorted on those angles
+    
+    Calls get_ordered_neighbors_and_angles(); see that function for details.
+    Selects specifically the bonded neighbors of p (plus extra_neighbor) to sort.
+    
+    extra_neighbor: a particle not currently bonded to p, but for which a bond might be created. So that we
+        can get its order relative to the existing bonds.
+    return: list of tuples, in which the first element is the neighbor (all bonded neighbors, plus extra_neighbor),
+        and the second element is the angle that neighbor forms with the vegetalward direction, in the range [0..2pi).
+    """
+    neighbors: tf.ParticleList = getBondedNeighbors(p)
+    if extra_neighbor:
+        assert extra_neighbor not in neighbors, f"Extra neighbor id={extra_neighbor.id} is already bonded"
+        neighbors.insert(extra_neighbor)
+        
+    return get_ordered_neighbors_and_angles(p, neighbors)
+
+def get_ordered_bonded_neighbors(p: tf.ParticleHandle,
+                                 extra_neighbor: tf.ParticleHandle = None
+                                 ) -> list[tf.ParticleHandle]:
+    """Get bonded neighbors of p, ordered according to their relative angles
+    
+    Pass-through. See get_ordered_bonded_neighbors_and_angles() for details. From the result, discards
+    the angles and just returns the neighbors.
+    
+    extra_neighbor: a particle not currently bonded to p, but for which a bond might be created. So that we
+        can get its order relative to the existing bonds.
+    return: sorted list of neighbors
+    """
+    # pass-through, get the ordered list of neighbors, and their angles from vegetalward
+    neighbors_and_angles: list[tuple[tf.ParticleHandle, float]]
+    neighbors_and_angles = get_ordered_bonded_neighbors_and_angles(p, extra_neighbor)
+    
+    # Return only the neighbor particles
+    return [tup[0] for tup in neighbors_and_angles]
 
 def paint_neighbors():
     """Test of neighbors() functionality by painting neighbors different colors"""
