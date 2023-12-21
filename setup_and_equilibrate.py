@@ -363,7 +363,12 @@ def setup_global_potentials() -> None:
     
 def find_boundary() -> None:
     """Boundary cells are those above the line that are bonded to any below the line"""
-    # To get the right leading edge location, take the configured position, and use a line one cell radius below that
+    # Call this once, just to display the value of leading edge phi where we want the edge cells to actually be
+    epu.phi_for_epiboly(epiboly_percentage=cfg.epiboly_initial_percentage)
+    
+    # Call it again with a value one cell radius below that, to get the value of phi to use
+    # for separating those cells (the "inner boundary" of the subgraph) from the ones bonded to
+    # (the "outer boundary" of the subgraph).
     radius_as_percentage: float = 50 * g.Little.radius / g.Big.radius
     cutoff_line: float = cfg.epiboly_initial_percentage + radius_as_percentage
     leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cutoff_line)
