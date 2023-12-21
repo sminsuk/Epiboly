@@ -645,7 +645,7 @@ def _show_forces() -> None:
     forces_fig.savefig(forces_path, transparent=False, bbox_inches="tight")
     plt.close(forces_fig)
 
-def _show_progress_graph(end: bool) -> None:
+def _show_progress_graph() -> None:
     progress_fig: Figure
     progress_ax: Axes
     
@@ -667,11 +667,6 @@ def _show_progress_graph(end: bool) -> None:
     progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
     plt.close(progress_fig)
 
-    if end:
-        suffix: str = f"; Timestep = {_timestep}"
-        newfilepath: str = os.path.join(_plot_path, filename + suffix + ".png")
-        os.rename(filepath, newfilepath)
-
 def show_graphs(end: bool = False) -> None:
     global _timestep
     
@@ -690,7 +685,7 @@ def show_graphs(end: bool = False) -> None:
     simtime_interval: float = 4
     timestep_interval: int = round(simtime_interval / cfg.dt)
     if _timestep % timestep_interval == 0 or end:
-        _show_progress_graph(end)
+        _show_progress_graph()
         _show_bond_counts()
         _show_forces()
         _show_straightness()
