@@ -19,6 +19,9 @@ from utils import tf_utils as tfu,\
     plotting as plot
 from utils import video_export as vx
 
+# Value depends on setup method being used. Module main needs this for certain timing
+equilibration_time: int = 0
+
 def initialize_full_sphere_evl_cells() -> None:
     """Setup what will be the interior particles, but covering the entire sphere.
     
@@ -100,6 +103,16 @@ def initialize_full_sphere_evl_cells() -> None:
     # print("filtering/scaling/converting all together take:", scaled_time - random_points_time, "seconds")
     # print("instantiating takes:", finished - scaled_time, "seconds")
 
+def filter_evl_to_animal_cap_phi(leading_edge_phi: float) -> None:
+    """Filter to include only the ones above where the leading edge will be."""
+    phandle: tf.ParticleHandle
+    vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
+                                                  if epu.embryo_phi(phandle) > leading_edge_phi]
+    for phandle in vegetal_particles:
+        gc.destroy_particle(phandle)
+    
+    print(f"{len(g.Little.items())} particles remaining")
+
 def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
     """Filter to include only the ones above where the ring will be."""
     phandle: tf.ParticleHandle
@@ -117,6 +130,35 @@ def add_interior_bonds():
         bonds.make_all_bonds(particle)
     
     print(f"Created {len(tf.BondHandle.items())} bonds.")
+
+def remove_edge_bonds() -> None:
+    # Break any bonds between two leading edge particles. (They have non-edge spring constants, so
+    # they need to be re-made. Plus the connection topology is arbitrary and we need to control that.)
+    bhandle: tf.BondHandle
+    for bhandle in tf.BondHandle.items():
+        p1: tf.ParticleHandle
+        p2: tf.ParticleHandle
+        p1, p2 = bhandle.parts
+        if p1.type() == p2.type() == g.LeadingEdge:
+            gc.destroy_bond(bhandle)
+
+def create_edge_bonds() -> None:
+    """Make bonds between adjacent leading edge particles.
+    
+    Note: any existing bonds between any pair of edge particles should be removed before this is called.
+    """
+    print("Bonding leading edge particles.")
+    
+    # Sort all the leading edge particles on theta, into a new list (copy, not live)
+    sorted_particles: list[tf.ParticleHandle] = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
+    
+    # Now they can just be bonded in the order in which they are in the list
+    particle: tf.ParticleHandle
+    previous_particle: tf.ParticleHandle = sorted_particles[-1]  # last one
+    for particle in sorted_particles:
+        # Make bonds with appropriate spring constant
+        bonds.make_bond(particle, previous_particle)
+        previous_particle = particle
 
 def initialize_bonded_edge():
     def create_ring():
@@ -154,33 +196,33 @@ def initialize_bonded_edge():
             phandle.style.color = g.LeadingEdge.style.color
             gc.add_particle(phandle)
     
-    def create_bonds():
-        print("Bonding ring particles.")
-        
-        # Use for each of the bonds we'll create here
-        r0 = g.LeadingEdge.radius * 2
-        small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
-                                                              k=cfg.harmonic_edge_spring_constant,
-                                                              min=r0,
-                                                              max=cfg.max_potential_cutoff
-                                                              )
-        # plot:
-        # small_small_attraction_bonded.plot(potential=True, force=True, ymin=-0.001, ymax=0.01, min=0.28, max=0.34)
-
-        # Sort all the new particles on theta, into a new list (copy, not live)
-        sorted_particles = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
-        
-        # Now they can just be bonded in the order in which they are in the list
-        previous_particle = sorted_particles[-1]  # last one
-        for particle in sorted_particles:
-            # print("binding particles with thetas:",
-            #       math.degrees(theta(previous_particle)),
-            #       math.degrees(theta(particle)))
-            gc.create_bond(small_small_attraction_bonded, previous_particle, particle)
-            previous_particle = particle
-            
+    # def create_bonds():
+    #     print("Bonding ring particles.")
+    #
+    #     # Use for each of the bonds we'll create here
+    #     r0 = g.LeadingEdge.radius * 2
+    #     small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
+    #                                                           k=cfg.harmonic_edge_spring_constant,
+    #                                                           min=r0,
+    #                                                           max=cfg.max_potential_cutoff
+    #                                                           )
+    #     # plot:
+    #     # small_small_attraction_bonded.plot(potential=True, force=True, ymin=-0.001, ymax=0.01, min=0.28, max=0.34)
+    #
+    #     # Sort all the new particles on theta, into a new list (copy, not live)
+    #     sorted_particles = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
+    #
+    #     # Now they can just be bonded in the order in which they are in the list
+    #     previous_particle = sorted_particles[-1]  # last one
+    #     for particle in sorted_particles:
+    #         # print("binding particles with thetas:",
+    #         #       math.degrees(theta(previous_particle)),
+    #         #       math.degrees(theta(particle)))
+    #         gc.create_bond(small_small_attraction_bonded, previous_particle, particle)
+    #         previous_particle = particle
+    #
     create_ring()
-    create_bonds()
+    create_edge_bonds()
 
 def initialize_leading_edge_bending_resistance() -> None:
     """Add Angles to the leading edge, to keep it straight
@@ -319,29 +361,106 @@ def setup_global_potentials() -> None:
     # big_small_pot.plot(potential=True, force=True, ymin=-1e2, ymax=1e2)
     # small_small_repulsion.plot(potential=True, force=True, ymin=-0.1, ymax=0.01)
     
+def find_boundary() -> None:
+    """Boundary cells are those above the line that are bonded to any below the line"""
+    # To get the right leading edge location, take the configured position, and use a line one cell radius below that
+    radius_as_percentage: float = 50 * g.Little.radius / g.Big.radius
+    cutoff_line: float = cfg.epiboly_initial_percentage + radius_as_percentage
+    leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cutoff_line)
+    
+    # Find the boundary particles and make them leading edge
+    p: tf.ParticleHandle
+    neighbor: tf.ParticleHandle
+    for p in g.Little.items():
+        if epu.embryo_phi(p) < leading_edge_phi:
+            if any([epu.embryo_phi(neighbor) >= leading_edge_phi for neighbor in p.bonded_neighbors]):
+                p.become(g.LeadingEdge)
+                p.style.color = g.LeadingEdge.style.color
+                
+    # Delete all the particles below the leading edge
+    filter_evl_to_animal_cap_phi(leading_edge_phi)
+    
+    # Now make bonds between adjacent leading edge particles (replacing any existing edge-edge bonds)
+    remove_edge_bonds()
+    create_edge_bonds()
+    
 def initialize_embryo() -> None:
-    """Based on the experiments done in alt_initialize_embryo(), but with the development scaffolding removed
+    """Initialize all particles and bonds
     
-    Compared to my previous method, a new approach, start all tension-generating forces at once:
-    
-    Unfreeze the ring before adding any interior bonds, and let it equilibrate for 10; also, don't add the Angle bonds
-    until after this equilibration is over.
-    
-    Then add the bonds and angles, and start the bond update rules, as well as the external force, all at the same time,
-    with no intervening equilibration. (I.e., add the bonds, then segue directly into the sim proper.)
+    Intended to run from main, but can also run the method of choice from the development code down below.
+    To get a movie of just this alone, set cfg.show_equilibration=True and cfg.windowed_mode=False, then
+    tweak sim_finished() (in main.py) to end the simulation after setup.equilibration_time + 1.
+    (1 extra timestep needed in order to capture changes in particles and bonds after the final equilibration)
     
     Note that the equilibration times at each step are highly trial-and-error, and each one sets the context for
     the subsequent steps, so these are all infinitely tweakable. These, along with number of particles (see
     num_spherical_positions) and size of particles, determine the final outcome of equilibration.
     
-    Intended to run from main, but can also run from the development code down below.
-    To get a movie of just this alone, set cfg.show_equilibration=True and cfg.windowed_mode=False.
-    
-    Note that at the end of this process, the sheet is unstable, because once bonds are added, they need
-    to be balanced by yolk cortical tension, which is not applied until the sim proper begins. To see the
-    stable state where yolk cortical tension has been added but no additional force to drive epiboly,
-    set cfg.external_force to 0, and run the full sim from main.
+    Note that at the end of this process, the sheet is unstable, because once there is a bonded network with an
+    edge, it's under tension, which needs to be balanced by yolk cortical tension, which is not applied until the
+    sim proper begins. To see the stable state where yolk cortical tension has been added but no additional force
+    to drive epiboly, set cfg.run_balanced_force_control to True, and run the full sim from main.
     """
+    if cfg.initialization_algo_graph_based:
+        initialize_embryo_with_graph_boundary()
+    else:
+        initialize_embryo_with_config()
+
+def initialize_embryo_with_graph_boundary() -> None:
+    """Discover leading edge of particles using graph theory definition of 'boundary'
+    
+    i.e.: https://en.wikipedia.org/wiki/Boundary_(graph_theory)
+    
+    Compared to my previous method, the number of leading edge cells is no longer arbitrary, no longer
+    specified with a config variable, and no longer created separately as a ring before adding the internal
+    particles above that. Instead, set up a layer of particles, and then discover which ones should
+    be designated as the edge. And, instead of creating a sphere of particles and deleting the ones below the
+    desired edge before adding bonds, now we create a sphere of particles and add the bonds right away, which
+    creates a graph. This makes it easy to define a desired subset of that graph above a certain polar angle,
+    and find the boundary of that subset, which we designate as edge particles. Only then do we delete all the
+    excess particles (and bonds) below that.
+    
+    As a bonus, this is actually a simpler method of setting up, with fewer steps.
+    """
+    global equilibration_time
+    durations: list[int] = [400, 100]
+    equilibration_time = sum(durations)
+    
+    setup_global_potentials()
+    show_equilibrating_message()
+    
+    big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
+    big_particle.frozen = True
+    
+    initialize_full_sphere_evl_cells()
+    screenshot_true_zero()
+    initialize_export_tasks()
+    
+    # This equilibration, quite long, removes most of the particle overlap as shown by the tension graphs at T=0
+    equilibrate(durations[0])
+    add_interior_bonds()
+    
+    # Safe to equilibrate even though there's bonds under tension without external balancing force, because the
+    # bonded network covers the WHOLE surface. It's stable until after part of that network is removed.
+    equilibrate(durations[1])
+    
+    find_boundary()
+    initialize_leading_edge_bending_resistance()
+    
+def initialize_embryo_with_config() -> None:
+    """Older init method of arbitrarily deciding how many edge particles to have, and creating a ring of them
+    
+    Based on the experiments done in alt_initialize_embryo_with_config(), but with the development scaffolding removed
+    
+    Compared to my even older method (deleted), a better approach, start all tension-generating forces at once:
+    Unfreeze the ring before adding any interior bonds, and let it equilibrate. Then add the bonds and angles,
+    and start the bond update rules, as well as the external force, all at the same time, with no intervening
+    equilibration. (I.e., add the bonds, then segue directly into the sim proper.)
+    """
+    global equilibration_time
+    durations: list[int] = [100, 100, 100, 400]
+    equilibration_time = sum(durations)
+    
     setup_global_potentials()
     show_equilibrating_message()
     
@@ -353,12 +472,12 @@ def initialize_embryo() -> None:
     screenshot_true_zero()
     initialize_export_tasks()
     
-    equilibrate(100)
+    equilibrate(durations[0])
     freeze_leading_edge_completely()
     leading_edge_z: float = g.LeadingEdge.items()[0].position.z()
     move_ring_z(destination=9.8)
     initialize_full_sphere_evl_cells()
-    equilibrate(100)
+    equilibrate(durations[1])
     filter_evl_to_animal_cap(leading_edge_z)
     move_ring_z(destination=leading_edge_z)
     freeze_leading_edge_z()
@@ -369,18 +488,17 @@ def initialize_embryo() -> None:
     # tf.system.camera_reset()
     # tf.system.camera_zoom_to(-13)
     
-    equilibrate(100)
+    equilibrate(durations[2])
     # Repeat the filtering, to trim "escaped" interior particles that end up below the leading edge:
     filter_evl_to_animal_cap(leading_edge_z)
     
     unfreeze_leading_edge()
     
     # This last bit, quite long, removes most of the particle overlap as shown by the tension graphs at T=0
-    equilibrate(400)
+    equilibrate(durations[3])
 
     add_interior_bonds()
     initialize_leading_edge_bending_resistance()
-    # equilibrate(10)  # Now none at all for this
     
     # # ################# Test ##################
     # # Free-runnning equilibration without interior bonds.
@@ -403,7 +521,11 @@ def show() -> None:
     if not cfg.show_equilibration:
         tf.show()
     
-def alt_initialize_embryo() -> None:
+def alt_initialize_embryo_with_config() -> None:
+    global equilibration_time
+    durations: list[int] = [100, 100, 100, 400]
+    equilibration_time = sum(durations)
+    
     setup_global_potentials()
     show_equilibrating_message()
     
@@ -414,7 +536,7 @@ def alt_initialize_embryo() -> None:
     screenshot_true_zero()          # Need these? I wasn't sure when I did the big clean-up
     initialize_export_tasks()       # of this module, after not having used it in awhile.
     print("Equilibrating ring (frozen in z) (100)")
-    equilibrate(100)
+    equilibrate(durations[0])
     freeze_leading_edge_completely()
     show()  # let me examine the results
     print("Equilibrated ring, now frozen completely and moving them out of the way")
@@ -425,7 +547,7 @@ def alt_initialize_embryo() -> None:
     initialize_full_sphere_evl_cells()
     tf.show()
     print("Created full sphere of EVL cells, now letting them equilibrate (100)")
-    equilibrate(100)
+    equilibrate(durations[1])
     show()
     print("Equilibrated full sphere of EVL cells, now filtering the excess")
     filter_evl_to_animal_cap(leading_edge_z)
@@ -435,7 +557,7 @@ def alt_initialize_embryo() -> None:
     freeze_leading_edge_z()
     tf.show()
     print("Ring is back in place and unfrozen (in x and y only), now equilibrating a bit more (100)")
-    equilibrate(100)
+    equilibrate(durations[2])
     show()
     print("Equilibrated with z frozen, now re-filtering to remove escapers")
     filter_evl_to_animal_cap(leading_edge_z)
@@ -443,7 +565,7 @@ def alt_initialize_embryo() -> None:
     
     print("Removed escapers, now unfreezing and letting the edge relax (400)")
     unfreeze_leading_edge()
-    equilibrate(400)
+    equilibrate(durations[3])
     show()
     
     print("Now adding interior bonds and edge angles")
@@ -476,8 +598,9 @@ if __name__ == "__main__":
     events.execute_repeatedly(tasks=[{"invoke": show_utime}])
     
     # ***** Choose one: *****
-    alt_initialize_embryo()     # to run initialization with the ability to pause and examine each step
-    # initialize_embryo()         # run initialization without pauses, as it will play when run in the sim from main
+    alt_initialize_embryo_with_config()     # to run initialization with the ability to pause and examine each step
+    # initialize_embryo_with_config()       # run init without pauses, as it will play when run in the sim from main
+    # initialize_embryo_with_graph_boundary()     # Never created an "alt" for this one, but could if needed
     
     if cfg.show_equilibration:
         vx.make_movie()

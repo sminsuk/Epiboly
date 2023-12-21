@@ -29,6 +29,11 @@ windowed_mode: bool = False
 # for now. May need to manually adjust as appopriate.)
 dt: float = 0.1
 
+# Use newer init method (discover leading edge of particles using graph theory definition of "boundary"; as opposed
+# to the older method of arbitrarily deciding how many edge particles to have, and creating a ring of them.
+# If true, then config variable num_leading_edge_points is ignored.
+initialization_algo_graph_based: bool = True
+
 # Whether to show the equilibration steps.
 # In windowless mode, whether to include them in any exported screenshots;
 # in windowed mode, whether to show them in the simulator window (and any exported screenshots), or hide in tf.step();
@@ -96,8 +101,9 @@ k_particle_diffusion: float = 1.7
 epiboly_initial_percentage: int = 43
 
 # How many leading edge and interior cells to make (for entire sphere, prior to filtering out the ones below the edge)
+# num_leading_edge_points ignored if initialization_algo_graph_based == True
 num_leading_edge_points: int = 110
-num_spherical_positions: int = 5000
+num_spherical_positions: int = 5110 if initialization_algo_graph_based else 5000
 
 # Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5
@@ -196,6 +202,7 @@ def get_state() -> dict:
     return {"config_values": {
                 "comment": comment,
                 "dt": dt,
+                "initialization_algo_graph_based": initialization_algo_graph_based,
                 "show_equilibration": show_equilibration,
                 "sim_state_simtime_per_export": sim_state_simtime_per_export,
                 "sim_state_minutes_per_export": sim_state_minutes_per_export,

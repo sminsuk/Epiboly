@@ -560,8 +560,8 @@ def _show_straightness() -> None:
     
     _straightness.append(beeline_path_length / path_length)
     
-    # ToDo: do this vs phi so that it's easier to see "when" it gets straight. Epiboly position = time!
-    straightness_ax.set_ylim(0.94, 1.001)  # Sometimes goes a little lower; this is usually good enough
+    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
+    straightness_ax.set_ylim(0.90, 1.001)  # Sometimes goes a little lower; this is usually good enough
     straightness_ax.plot(_timesteps, _straightness, ".-b")
     
     # save
@@ -675,10 +675,11 @@ def _show_progress_graph(end: bool) -> None:
 def show_graphs(end: bool = False) -> None:
     global _timestep
     
-    if g.LeadingEdge.items()[0].frozen_z:
-        # During the z-frozen phase of equilibration, don't even increment _timestep, so that once
-        # we start graphing, it will start at time 0, representing the moment when the leading edge
-        # becomes free to move.
+    if not g.LeadingEdge.items() or g.LeadingEdge.items()[0].frozen_z:
+        # Prior to instantiating any LeadingEdge particles, or during the z-frozen phase of equilibration,
+        # don't even increment _timestep, so that once we start graphing, it will start at time 0, representing the
+        # moment when the leading edge is both present, and free to move. (Frozen/unfrozen state, and pre-/post-
+        # instantiation, refer to the initialization methods by config and by graph boundary, respectively.)
         return
 
     if not _plot_path:

@@ -72,6 +72,11 @@ def add_particle(phandle: tf.ParticleHandle) -> None:
     particles_by_id[phandle.id] = particle_values
 
 def destroy_particle(phandle: tf.ParticleHandle) -> None:
+    # If particle has any bonds, destroy them. TF would do that, but would not remove them from the catalog
+    b: tf.BondHandle
+    for b in tfu.bonds(phandle):
+        destroy_bond(b)
+        
     del particles_by_id[phandle.id]
     phandle.destroy()
 

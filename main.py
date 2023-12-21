@@ -129,10 +129,10 @@ else:
     def sim_finished() -> bool:
         # Choose one:
         
-        # Truncated run with provided duration:
-        # 700 for equilibration (fast, a couple minutes)
-        # plus more (slow; ~30 per hour on old Mac)
-        # return tf.Universe.time > 700 + 5
+        # For truncated run, uncomment this return statement and set desired duration:
+        # setup.equilibration_time accounts for equilibration; many time units (hundreds) but fast executing (minutes)
+        # plus a few more for the sim proper if desired (slow; ~30 per hour on my old Intel Mac)
+        # return tf.Universe.time > setup.equilibration_time + 5
     
         if cfg.run_balanced_force_control:
             # No epiboly should occur, so can't use epiboly progress to decide when to stop.
@@ -140,7 +140,7 @@ else:
             # Rather than trying to match the duration of the current config (which has a lot of permutations
             # after recent addition of new options), match the duration of the LONGEST-running
             # version of epiboly, which is the version with no cell division at all.
-            return tf.Universe.time > 700 + 215
+            return tf.Universe.time > setup.equilibration_time + 800
         else:
             # Full epiboly:
             return epu.leading_edge_mean_phi() > cfg.stopping_condition_phi

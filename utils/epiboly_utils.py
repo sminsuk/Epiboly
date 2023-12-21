@@ -57,13 +57,13 @@ def vegetalward(p: tf.ParticleHandle) -> tf.fVector3:
     return tf.fVector3(tfu.cartesian_from_spherical([1, theta, phi + np.pi / 2]))
     
 def leading_edge_max_phi() -> float:
-    """phi of the most progressed leading edge particle"""
-    return max([embryo_phi(particle) for particle in g.LeadingEdge.items()])
+    """phi of the most progressed leading edge particle (or 0 if there are none - i.e. before any are instantiated)"""
+    return max([embryo_phi(particle) for particle in g.LeadingEdge.items()], default=0)
 
 def leading_edge_mean_phi() -> float:
-    """mean phi for all leading edge particles"""
+    """mean phi for all leading edge particles (or 0 if there are none - i.e. before any are instantiated)"""
     phi_values = [embryo_phi(particle) for particle in g.LeadingEdge.items()]
-    return fmean(phi_values)
+    return fmean(phi_values) if phi_values else 0
 
 def leading_edge_mean_z() -> float:
     """mean z for all leading edge particles"""
