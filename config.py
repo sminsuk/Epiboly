@@ -15,10 +15,7 @@ initialization_directory_name: str = ""
 # That line at top of the export file can then be edited after the run is over to add comment on results.
 comment: str = ""
 
-# Whether to use TF windowless mode, in which the simulation is driven only by
-# tf.step() and never tf.show(), and no graphics are displayed.
-# But name this flag as a positive rather than a negative, to avoid confusing double negatives ("not windowless").
-windowed_mode: bool = False
+# -------------------- The model --------------------
 
 # Tissue Forge time increment. Tissue Forge default value is 0.01. If using a different value, consider
 # adjusting time_avg_accumulation_steps to compensate, which is defined in terms of timesteps (it counts
@@ -34,32 +31,6 @@ dt: float = 0.1
 # If true, then config variable num_leading_edge_points is ignored.
 initialization_algo_graph_based: bool = True
 
-# Whether to show the equilibration steps.
-# In windowless mode, whether to include them in any exported screenshots;
-# in windowed mode, whether to show them in the simulator window (and any exported screenshots), or hide in tf.step();
-# useful to set True during development so I can see what I'm doing; otherwise leave as False.
-show_equilibration: bool = False
-
-sim_state_export_enabled: bool = True
-
-# Number of timesteps/minutes between sim state exports.
-# (If using timestep_interval, set the value in time units; calculated timesteps will be used during execution.)
-sim_state_simtime_per_export: float = 10
-sim_state_timesteps_per_export: int = round(sim_state_simtime_per_export / dt)
-sim_state_minutes_per_export: int = 10
-
-# Sim state exports are quite large. If Using for post-processing of entire simulation, set to True
-# to retain all exports. If using only to be able to recover from premature exit, set to False to retain
-# only the most recent export and delete the rest. Export timing will use timesteps or minutes, respectively.
-sim_state_export_keep: bool = False
-
-# Number of timesteps between screenshots. Set to 0 to disable screenshot export.
-# If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
-# (Set the value in time units; calculated value in timesteps will be used during execution.)
-screenshots_simtime_per_export: float = 0.9
-screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 0 else
-                                         max(1, round(screenshots_simtime_per_export / dt)))
-
 # Cell division: whether or not, and how, and how much:
 cell_division_enabled: bool = True
 # Cell division rate parameters. See justification in docstring of cell_division.cell_division().
@@ -73,18 +44,6 @@ cell_division_cessation_percentage: int = 100
 # Spatial distribution of cell division events:
 cell_division_biased_by_tension: bool = False
 tension_squared: bool = False  # (ignored unless cell_division_biased_by_tension is True)
-
-# Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
-# (Set the value in time units; calculated value in timesteps will be used during execution.)
-plotting_interval_simtime: float = 100
-plotting_interval_timesteps: int = round(plotting_interval_simtime / dt)
-# Should certain metrics be plotted as time-averages, instead of as single timesteps?
-plot_time_averages: bool = True
-# How many timesteps? (Calculated limit will keep the value sane.)
-config_time_avg_accumulation_steps: int = 200
-time_avg_accumulation_steps: int = min(plotting_interval_timesteps - 1, config_time_avg_accumulation_steps)
-# And if so, should that also be applied to the simulation start, or just plot T0 as a single timestep?
-plot_t0_as_single_timestep: bool = True  # (ignored unless plot_time_averages is True)
 
 # Useful to turn this off while tuning setup and equilibration. When external force is artificially low,
 # and if Angle bonds too high, they cause instability and big waviness in the leading edge. (Seems fixed now.)
@@ -140,16 +99,9 @@ external_force: float = 7 if cell_division_enabled else 17  # +additional to pro
 
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
-run_balanced_force_control: bool = False
-test_recoil_without_bond_remodeling: bool = False
-test_recoil_with_bond_remodeling: bool = False  # Ignored when cell division enabled, since not meaningful in that case
-recoil_duration_without_remodeling: float = 75
-recoil_duration_with_remodeling: float = 75
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
-
-stopping_condition_phi: float = math.pi * 0.95
 
 # Bond-making. Method for when cell division disabled. (When cell division enabled, just gets nearest non-bonded
 # neighbor, which is equivalent to BOUNDED with min = max = 1, or UNIFORM with min = 1, max = 2.)
@@ -179,7 +131,7 @@ bondable_neighbors_max_candidates: int = 7
 coupled_bond_remodeling_freq: float = 0
 
 # For neighbor count criterion. Pre-energy-calculation limits.
-# (If exceeded, don't bother calculating energy, just reject the change.)
+# (If max exceeded, don't bother calculating energy, just reject the change.)
 # (min, also for initialization: ensure this constraint from beginning)
 min_neighbor_count: int = 3
 max_edge_neighbor_count: int = 3
@@ -188,6 +140,67 @@ max_edge_neighbor_count: int = 3
 target_neighbor_angle: float = math.pi / 3
 target_edge_angle: float = math.pi
 leading_edge_recruitment_limit: float = 2.0     # in number of radii
+
+# -------------------- Controlling the model --------------------
+
+run_balanced_force_control: bool = False
+
+test_recoil_without_bond_remodeling: bool = False
+test_recoil_with_bond_remodeling: bool = False  # Ignored when cell division enabled, since not meaningful in that case
+recoil_duration_without_remodeling: float = 75
+recoil_duration_with_remodeling: float = 75
+
+stopping_condition_phi: float = math.pi * 0.95
+
+# -------------------- Tissue Forge --------------------
+
+# Whether to use TF windowless mode, in which the simulation is driven only by
+# tf.step() and never tf.show(), and no graphics are displayed.
+# But name this flag as a positive rather than a negative, to avoid confusing double negatives ("not windowless").
+windowed_mode: bool = False
+
+# -------------------- Visualization of the model --------------------
+
+# Whether to show the equilibration steps.
+# In windowless mode, whether to include them in any exported screenshots;
+# in windowed mode, whether to show them in the simulator window (and any exported screenshots), or hide in tf.step();
+# useful to set True during development so I can see what I'm doing; otherwise leave as False.
+show_equilibration: bool = False
+
+# Number of timesteps between screenshots. Set to 0 to disable screenshot export.
+# If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
+# (Set the value in time units; calculated value in timesteps will be used during execution.)
+screenshots_simtime_per_export: float = 0.9
+screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 0 else
+                                         max(1, round(screenshots_simtime_per_export / dt)))
+
+# Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
+# (Set the value in time units; calculated value in timesteps will be used during execution.)
+plotting_interval_simtime: float = 100
+plotting_interval_timesteps: int = round(plotting_interval_simtime / dt)
+# Should certain metrics be plotted as time-averages, instead of as single timesteps?
+plot_time_averages: bool = True
+# How many timesteps? (Calculated limit will keep the value sane.)
+config_time_avg_accumulation_steps: int = 200
+time_avg_accumulation_steps: int = min(plotting_interval_timesteps - 1, config_time_avg_accumulation_steps)
+# And if so, should that also be applied to the simulation start, or just plot T0 as a single timestep?
+plot_t0_as_single_timestep: bool = True  # (ignored unless plot_time_averages is True)
+
+# -------------------- Data export --------------------
+
+sim_state_export_enabled: bool = True
+
+# Sim state exports are quite large. If Using for post-processing of entire simulation, set to True
+# to retain all exports. If using only to be able to recover from premature exit, set to False to retain
+# only the most recent export and delete the rest. Export timing will use timesteps or minutes, respectively.
+sim_state_export_keep: bool = False
+
+# Number of timesteps/minutes between sim state exports.
+# (If using timesteps, set the value in simulation time units (simtime_per_export); calculated
+# timesteps (timesteps_per_export) will be used during execution.)
+sim_state_simtime_per_export: float = 10
+sim_state_timesteps_per_export: int = round(sim_state_simtime_per_export / dt)
+sim_state_minutes_per_export: int = 10
 
 def get_state() -> dict:
     """generate state to be saved to disk
@@ -201,56 +214,64 @@ def get_state() -> dict:
     """
     return {"config_values": {
                 "comment": comment,
-                "dt": dt,
-                "initialization_algo_graph_based": initialization_algo_graph_based,
-                "show_equilibration": show_equilibration,
-                "sim_state_simtime_per_export": sim_state_simtime_per_export,
-                "sim_state_minutes_per_export": sim_state_minutes_per_export,
-                "sim_state_export_keep": sim_state_export_keep,
-                "screenshots_simtime_per_export": screenshots_simtime_per_export,
-                "cell_division_enabled": cell_division_enabled,
-                "calibrate_division_rate_to_timesteps": calibrate_division_rate_to_timesteps,
-                "total_epiboly_divisions": total_epiboly_divisions,
-                "cell_division_cessation_percentage": cell_division_cessation_percentage,
-                "cell_division_biased_by_tension": cell_division_biased_by_tension,
-                "tension_squared": tension_squared,
-                "plotting_interval_simtime": plotting_interval_simtime,
-                "plot_time_averages": plot_time_averages,
-                "config_time_avg_accumulation_steps": config_time_avg_accumulation_steps,
-                "plot_t0_as_single_timestep": plot_t0_as_single_timestep,
-                "angle_bonds_enabled": angle_bonds_enabled,
-                "space_filling_enabled": space_filling_enabled,
-                "k_particle_diffusion": k_particle_diffusion,
-                "epiboly_initial_percentage": epiboly_initial_percentage,
-                "num_leading_edge_points": num_leading_edge_points,
-                "num_spherical_positions": num_spherical_positions,
-                "min_neighbor_initial_distance_factor": min_neighbor_initial_distance_factor,
-                "harmonic_repulsion_spring_constant": harmonic_repulsion_spring_constant,
-                "harmonic_spring_constant": harmonic_spring_constant,
-                "harmonic_edge_spring_constant": harmonic_edge_spring_constant,
-                "harmonic_yolk_evl_spring_constant": harmonic_yolk_evl_spring_constant,
-                "harmonic_angle_spring_constant": harmonic_angle_spring_constant,
-                "harmonic_angle_tolerance": harmonic_angle_tolerance,
-                "yolk_cortical_tension": yolk_cortical_tension,
-                "external_force": external_force,
-                "force_algorithm": force_algorithm.name,
-                "force_target_fraction": force_target_fraction,
-                "run_balanced_force_control": run_balanced_force_control,
-                "test_recoil_without_bond_remodeling": test_recoil_without_bond_remodeling,
-                "test_recoil_with_bond_remodeling": test_recoil_with_bond_remodeling,
-                "recoil_duration_without_remodeling": recoil_duration_without_remodeling,
-                "recoil_duration_with_remodeling": recoil_duration_with_remodeling,
-                "max_potential_cutoff": max_potential_cutoff,
-                "stopping_condition_phi": stopping_condition_phi,
-                "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
-                "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
-                "bondable_neighbors_max_candidates": bondable_neighbors_max_candidates,
-                "coupled_bond_remodeling_freq": coupled_bond_remodeling_freq,
-                "min_neighbor_count": min_neighbor_count,
-                "max_edge_neighbor_count": max_edge_neighbor_count,
-                "target_neighbor_angle": target_neighbor_angle,
-                "target_edge_angle": target_edge_angle,
-                "leading_edge_recruitment_limit": leading_edge_recruitment_limit
+                "model": {
+                        "dt": dt,
+                        "initialization_algo_graph_based": initialization_algo_graph_based,
+                        "cell_division_enabled": cell_division_enabled,
+                        "calibrate_division_rate_to_timesteps": calibrate_division_rate_to_timesteps,
+                        "total_epiboly_divisions": total_epiboly_divisions,
+                        "cell_division_cessation_percentage": cell_division_cessation_percentage,
+                        "cell_division_biased_by_tension": cell_division_biased_by_tension,
+                        "tension_squared": tension_squared,
+                        "angle_bonds_enabled": angle_bonds_enabled,
+                        "space_filling_enabled": space_filling_enabled,
+                        "k_particle_diffusion": k_particle_diffusion,
+                        "epiboly_initial_percentage": epiboly_initial_percentage,
+                        "num_leading_edge_points": num_leading_edge_points,
+                        "num_spherical_positions": num_spherical_positions,
+                        "min_neighbor_initial_distance_factor": min_neighbor_initial_distance_factor,
+                        "harmonic_repulsion_spring_constant": harmonic_repulsion_spring_constant,
+                        "harmonic_spring_constant": harmonic_spring_constant,
+                        "harmonic_edge_spring_constant": harmonic_edge_spring_constant,
+                        "harmonic_yolk_evl_spring_constant": harmonic_yolk_evl_spring_constant,
+                        "harmonic_angle_spring_constant": harmonic_angle_spring_constant,
+                        "harmonic_angle_tolerance": harmonic_angle_tolerance,
+                        "yolk_cortical_tension": yolk_cortical_tension,
+                        "external_force": external_force,
+                        "force_algorithm": force_algorithm.name,
+                        "force_target_fraction": force_target_fraction,
+                        "max_potential_cutoff": max_potential_cutoff,
+                        "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
+                        "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
+                        "bondable_neighbors_max_candidates": bondable_neighbors_max_candidates,
+                        "coupled_bond_remodeling_freq": coupled_bond_remodeling_freq,
+                        "min_neighbor_count": min_neighbor_count,
+                        "max_edge_neighbor_count": max_edge_neighbor_count,
+                        "target_neighbor_angle": target_neighbor_angle,
+                        "target_edge_angle": target_edge_angle,
+                        "leading_edge_recruitment_limit": leading_edge_recruitment_limit,
+                        },
+                "model control": {
+                        "run_balanced_force_control": run_balanced_force_control,
+                        "test_recoil_without_bond_remodeling": test_recoil_without_bond_remodeling,
+                        "test_recoil_with_bond_remodeling": test_recoil_with_bond_remodeling,
+                        "recoil_duration_without_remodeling": recoil_duration_without_remodeling,
+                        "recoil_duration_with_remodeling": recoil_duration_with_remodeling,
+                        "stopping_condition_phi": stopping_condition_phi,
+                        },
+                "visualization": {
+                        "show_equilibration": show_equilibration,
+                        "screenshots_simtime_per_export": screenshots_simtime_per_export,
+                        "plotting_interval_simtime": plotting_interval_simtime,
+                        "plot_time_averages": plot_time_averages,
+                        "config_time_avg_accumulation_steps": config_time_avg_accumulation_steps,
+                        "plot_t0_as_single_timestep": plot_t0_as_single_timestep,
+                        },
+                "data export": {
+                        "sim_state_simtime_per_export": sim_state_simtime_per_export,
+                        "sim_state_minutes_per_export": sim_state_minutes_per_export,
+                        "sim_state_export_keep": sim_state_export_keep,
+                        },
                 },
             "derived_values": {
                 "sim_state_timesteps_per_export": sim_state_timesteps_per_export,
