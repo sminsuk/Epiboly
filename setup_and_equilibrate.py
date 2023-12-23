@@ -196,31 +196,6 @@ def initialize_bonded_edge():
             phandle.style.color = g.LeadingEdge.style.color
             gc.add_particle(phandle)
     
-    # def create_bonds():
-    #     print("Bonding ring particles.")
-    #
-    #     # Use for each of the bonds we'll create here
-    #     r0 = g.LeadingEdge.radius * 2
-    #     small_small_attraction_bonded = tf.Potential.harmonic(r0=r0,
-    #                                                           k=cfg.harmonic_edge_spring_constant,
-    #                                                           min=r0,
-    #                                                           max=cfg.max_potential_cutoff
-    #                                                           )
-    #     # plot:
-    #     # small_small_attraction_bonded.plot(potential=True, force=True, ymin=-0.001, ymax=0.01, min=0.28, max=0.34)
-    #
-    #     # Sort all the new particles on theta, into a new list (copy, not live)
-    #     sorted_particles = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
-    #
-    #     # Now they can just be bonded in the order in which they are in the list
-    #     previous_particle = sorted_particles[-1]  # last one
-    #     for particle in sorted_particles:
-    #         # print("binding particles with thetas:",
-    #         #       math.degrees(theta(previous_particle)),
-    #         #       math.degrees(theta(particle)))
-    #         gc.create_bond(small_small_attraction_bonded, previous_particle, particle)
-    #         previous_particle = particle
-    #
     create_ring()
     create_edge_bonds()
 
