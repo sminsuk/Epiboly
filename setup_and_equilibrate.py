@@ -361,6 +361,19 @@ def setup_global_potentials() -> None:
     # big_small_pot.plot(potential=True, force=True, ymin=-1e2, ymax=1e2)
     # small_small_repulsion.plot(potential=True, force=True, ymin=-0.1, ymax=0.01)
     
+def remove_global_evl_potentials() -> None:
+    """Remove global potentials between EVL particles. (Leaves yolk-EVL global potentials alone.)
+    
+    The global EVL-EVL potential is repulsion only and is used to aid in equilibration during setup.
+    Once we have bonds between the particles, we don't need it anymore. (And don't want it, because we
+    need to control potential on a particle-by-particle basis.)
+    """
+    # TF doesn't actually have a way to remove a type-based potential; but each pair of types can only
+    # have one. So if you bind a new one, the old one goes away. So, replace it with one that has k=0,
+    # hence energy will always be 0, force will always be 0.
+    evl_evl_removal = tf.Potential.harmonic(r0=1, k=0)
+    replace_all_small_small_potentials(new_potential=evl_evl_removal)
+
 def find_boundary() -> None:
     """Boundary cells are those above the line that are bonded to any below the line"""
     # Call this once, just to display the value of leading edge phi where we want the edge cells to actually be
@@ -444,6 +457,7 @@ def initialize_embryo_with_graph_boundary() -> None:
     # This equilibration, quite long, removes most of the particle overlap as shown by the tension graphs at T=0
     equilibrate(durations[0])
     add_interior_bonds()
+    remove_global_evl_potentials()
     
     # Safe to equilibrate even though there's bonds under tension without external balancing force, because the
     # bonded network covers the WHOLE surface. It's stable until after part of that network is removed.
@@ -503,6 +517,7 @@ def initialize_embryo_with_config() -> None:
     equilibrate(durations[3])
 
     add_interior_bonds()
+    remove_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
     
     # # ################# Test ##################
