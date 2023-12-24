@@ -59,7 +59,6 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     the distance criterion. This is the one situation in which this function may return an empty list.
     The caller is indicating that it's okay not to find any, if there are none within min_distance.
     """
-    ptype: tf.ParticleType
     if ptypes is None:
         ptypes = [g.LeadingEdge, g.Little]
 

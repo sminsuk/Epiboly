@@ -557,7 +557,6 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         :param p: the particle that will have an existing bond broken and a new one made
         :return: number of bond pairs modified (1 or 0)
         """
-        # For now, only break and make bonds to internal particles, regardless of whether p is internal or edge
         allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
 
         # Find a bond to break
