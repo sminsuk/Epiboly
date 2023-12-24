@@ -19,6 +19,20 @@ from utils import tf_utils as tfu,\
     plotting as plot
 from utils import video_export as vx
 
+# Cell radius is distinct from PARTICLE radius. It represents the true extent of the cell, an average distance
+# from the center of mass, to the edge of the cell. Particles only represent the point center of mass, and their
+# radii are mainly for visualization (though the TF neighbor search also uses them, to define the search space).
+# Cell radius is used to determine the equilibrium distances of Potentials between EVL cells, and therefore
+# determines the effective radius: how close particles can get to one another. This allows us to decouple cell
+# size from particle size. Particles are not intended to represent cells, just their centers.
+# Note that for yolk-to-evl potentials, we'll still use particle radius. That way, the EVL doesn't have to get
+# thicker, just because the cells get larger in apical surface area. So the particles can still hug the yolk surface
+# (it would look really weird if they didn't), and we achieve a "squamous cell" effect in TF even though TF only
+# knows about spheres.
+# ToDo: change the value. Starting with it equal to particle radius for the sake of refactoring and testing.
+# ToDo: Better yet, should be able to calculate this from the desired number of cells, rather than specifying it.
+_initial_cell_radius: float = 0.08
+
 # Value depends on setup method being used. Module main needs this for certain timing
 equilibration_time: int = 0
 
@@ -89,12 +103,12 @@ def initialize_full_sphere_evl_cells() -> None:
     g.Little.factory(positions=final_positions)
     
     # Give these each a Style object so I can access them later
-    # Also add each particle to the global catalog
+    # Also assign each particle its own cell radius, and add each one to the global catalog
     phandle: tf.ParticleHandle
     for phandle in g.Little.items():
         phandle.style = tf.rendering.Style()
         phandle.style.color = g.Little.style.color
-        gc.add_particle(phandle)
+        gc.add_particle(phandle, radius=_initial_cell_radius)
     
     finished = time.perf_counter()
     # print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
@@ -189,12 +203,12 @@ def initialize_bonded_edge():
         g.LeadingEdge.factory(positions=final_positions)
         
         # Give these each a Style object so I can access them later
-        # Also add each particle to the global catalog
+        # Also assign each particle its own cell radius, and add each one to the global catalog
         phandle: tf.ParticleHandle
         for phandle in g.LeadingEdge.items():
             phandle.style = tf.rendering.Style()
             phandle.style.color = g.LeadingEdge.style.color
-            gc.add_particle(phandle)
+            gc.add_particle(phandle, radius=_initial_cell_radius)
     
     create_ring()
     create_edge_bonds()
@@ -323,7 +337,8 @@ def setup_global_potentials() -> None:
     # harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
     # applied only inside the equilibrium distance). (Attraction will be applied on a cell-by-cell
     # basis, i.e. via explicit bonds.)
-    r0 = g.LeadingEdge.radius * 2
+    # In contrast to yolk-EVL interactions, base this on cell radius, not particle radius
+    r0 = _initial_cell_radius * 2
     
     # All small particles repel each other all the time, inside r0
     small_small_repulsion = tf.Potential.harmonic(r0=r0,
@@ -357,7 +372,7 @@ def find_boundary() -> None:
     # Call it again with a value one cell radius below that, to get the value of phi to use
     # for separating those cells (the "inner boundary" of the subgraph) from the ones bonded to
     # (the "outer boundary" of the subgraph).
-    radius_as_percentage: float = 50 * g.Little.radius / g.Big.radius
+    radius_as_percentage: float = 50 * _initial_cell_radius / g.Big.radius
     cutoff_line: float = cfg.epiboly_initial_percentage + radius_as_percentage
     leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cutoff_line)
     

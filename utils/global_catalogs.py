@@ -1,26 +1,30 @@
-""" Global particle and bond data. For storing stuff that is irretrievable once created
+""" Global particle and bond data. For storing data associated with TF objects (Particles, Bonds, Angles)
 
 But, more generally, storing system state. So storing visibility here as well.
 
 Maybe put this in a class?
 Usage:
-    Note: The original uses of this structure were to store data that was not retrievable from bonds and particles
-    because of bugs in Tissue Forge. Those bugs have now been fixed. So currently these structures are not
-    storing anything useful. However, this is good working infrastructure, so I'm keeping it in place for
-    future use.
+    Note: The original uses of the Bond and Particle dictionaries were to store data that was not retrievable from
+    individual bonds and particles because of bugs in Tissue Forge. Later, once those bugs were fixed, these
+    structures were not storing anything useful. However, this was good working infrastructure, so I kept it
+    in place for future use.
     
     Angles were added later, and that was also for a bug, which likely still exists in v0.1.0. (But that one
     never needed actual content, just keys, as described below.) If those anomalous Angle bonds get fixed (prevented)
     in a future release, then won't need this for Angles.
     
+    And now the Particle dictionary has a new use: the cell_radius value that needs to be associated with each
+    particle. TF objects are not customizable in that way; you cannot give Particles (or ParticleHandles) new
+    properties. So, store the value here, and look it up when needed, by ParticleId.
+    
     Use the convenience functions below to create Bonds and Angles, and to add newly created Particles to the
-    catalog; and to destroy any of those. Alternatively:
+    catalog (or to update existing ones); and to destroy any of those. Alternatively:
     
     Whenever creating a particle / bond / angle, add it to particles_by_id / bonds_by_id / angles_by_id, respectively
     Whenever destroying a particle / bond / angle, delete it from those dicts
     
     BondData currently empty.
-    ParticleData currently empty.
+    ParticleData now contains one key, "cell_radius".
     AngleData never needed any content: the idea is to identify anomalous Angle objects created due to a
         TF bug, by the fact that they are NOT in the dict. All we really need is the keys; using id as placeholder
         value. (We'll never need to look up the value.)
@@ -37,8 +41,8 @@ import utils.tf_utils as tfu
 class BondData(TypedDict, total=False):
     dummy: int
 
-class ParticleData(TypedDict, total=False):
-    dummy: int
+class ParticleData(TypedDict, total=True):
+    cell_radius: float
 
 bonds_by_id: dict[int, BondData] = {}
 angles_by_id: dict[int, int] = {}
@@ -66,9 +70,12 @@ def destroy_angle(angle_handle: tf.AngleHandle) -> None:
     del angles_by_id[angle_handle.id]
     angle_handle.destroy()
     
-def add_particle(phandle: tf.ParticleHandle) -> None:
-    """ 'Add' rather than 'Create' because TF routines handle the creation part"""
-    particle_values: ParticleData = {}
+def add_particle(phandle: tf.ParticleHandle, radius: float) -> None:
+    """ 'Add' rather than 'Create' because TF routines handle the creation part
+    
+    This can also be used to update the stored data when the cell_radius changes.
+    """
+    particle_values: ParticleData = {"cell_radius": radius}
     particles_by_id[phandle.id] = particle_values
 
 def destroy_particle(phandle: tf.ParticleHandle) -> None:
@@ -79,16 +86,32 @@ def destroy_particle(phandle: tf.ParticleHandle) -> None:
         
     del particles_by_id[phandle.id]
     phandle.destroy()
+    
+def get_cell_radius(phandle: tf.ParticleHandle) -> float:
+    """Return cell_radius for a given particle
+    
+    ToDo maybe someday: To do this "right", I should have a get_attr() function where you pass the attribute name.
+    Then it would be general for any arbitrary attribute. But I don't want to have to type a string in the function
+    call. I would want it to be a token that the IDE recognizes and can code-complete. Would have to think about how
+    to get python to do that. If I ever have tons of different attributes to access, maybe then. Right now I
+    only have this one attribute, so this is good enough!
+    """
+    assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
+    return particles_by_id[phandle.id]["cell_radius"]
 
 def initialize_state() -> None:
     """Recreates the global catalogs based on imported data from a previous run
     
-    Currently all three dicts contain no meaninful data, but we still need to create them and fill them
+    Currently the Bond and Angle dicts contain no meaninful data, but we still need to create them and fill them
     with dummy values, so that when existing items are destroyed, their dict entries can be del'ed.
     
-    Note that imported particle ids won't be the same as when they were exported, but we don't need
-    the old ones and can simply retrieve new ones.
+    The Particle dict does contain meaningful data, but the ids are now incorrect, so we have to rebuild it.
+    Imported particle ids won't be the same as when they were exported, but TF provides a mapping that
+    will disappear at the first time step. Thus, this function MUST be called AFTER state import and BEFORE
+    any stepping.
     """
+    global particles_by_id
+    
     for bhandle in tf.BondHandle.items():
         bond_values: BondData = {}
         bonds_by_id[bhandle.id] = bond_values
@@ -96,9 +119,13 @@ def initialize_state() -> None:
     for handle in tf.AngleHandle.items():
         angles_by_id[handle.id] = handle.id
         
-    for phandle in tf.Universe.particles:
-        particle_values: ParticleData = {}
-        particles_by_id[phandle.id] = particle_values
+    # Create new dictionary with new keys mapped from the old keys; replace old dictionary with new dictionary.
+    # Note, json exported int keys are turned into strings, so we have to change them back!
+    particles_by_id = {tf.io.mapImportParticleId(int(old_key)): old_value
+                       for old_key, old_value in particles_by_id.items()}
+    
+    # mapImportParticleId() returns -1 if the old id is not found
+    assert -1 not in particles_by_id, "One or more exported ids were not found in the imported data!"
         
 def clean_state() -> None:
     """Clean out all anomalous Angle bonds at once
@@ -113,3 +140,12 @@ def clean_state() -> None:
             angle.destroy()
 
 visibility_state: bool = True
+
+def get_state() -> dict:
+    """generate state to be saved to disk"""
+    return {"particles_by_id": particles_by_id}
+
+def set_state(d: dict) -> None:
+    """Reconstitute state of module from what was saved."""
+    global particles_by_id
+    particles_by_id = d["particles_by_id"]

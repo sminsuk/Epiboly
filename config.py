@@ -62,7 +62,7 @@ epiboly_initial_percentage: int = 43
 num_leading_edge_points: int = 110
 num_spherical_positions: int = 5110 if initialization_algo_graph_based else 5000
 
-# Search for neighbors within this distance (multiple of particle radius) to set up initial bond network.
+# Search for neighbors within this distance (multiple of cell radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5
 
 # Some items for Potential- and Bond-making:
@@ -137,7 +137,9 @@ max_edge_neighbor_count: int = 3
 # For neighbor angle energy calculations
 target_neighbor_angle: float = math.pi / 3
 target_edge_angle: float = math.pi
-leading_edge_recruitment_limit: float = 2.0     # in number of radii
+
+# For controlling which internal cells can become edge (must be within this distance)
+leading_edge_recruitment_limit: float = 2.0     # in number of cell radii (not particle radii)
 
 # -------------------- Controlling the model --------------------
 

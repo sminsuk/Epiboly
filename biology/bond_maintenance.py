@@ -31,7 +31,7 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
     k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
     
     # r0: float = p1.distance(p2)
-    r0: float = 2 * g.Little.radius
+    r0: float = gc.get_cell_radius(p1) + gc.get_cell_radius(p2)
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=k,
                                                     max=cfg.max_potential_cutoff
@@ -41,7 +41,7 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
     if verbose:
         distance: float = p1.distance(p2)
         print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id},",
-              f"distance = (radius * {distance/g.Little.radius})")
+              f"distance = (particle radius * {distance/g.Little.radius})")
         # p1.style.color = tfu.gray   # testing
         # p2.style.color = tfu.white  # testing
 
@@ -769,16 +769,16 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # Hoped that algorithm improvements would make this unnecessary. Would prefer to understand the cause,
         # but we can at least prevent by a rule. Disallow recruitment if the recruited particle is too far from
         # the leading edge.
-        # (Note, currently, radii of particles are all the same. Use of mean radius was anticipating that I might
-        # change that. So far I have not.)
         leading_edge_baseline_phi: float = max(epu.embryo_phi(p), epu.embryo_phi(other_leading_edge_p))
-        mean_particle_radius: float = fmean([p.radius, other_leading_edge_p.radius, recruit.radius])
-        leading_edge_recruitment_limit_distance: float = cfg.leading_edge_recruitment_limit * mean_particle_radius
+        mean_cell_radius: float = fmean([gc.get_cell_radius(p),
+                                         gc.get_cell_radius(other_leading_edge_p),
+                                         gc.get_cell_radius(recruit)])
+        leading_edge_recruitment_limit_distance: float = cfg.leading_edge_recruitment_limit * mean_cell_radius
         # ratio of any arc's length in distance units, to the radians it represents, is always:
         # distance_to_radians_ratio =
         # full circumference of circle (i.e. 2*pi*r) / radians in a full circle (i.e. 2*pi), which = r;
         # hence if we know the distance, then the radians = distance / r
-        embryo_radius: float = g.Big.radius + mean_particle_radius
+        embryo_radius: float = g.Big.radius + g.Little.radius
         leading_edge_recruitment_limit_radians: float = leading_edge_recruitment_limit_distance / embryo_radius
         if epu.embryo_phi(recruit) < leading_edge_baseline_phi + leading_edge_recruitment_limit_radians:
             return 0, 0

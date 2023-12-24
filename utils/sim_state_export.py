@@ -69,6 +69,7 @@ def _export_additional_state(filename: str) -> None:
                          "forces": mt.get_state(),
                          "logging": logging.get_state(),
                          "plot": plot.get_state(),
+                         "catalogs": gc.get_state(),
                          }
     
     path: str = os.path.join(_state_export_path, filename)
@@ -88,6 +89,7 @@ def import_additional_state(import_path: str) -> None:
     mt.set_state(import_dict["forces"])
     vx.set_state(import_dict["video_export"])
     cfg.set_state(import_dict["config"])
+    gc.set_state(import_dict["catalogs"])
     
 def _export_state(filename: str) -> None:
     path: str = os.path.join(_state_export_path, filename)

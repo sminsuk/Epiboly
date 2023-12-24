@@ -70,8 +70,8 @@ def init_from_import() -> None:
     g.Big = tf.ParticleType_FindFromName("BigType")
     g.LeadingEdge = tf.ParticleType_FindFromName("LeadingEdgeType")
     
-    gc.initialize_state()
     state.import_additional_state(latest_extra_state_entry.path)
+    gc.initialize_state()
     
     # This init depends on the extra state import having already happened, so
     # can't be done until down here, after state.import_additional_state()

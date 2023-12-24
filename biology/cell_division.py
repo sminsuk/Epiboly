@@ -53,6 +53,10 @@ def initialize_division_rate_tracking_by_evl_area() -> None:
 
     _cell_division_cessation_phi = epu.phi_for_epiboly(epiboly_percentage=cfg.cell_division_cessation_percentage)
 
+# Todo
+#  #### This whole section should now be deprecated - as long as cells get smaller on splitting, they should always fit!
+#  #### BUT: Can I use this calculation to automate the determination of what cell radius should be for a given number
+#  #### of cells at initialization? Should be a similar calculation.
     # Calculate whether the increased area (from epiboly_initial_percentage to cell_division_cessation_percentage)
     # is enough to accommodate the requested number of particles without crowding.
     # This deals with the fact that particles have a fixed size and if density is high, adding new
@@ -84,6 +88,7 @@ def initialize_division_rate_tracking_by_evl_area() -> None:
     # Throttle to the number of particles that can fit
     print(f"Requested divisions: {cfg.total_epiboly_divisions}; capacity: {new_particle_capacity}")
     total_epiboly_divisions: int = min(cfg.total_epiboly_divisions, new_particle_capacity)
+# #### ^ End of area that's totally deprecated now ^
 
     _expected_divisions_per_height_unit = total_epiboly_divisions / evl_total_height_increase
     _evl_previous_z = epu.leading_edge_mean_z()
@@ -122,6 +127,7 @@ def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
         p2.position = yolk_phandle.position + relative_cartesian2
 
 def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
+    parent_cell_radius: float = gc.get_cell_radius(parent)
     daughter: tf.ParticleHandle = parent.split()
     parent.radius = g.Little.radius
     parent.mass = g.Little.mass
@@ -132,9 +138,9 @@ def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     
     daughter.radius = parent.radius
     daughter.mass = parent.mass
-    daughter.style = tf.rendering.Style()       # ToDo: test, is this needed, or inherits from parent?
+    daughter.style = tf.rendering.Style()       # Not inherited from parent, so create it
     daughter.style.color = tfu.lighter_blue     # for now, change it
-    gc.add_particle(daughter)
+    gc.add_particle(daughter, radius=parent_cell_radius)
     
     _adjust_positions(parent, daughter)
 

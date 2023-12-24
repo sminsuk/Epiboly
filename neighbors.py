@@ -7,6 +7,7 @@ import tissue_forge as tf
 import epiboly_globals as g
 import config as cfg
 import utils.epiboly_utils as epu
+import utils.global_catalogs as gc
 import utils.tf_utils as tfu
 
 def getBondedNeighbors(p: tf.ParticleHandle) -> tf.ParticleList:
@@ -28,12 +29,12 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     
     (Sort of the inverse of particleHandle.bonded_neighbors.)
     
-    distance_factor: search out to this multiple of particle radius
+    distance_factor: search out to this multiple of cell radius (not particle radius)
     """
     neighbors: tf.ParticleList
     non_bonded_neighbors: list[tf.ParticleHandle]
     
-    search_distance: float = distance_factor * phandle.radius
+    search_distance: float = distance_factor * gc.get_cell_radius(phandle)
     neighbors = phandle.neighbors(search_distance, ptypes)
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor not in phandle.bonded_neighbors]
@@ -47,7 +48,7 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     
     ptypes: list of allowed particle types to search for
     min_neighbors: search until at least this many are found
-    min_distance: search out to at least this multiple of radius
+    min_distance: search out to at least this multiple of radius (cell radius, not particle radius)
     Starts the search at the specified distance, and proceeds outward until the specified number of neighbors is found.
     Thus, the returned list will satisfy both minimums.
     
@@ -67,7 +68,7 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     neighbors: list[tf.ParticleHandle]
     distance_factor: float = min_distance
     # Huge maximum that should never be reached, just insurance against a weird infinite loop:
-    max_distance_factor: float = cfg.max_potential_cutoff / g.Little.radius
+    max_distance_factor: float = cfg.max_potential_cutoff / gc.get_cell_radius(phandle)
     while True:
         # Get all neighbors not already bonded to, of the specified types, within the given radius. (There may be none.)
         neighbors = get_non_bonded_neighbors(phandle, ptypes, distance_factor)
