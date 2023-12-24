@@ -33,9 +33,7 @@ initialization_algo_graph_based: bool = True
 
 # Cell division: whether or not, and how, and how much:
 cell_division_enabled: bool = True
-# Cell division rate parameters. See justification in docstring of cell_division.cell_division().
-# Calibrate either to timesteps, or to EVL area increase:
-calibrate_division_rate_to_timesteps: bool = False
+# Cell division rate parameters:
 # Approximate number of divisions to take place (the actual value will be stochastically determined):
 total_epiboly_divisions: int = 7500  # currently throttled to 3064; TBD: how much to actually use
 # The percentage of epiboly by which total_epiboly_divisions (as entered or throttled) will be
@@ -218,7 +216,6 @@ def get_state() -> dict:
                         "dt": dt,
                         "initialization_algo_graph_based": initialization_algo_graph_based,
                         "cell_division_enabled": cell_division_enabled,
-                        "calibrate_division_rate_to_timesteps": calibrate_division_rate_to_timesteps,
                         "total_epiboly_divisions": total_epiboly_divisions,
                         "cell_division_cessation_percentage": cell_division_cessation_percentage,
                         "cell_division_biased_by_tension": cell_division_biased_by_tension,

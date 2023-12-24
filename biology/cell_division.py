@@ -22,51 +22,28 @@ _expected_divisions_per_height_unit: float = 0
 _evl_previous_z: float = 0
 _cell_division_cessation_phi: float = 0
 
-# For calibrating division rate to time.
-_expected_timesteps: int = 0
-_expected_divisions_per_timestep: float = 0
-
-def initialize_division_rate_tracking() -> None:
-    """Call this once, after simulation setup and equilibration, but before any additional timesteps
+def initialize_division_rate_tracking_by_evl_area() -> None:
+    """Calibrate division rate to the changes in EVL area
     
-    Initially, used timestep calibration. Then switched to area calibration. But until it was completely
-    worked out, wanted to keep timestep calibration as an option for now.
-    (I think area calibration is now in good shape.)
+    Call this once, after simulation setup and equilibration, but before any additional timesteps
+    
+    Initially, used timestep calibration (figure out how many cell divisions per timestep, in order
+    to have the desired number by the end of the simulation). Then switched to area calibration (figure out
+    how many cell divisions for a given incremental increase in surface area of the EVL, in order to have
+    the desired number by the time the leading edge reaches a given location).
     
     Timestep calibration:
-    - isn't universal; needs magic numbers for every different case;
-    - is only approximate, because the total number of timesteps in the sim isn't known until the sim is finished;
+    - wasn't universal; needed magic numbers for every different case;
+    - was only approximate, because the total number of timesteps in the sim isn't known until the sim is finished;
     
     Area calibration:
     - should be universal; won't need to be tweaked every time I change a parameter of the sim;
     - should be perfectly tuned because the area increase is always the same;
     """
-    if cfg.cell_division_enabled:
-        if cfg.calibrate_division_rate_to_timesteps:
-            _initialize_timestep_tracking()
-        else:
-            _initialize_evl_area_tracking()
-    
-def _initialize_timestep_tracking() -> None:
-    """Calibrate division rate to the passage of time"""
-    global _expected_timesteps, _expected_divisions_per_timestep
-    if cfg.cell_division_enabled:
-        # For space_filling_enabled, wild guess, since haven't used it since changing the cell division
-        # algorithm (and hence the duration of epiboly), but it used to be that (and even then, based only
-        # on N=2), space-filling took about 20% more timesteps, so go with that for now.
-        # Also note, these magic values are only valid for total_epiboly_divisions = 7500.
-        # ToDo: Really should get rid of this option entirely. Move it down to the tests, with appropriate comment.
-        _expected_timesteps = 14400 if cfg.space_filling_enabled else 12000
-    else:
-        # (This is a relic from when only the Poisson part had been written, and the rest of cell division
-        # was only stubbed out. I used this to test the behavior of that Poisson functionality, reporting
-        # each "division" and the cumulative total. Keeping for now.)
-        _expected_timesteps = 29000 if cfg.space_filling_enabled else 22000
-    _expected_divisions_per_timestep = cfg.total_epiboly_divisions / _expected_timesteps
-
-def _initialize_evl_area_tracking() -> None:
-    """Calibrate division rate to the changes in EVL area"""
     global _expected_divisions_per_height_unit, _evl_previous_z, _cell_division_cessation_phi
+    
+    if not cfg.cell_division_enabled:
+        return
     
     embryo_radius: float = g.Big.radius + g.Little.radius
     embryo_height: float = 2 * embryo_radius
@@ -175,62 +152,33 @@ def cell_division() -> None:
     many particles will divide during this timestep, and select them at random. This should be much more
     computationally efficient.
     
-    Justification for division rate:
-    1. Linlin's single-embryo data set has 2252 nuclei at the first time point (4.02 hpf) and
-        6580 nuclei at the final time point (8.77 hpf), for an increase of 4328.
-    2. Assume that represents 4328 cell divisions during that time span.
-    3. The position of the leading edge ("elevation" in radians above the equator) moves during that time from about
-         +0.2 to about -0.7. Translating her "el" to my "phi" (in radians below the animal pole, phi = pi/2 - el),
-         it moves from 1.37 to 2.27.
-    4. My simulation starts at phi = 1.43 (don't take her absolute starting point literally, so I won't change this)
-        and ends at phi = pi * 0.95 = 2.98.
-    5. Thus the arc traversed by my sim, over the arc traversed by her data, is (2.98 - 1.43)/(2.27 - 1.37) = 1.72.
-    6. If you assume (a gross oversimplification, but good enough) that divisions per unit time will be constant
-        over the course of the simulation, then extrapolate from her 4328 to 4328 * 1.72 = 7,454 divisions.
-        (Set in config.)
-    7. A typical sim runs to completion in around 26000 timesteps (set in config).
-    8. Expected divisions per timestep thus comes to around 0.29, on average.
-        8A. However, perhaps better to make a more tailored assumption about the number of timesteps.
-            When I ran this (with only a stub, no actual cell division, but monitoring how many divisions would
-            be triggered), in a nearly 30K-timestep run, 8682 divisions occurred. This seems like a lot.
-            Length of sim depends on whether I have the "space-filling" algorithm enabled. And whether I ultimately
-            keep that, depends at least in port on the outcome of this cell-division implementation.
-            In 4 runs with space filling DISabled, total timesteps = 21K, 22K, 21K, 28K.
-            In 4 runs with space filling ENabled (diffusion coefficient = 40), total timesteps = 28K, 27K, 29K, 32K.
-            So for now, do a calculation based on whether that is enabled or not.
-        8B. But later, made this depend on leading edge displacement, instead of on time. So now it will no
-            longer be a predetermined value per timestep, but will instead be derived from an actual on-the-fly
-            measurement representing epiboly progress. Average division rate will thus drift over time, as the
-            parameter sent to the poisson function changes. This should result in a more consistent total number
-            of divisions over the course of the sim, and it should no longer depend on whether the space filling
-            algorithm is enabled, nor on any other parameter. -- Also, decoupling cell division rate from absolute
-            time, and coupling it instead to rate of leading edge advancement, should have the beneficial effect of
-            preventing division from happening when there's no external force to generate epiboly.
-        8C. Currently, I've made it an option which approach to use, while I get the subtleties worked out for
-            area-based calibration.
-    9. Use Poisson to determine how many cells will actually divide this time.
+    With area-based rate calibration, number of divisions in any given timestep wil be derived from an actual
+    on-the-fly measurement representing epiboly progress. Average division rate (divisions per unit time) will
+    thus drift over time, as the parameter sent to the poisson function changes. This should result in a consistent
+    total number of divisions over the course of the sim, and it should not depend on any other algorithmic option
+    settings or parameters. -- Also, decoupling cell division rate from absolute time, and coupling it instead to
+    rate of leading edge advancement, should have the beneficial effect of preventing division from happening when
+    there's no external force to generate epiboly.
+    
+    Use Poisson to determine how many cells will actually divide this time.
     """
     global _cumulative_cell_divisions, _evl_previous_z
     if not cfg.cell_division_enabled:
         return
     
-    num_divisions: int
-    if cfg.calibrate_division_rate_to_timesteps:
-        num_divisions = _generator.poisson(lam=_expected_divisions_per_timestep)
-    else:
-        if epu.leading_edge_mean_phi() > _cell_division_cessation_phi:
-            return
-            
-        # Note that z coordinate *decreases* as epiboly progresses
-        evl_current_z: float = epu.leading_edge_mean_z()
-        delta_z: float = _evl_previous_z - evl_current_z
-        if delta_z <= 0:
-            return
+    if epu.leading_edge_mean_phi() > _cell_division_cessation_phi:
+        return
         
-        expected_divisions: float = _expected_divisions_per_height_unit * delta_z
-        num_divisions = _generator.poisson(lam=expected_divisions)
-        
-        _evl_previous_z = evl_current_z
+    # Note that z coordinate *decreases* as epiboly progresses
+    evl_current_z: float = epu.leading_edge_mean_z()
+    delta_z: float = _evl_previous_z - evl_current_z
+    if delta_z <= 0:
+        return
+    
+    expected_divisions: float = _expected_divisions_per_height_unit * delta_z
+    num_divisions: int = _generator.poisson(lam=expected_divisions)
+    
+    _evl_previous_z = evl_current_z
         
     assert num_divisions >= 0, f"Poisson result = {num_divisions}, This should NEVER happen!"
     if num_divisions == 0:
@@ -267,20 +215,16 @@ def get_state() -> dict:
             "expected_divisions_per_height_unit": _expected_divisions_per_height_unit,
             "evl_previous_z": _evl_previous_z,
             "cell_division_cessation_phi": _cell_division_cessation_phi,
-            "expected_timesteps": _expected_timesteps,
-            "expected_divisions_per_timestep": _expected_divisions_per_timestep}
+            }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _cumulative_cell_divisions, _expected_divisions_per_height_unit, _evl_previous_z
     global _cell_division_cessation_phi
-    global _expected_timesteps, _expected_divisions_per_timestep
     _cumulative_cell_divisions = d["cumulative_cell_divisions"]
     _expected_divisions_per_height_unit = d["expected_divisions_per_height_unit"]
     _evl_previous_z = d["evl_previous_z"]
     _cell_division_cessation_phi = d["cell_division_cessation_phi"]
-    _expected_timesteps = d["expected_timesteps"]
-    _expected_divisions_per_timestep = d["expected_divisions_per_timestep"]
 
 def _timestep_tracking_for_tests() -> tuple[int, float]:
     expected_timesteps: int = 22000  # original length of the full sim before cell division was implemented
@@ -346,7 +290,6 @@ def _test4() -> None:
 
 if __name__ == '__main__':
     """Run some tests to check my own understanding"""
-    _initialize_timestep_tracking()
     
     _test1()
     _test1()

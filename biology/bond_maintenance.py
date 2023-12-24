@@ -22,10 +22,7 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
     [generates no force because r0 = their current distance.]
     ^^^ (This is not true anymore, but I may change my mind on it yet again)
     
-    Accepts the TF default min (half of r0). Note that repulsion due to the bond, and repulsion due to
-    type-based repulsive potential, may either overlap (both be active at certain distances) or have a gap
-    (neither be active at certain intermediate distances), depending on how r0 of the bond has changed over
-    the course of the simulation.
+    Accepts the TF default min (half of r0).
     
     Also note that this allows overlap if particles happen to be very close, but that should be minimal if
     particles are well equilibrated before making the initial bonds, and unlikely for bonds created later,
