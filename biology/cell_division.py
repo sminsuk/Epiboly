@@ -125,24 +125,59 @@ def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
         yolk_phandle: tf.ParticleHandle = yolk_particle.handle()
         p1.position = yolk_phandle.position + relative_cartesian1
         p2.position = yolk_phandle.position + relative_cartesian2
+        
+def _alt_split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
+    """This should work, but currently does not. Keep it around and unused until we get it worked out
+    
+    Instead of dividing the particle in any random direction, and then having to adjust the positions
+    of the daughters, calculate a randomm direction within the tangent plane, and use the second overload
+    of ParticleHandle.split() to provide that direction.
+    
+    Also, to get the daughters to be right next to each other, double the volume (and also the mass) of the
+    particle before splitting, and the splitting operation will then halve them, giving daughters of the
+    same dimension as the parent, placed adjacent to one another.
+    """
+    # Note: .split() reduces mass and volume both to half the parent's original value. So, double both of them,
+    # so that we get daughter particles of the same mass and volume as the parent.
+    # Double the particle volume (by multiplying the particle radius by cube root 2).
+    # This also means the daughters will be placed just touching, so we don't have to adjust their locations afterward.
+    parent.radius *= 2 ** (1 / 3)
+    parent.mass *= 2
+    
+    # Note that split() takes a "direction" argument, but it's not recognized as a keyword argument
+    daughter: tf.ParticleHandle = parent.split(epu.random_tangent(parent))
+    assert daughter.radius == g.Little.radius, f"resulting radius = {daughter.radius}"
+    assert daughter.mass == g.Little.mass, f"resulting mass = {daughter.mass}"
 
-def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
-    parent_cell_radius: float = gc.get_cell_radius(parent)
+    return daughter
+
+def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
+    """Original approach. Divide in random directions then adjust the daughters to how I want them."""
     daughter: tf.ParticleHandle = parent.split()
     parent.radius = g.Little.radius
     parent.mass = g.Little.mass
+    daughter.radius = parent.radius
+    daughter.mass = parent.mass
     # Note: .split() reduces mass and volume both to half the parent's original value (so radius to 1/cube_rt(2)
     # or about 0.8), and then places the parent and the daughter next to each other, and just touching.
     # But once you override that by changing that radius, of course you lose the "just touching". These
-    # particles will now be overlapping at first, but they'll push each other apart soon enough.
+    # particles will now be overlapping, and moved in arbitrary directions (usually in/out from the yolk surface).
     
-    daughter.radius = parent.radius
-    daughter.mass = parent.mass
+    # This will at least bring them back to the yolk surface. They're still likely overlapping but that will resolve.
+    _adjust_positions(parent, daughter)
+    
+    return daughter
+
+def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
+    daughter: tf.ParticleHandle
+    if cfg.use_alt_cell_splitting_method:
+        daughter = _alt_split(parent)
+    else:
+        daughter = _split(parent)
+    
     daughter.style = tf.rendering.Style()       # Not inherited from parent, so create it
     daughter.style.color = tfu.lighter_blue     # for now, change it
-    gc.add_particle(daughter, radius=parent_cell_radius)
-    
-    _adjust_positions(parent, daughter)
+    gc.add_particle(daughter, radius=gc.get_cell_radius(parent))
 
     bond_count: int = len(daughter.bonded_neighbors)
     if bond_count > 0:
@@ -207,13 +242,41 @@ def cell_division() -> None:
         selected_particles = _generator.choice(particles, size=num_divisions, replace=False)
     
     daughter: tf.ParticleHandle
+    tf.Logger.setLevel(level=tf.Logger.INFORMATION)  # Not using DEBUG because that gets tons of internal TF Debug msgs
     for phandle in selected_particles:
+        # ### DEBUG: For cells with small x, i.e. cells near the yz coordinate plane (relative to yolk center as origin)
+        # ###           either screen them out (don't split), or paint them to identify them. Either way, log it.
+        screen: bool = False    # Config: If True, screen them out, don't paint anything (paint flag ignored)
+        paint: bool = False     # Config: If NOT screening, whether to paint only these daughters
+        tolerance: float = 0.2
+        pos: tf.fVector3 = epu.embryo_cartesian_coords(phandle)
+        if abs(pos.x()) < tolerance:
+            if screen:
+                msg = f"Skipping split of particle at position = {pos}"
+                tf.Logger.log(level=tf.Logger.INFORMATION, msg=msg)
+                print(tfu.bluecolor, msg, tfu.endcolor)
+                continue
+            elif paint:
+                msg = f"Painting daughter pair from parent at position = {pos}"
+                tf.Logger.log(level=tf.Logger.INFORMATION, msg=msg)
+                print(tfu.bluecolor, msg, tfu.endcolor)
+        else:
+            paint = False       # Don't change this one. Never paint daughters from > tolerance parent
+        # ### END DEBUG
+
         _cumulative_cell_divisions += 1
         daughter = _divide(phandle)
         assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
         print(f"New cell division (cumulative: {_cumulative_cell_divisions},"
               f" total cells: {len(g.Little.items()) + len(g.LeadingEdge.items())}),"
               f" daughter id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")
+        
+        # ### DEBUG: Color the cells so I can see where they end up
+        if paint:
+            phandle.style.color = tfu.light_gray
+            daughter.style.color = tfu.green
+        # ### END DEBUG
+    tf.Logger.setLevel(level=tf.Logger.ERROR)
 
 def get_state() -> dict:
     """generate state to be saved to disk"""

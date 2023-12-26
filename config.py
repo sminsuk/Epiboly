@@ -5,6 +5,9 @@ Flags and magic numbers, especially ones used in more than one place.
 from enum import Enum
 import math
 
+# Temporary (and not bothering to export):
+use_alt_cell_splitting_method: bool = False
+
 # For normal initialization, leave blank. To start from a previously exported state, provide the
 # directory name of the export. This is the parent directory with the datetime in the name. Script
 # will search in the "Sim_state" subdirectory to find the most recent export, and start with that.

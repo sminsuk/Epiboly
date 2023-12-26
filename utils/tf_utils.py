@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import math
 import numpy as np
 import os
+import random
 from statistics import fmean
 import sys
 import traceback
@@ -119,6 +120,46 @@ def unsigned_scalar_from_vector_projection(vector: tf.fVector3, direction: tf.fV
     projection: tf.fVector3 = vector.projected(direction)
     return projection.length()
 
+def random_perpendicular(normal_vec: tf.fVector3) -> tf.fVector3:
+    """Return a vector pointing randomly within a plane perpendicular to the given (non-zero) vector"""
+    assert normal_vec.as_list() != [0, 0, 0], "Zero vector not allowed!"
+    
+    x: float
+    y: float
+    z: float
+    a: float
+    b: float
+    c: float
+    
+    # capture vector coordinates
+    a, b, c = normal_vec
+    
+    # generate 2 random coordinates
+    rand1: float = random.random()
+    rand2: float = random.random()
+    
+    # The plane through the origin that is perpendicular to this vector is ax+by+cz=0
+    # Calculate x, y, z for a random point in that plane
+    if a != 0:
+        # let y and z be the two random values, and solve for x:
+        y = rand1
+        z = rand2
+        x = -(b * y + c * z) / a
+    elif b != 0:
+        # let x and z be the two random values, and solve for y:
+        x = rand1
+        z = rand2
+        y = -(a * x + c * z) / b
+    else:
+        # They can't ALL be zero, so we know that c != 0
+        # let x and y be the two random values, and solve for z:
+        x = rand1
+        y = rand2
+        z = -(a * x + b * y) / c
+    
+    tangent_vec: tf.fVector3 = tf.fVector3([x, y, z])
+    return tangent_vec
+
 def corrected_theta(diff: float) -> float:
     """Given a difference between thetas of two spherical coordinate vectors, correct for range boundary crossing.
     
@@ -176,7 +217,10 @@ cornflower_blue = tf.fVector3([0.12743769586086273, 0.3005438446998596, 0.846873
 lighter_blue = tf.fVector3([0.25, 0.6, 0.8468732833862305])
 gold = tf.fVector3([1.0, 0.6795425415039062, 0.0])
 white = tf.fVector3([1.0, 1.0, 1.0])
+light_gray = tf.fVector3([0.75, 0.75, 0.75])
 gray = tf.fVector3([0.5, 0.5, 0.5])
+red = tf.fVector3([0.7, 0.0, 0.0])
+green = tf.fVector3([0.0, 0.7, 0.0])
 
 def exception_handler():
     """General exception handler to be used inside TF events.
