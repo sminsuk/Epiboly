@@ -611,17 +611,21 @@ def _show_margin_population() -> None:
     _margin_cum_in.append(epu.cumulative_to_edge)
     _margin_cum_out.append(epu.cumulative_from_edge)
     
-    # plot
+    # plot just the total
     margin_ax.plot(_timesteps, _margin_count, "b.", label="Total margin cell count")
-    # margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
-    # margin_ax.plot(_timesteps, _margin_cum_out, "-.b", label="Cumulative out")
-    # margin_ax.legend()
 
     # save
     margin_path: str = os.path.join(_plot_path, "Margin cell rearrangement.png")
     margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")
-    plt.close(margin_fig)
+    
+    # add additional lines to the plot and resave under a different name
+    margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
+    margin_ax.plot(_timesteps, _margin_cum_out, "-.b", label="Cumulative out")
     margin_ax.legend()
+
+    margin_path = os.path.join(_plot_path, "Margin cell rearrangement, plus cumulative.png")
+    margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")
+    plt.close(margin_fig)
 
 def _show_forces() -> None:
     if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT:
