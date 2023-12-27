@@ -176,7 +176,8 @@ def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
         daughter = _split(parent)
     
     daughter.style = tf.rendering.Style()       # Not inherited from parent, so create it
-    daughter.style.color = tfu.lighter_blue     # for now, change it
+    daughter.style.color = tfu.lighter_blue     # for now, change both, to indicate which have split
+    parent.style.color = tfu.lighter_blue
     gc.add_particle(daughter, radius=gc.get_cell_radius(parent))
 
     bond_count: int = len(daughter.bonded_neighbors)
