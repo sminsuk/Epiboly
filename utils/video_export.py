@@ -119,12 +119,15 @@ def init_screenshots() -> None:
     
     tfu.init_export() should have been run before running this, to create the parent directories.
     """
-    global _image_path
+    global _image_path, _movie_path
     if not screenshot_export_enabled():
         return
     
-    _image_path = os.path.join(tfu.export_path(), _screenshots_subdirectory)
+    base_path: str = tfu.export_path()
+    _image_path = os.path.join(base_path, _screenshots_subdirectory)
+    _movie_path = os.path.join(base_path, _movie_subdirectory)
     os.makedirs(_image_path, exist_ok=True)
+    os.makedirs(_movie_path, exist_ok=True)
     
 def _export_screenshot(filename: str) -> None:
     """Note, in system.screenshot(), bgcolor (and decorate) args only work in windowless mode."""
@@ -216,9 +219,14 @@ def save_screenshot_repeatedly() -> None:
     _current_screenshot_timestep += 1
 
 _screenshots_subdirectory: str = "Screenshots"
+_movie_subdirectory: str = "Movies"
 _image_path: str
+_movie_path: str
 _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
+
+# Will only ever be modified if running this module as __main__ from another process; see bottom of file
+_retain_screenshots_after_movie: bool = False
 
 # module's copy can be adjusted dynamically
 _screenshot_export_interval: int = cfg.screenshots_timesteps_per_export
@@ -395,11 +403,12 @@ def make_movie(filename: str = None) -> None:
         # (Or, if filename was provided, then __name__ == "__main__", see below.)
         if filename is None:
             filename = tfu.export_directory()
-        clip.write_videofile(os.path.join(_image_path, filename + f" {side}.mp4"))
+        clip.write_videofile(os.path.join(_movie_path, filename + f" {side}.mp4"))
         
         # Discard all the exported image files except the final one.
         # (But not if there was an exception, because I may still need them.)
-        if not events.event_exception_was_thrown():
+        # (And not if simulation still running in a different process, because definitely still need them.)
+        if not events.event_exception_was_thrown() and not _retain_screenshots_after_movie:
             image_filepaths.pop()   # remove final item
             print(f"\nRemoving {len(image_filepaths)} images...")
             for path in image_filepaths:
@@ -429,12 +438,19 @@ def make_movie(filename: str = None) -> None:
     #       (Also: it's all relative. For a full-length epiboly video, file size of 10000K mpeg4 was 63 MB vs 16 for
     #       the default. Bigger, but this is still tiny compared to what you get from the MacOS video capture.)
     
-def make_movie_in_post(directory_name: str) -> None:
-    global _image_path
-    _image_path = os.path.join(tfu.export_path(directory_name), _screenshots_subdirectory)
+def make_movie_in_post(directory_name: str, retain_screenshots: bool) -> None:
+    global _image_path, _movie_path, _retain_screenshots_after_movie
+    
+    _retain_screenshots_after_movie = retain_screenshots
+    base_path: str = tfu.export_path(directory_name)
+    _image_path = os.path.join(base_path, _screenshots_subdirectory)
+    _movie_path = os.path.join(base_path, _movie_subdirectory)
     make_movie(directory_name)
 
 if __name__ == "__main__":
     # Be sure to supply the directory name before running this.
-    # This is the parent directory with the datetime in the name, not the "Screenshots" subdirectory
-    make_movie_in_post(directory_name="Directory name goes here")
+    # This is the parent directory with the datetime in the name, not the "Screenshots" subdirectory.
+    #
+    # Typically, simulation is still running in another process (otherwise, better to run main instead of this),
+    # so we don't want to delete the screenshots. But if simulation is finished, set retain_screenshots = False
+    make_movie_in_post(directory_name="2023-12-28 03-57-11 AM PST_36083", retain_screenshots=True)
