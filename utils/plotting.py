@@ -558,10 +558,13 @@ def _show_straightness() -> None:
         beeline_path_length += vector_diff.length()
         previous_pos = pos
     
-    _straightness.append(beeline_path_length / path_length)
+    straightness: float = beeline_path_length / path_length
+    _straightness.append(straightness)
     
     # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
-    straightness_ax.set_ylim(0.90, 1.001)  # Sometimes goes a little lower; this is usually good enough
+    # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.90, 1.001), data=_straightness)
+    straightness_ax.set_ylim(limits)
     straightness_ax.plot(_timesteps, _straightness, ".-b")
     
     # save
