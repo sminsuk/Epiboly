@@ -405,11 +405,10 @@ def make_movie(filename: str = None) -> None:
             filename = tfu.export_directory()
         clip.write_videofile(os.path.join(_movie_path, filename + f" {side}.mp4"))
         
-        # Discard all the exported image files except the final one.
+        # Discard all the exported image files.
         # (But not if there was an exception, because I may still need them.)
         # (And not if simulation still running in a different process, because definitely still need them.)
         if not events.event_exception_was_thrown() and not _retain_screenshots_after_movie:
-            image_filepaths.pop()   # remove final item
             print(f"\nRemoving {len(image_filepaths)} images...")
             for path in image_filepaths:
                 os.remove(path)

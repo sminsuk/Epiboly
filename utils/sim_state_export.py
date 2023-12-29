@@ -11,6 +11,7 @@ import config as cfg
 
 import biology.cell_division as cd
 import biology.microtubules as mt
+import epiboly_globals as g
 import utils.global_catalogs as gc
 import utils.tf_logging as logging
 import utils.plotting as plot
@@ -130,6 +131,7 @@ def export(filename: str, show_timestep: bool = True) -> None:
     
     suffix: str = f"Timestep = {_current_export_timestep}"
     suffix += f"; Universe.time = {round(tf.Universe.time, 2)}"
+    suffix += f"; {len(g.Little.items()) + len(g.LeadingEdge.items())} cells"
     if not filename:
         filename = suffix
     elif show_timestep:
