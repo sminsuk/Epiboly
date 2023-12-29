@@ -452,4 +452,4 @@ if __name__ == "__main__":
     #
     # Typically, simulation is still running in another process (otherwise, better to run main instead of this),
     # so we don't want to delete the screenshots. But if simulation is finished, set retain_screenshots = False
-    make_movie_in_post(directory_name="2023-12-28 03-57-11 AM PST_36083", retain_screenshots=True)
+    make_movie_in_post(directory_name="Directory name goes here", retain_screenshots=True)
