@@ -286,11 +286,103 @@ def get_state() -> dict:
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved.
     
-    Since these are all constants, we don't actually need to reconstitute anything here.
-    Including this function only for consistency.
+    Since these are all constants, they normally don't need to be reconstituted.
+    But this is helpful when I modify config values while simulations are running.
+    Then terminate/restart/import would override pending changes to this file, and instead restore
+    the values that were present when the simulation was initially launched, preventing errors.
     
-    Though, note to self: If I want to protect from my own manual edits intended for
-    future runs while a current run is executing, I could in fact import and reconstitute
-    everything, so that changes to this file would be ignored on terminate/restart/import.
+    Though, note to self: if I actually add or remove config variables, that still requires more care.
     """
-    pass
+    global comment
+    
+    # model
+    global dt, initialization_algo_graph_based, cell_division_enabled, total_epiboly_divisions
+    global cell_division_cessation_percentage, cell_division_biased_by_tension, tension_squared
+    global angle_bonds_enabled, space_filling_enabled, k_particle_diffusion, epiboly_initial_percentage
+    global num_leading_edge_points, num_spherical_positions, min_neighbor_initial_distance_factor
+    global harmonic_repulsion_spring_constant, harmonic_spring_constant, harmonic_edge_spring_constant
+    global harmonic_yolk_evl_spring_constant, harmonic_angle_spring_constant, harmonic_angle_tolerance
+    global yolk_cortical_tension, external_force, force_algorithm, force_target_fraction, max_potential_cutoff
+    global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
+    global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
+    global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
+    
+    # model control
+    global run_balanced_force_control, test_recoil_without_bond_remodeling, test_recoil_with_bond_remodeling
+    global recoil_duration_without_remodeling, recoil_duration_with_remodeling, stopping_condition_phi
+    
+    # visualization
+    global show_equilibration, screenshots_simtime_per_export, plotting_interval_simtime
+    global plot_time_averages, config_time_avg_accumulation_steps, plot_t0_as_single_timestep
+    
+    # data export
+    global sim_state_simtime_per_export, sim_state_minutes_per_export, sim_state_export_keep
+    
+    # derived values
+    global sim_state_timesteps_per_export, screenshots_timesteps_per_export
+    global plotting_interval_timesteps, time_avg_accumulation_steps
+    
+    comment = d["comment"]
+    
+    model: dict = d["model"]
+    dt = model["dt"]
+    initialization_algo_graph_based = model["initialization_algo_graph_based"]
+    cell_division_enabled = model["cell_division_enabled"]
+    total_epiboly_divisions = model["total_epiboly_divisions"]
+    cell_division_cessation_percentage = model["cell_division_cessation_percentage"]
+    cell_division_biased_by_tension = model["cell_division_biased_by_tension"]
+    tension_squared = model["tension_squared"]
+    angle_bonds_enabled = model["angle_bonds_enabled"]
+    space_filling_enabled = model["space_filling_enabled"]
+    k_particle_diffusion = model["k_particle_diffusion"]
+    epiboly_initial_percentage = model["epiboly_initial_percentage"]
+    num_leading_edge_points = model["num_leading_edge_points"]
+    num_spherical_positions = model["num_spherical_positions"]
+    min_neighbor_initial_distance_factor = model["min_neighbor_initial_distance_factor"]
+    harmonic_repulsion_spring_constant = model["harmonic_repulsion_spring_constant"]
+    harmonic_spring_constant = model["harmonic_spring_constant"]
+    harmonic_edge_spring_constant = model["harmonic_edge_spring_constant"]
+    harmonic_yolk_evl_spring_constant = model["harmonic_yolk_evl_spring_constant"]
+    harmonic_angle_spring_constant = model["harmonic_angle_spring_constant"]
+    harmonic_angle_tolerance = model["harmonic_angle_tolerance"]
+    yolk_cortical_tension = model["yolk_cortical_tension"]
+    external_force = model["external_force"]
+    force_algorithm = ForceAlgorithm[model["force_algorithm"]]
+    force_target_fraction = model["force_target_fraction"]
+    max_potential_cutoff = model["max_potential_cutoff"]
+    bondable_neighbor_discovery = BondableNeighborDiscovery[model["bondable_neighbor_discovery"]]
+    bondable_neighbors_min_candidates = model["bondable_neighbors_min_candidates"]
+    bondable_neighbors_max_candidates = model["bondable_neighbors_max_candidates"]
+    coupled_bond_remodeling_freq = model["coupled_bond_remodeling_freq"]
+    min_neighbor_count = model["min_neighbor_count"]
+    max_edge_neighbor_count = model["max_edge_neighbor_count"]
+    target_neighbor_angle = model["target_neighbor_angle"]
+    target_edge_angle = model["target_edge_angle"]
+    leading_edge_recruitment_limit = model["leading_edge_recruitment_limit"]
+    
+    control: dict = d["model control"]
+    run_balanced_force_control = control["run_balanced_force_control"]
+    test_recoil_without_bond_remodeling = control["test_recoil_without_bond_remodeling"]
+    test_recoil_with_bond_remodeling = control["test_recoil_with_bond_remodeling"]
+    recoil_duration_without_remodeling = control["recoil_duration_without_remodeling"]
+    recoil_duration_with_remodeling = control["recoil_duration_with_remodeling"]
+    stopping_condition_phi = control["stopping_condition_phi"]
+
+    visualization: dict = d["visualization"]
+    show_equilibration = visualization["show_equilibration"]
+    screenshots_simtime_per_export = visualization["screenshots_simtime_per_export"]
+    plotting_interval_simtime = visualization["plotting_interval_simtime"]
+    plot_time_averages = visualization["plot_time_averages"]
+    config_time_avg_accumulation_steps = visualization["config_time_avg_accumulation_steps"]
+    plot_t0_as_single_timestep = visualization["plot_t0_as_single_timestep"]
+
+    data_export: dict = d["data export"]
+    sim_state_simtime_per_export = data_export["sim_state_simtime_per_export"]
+    sim_state_minutes_per_export = data_export["sim_state_minutes_per_export"]
+    sim_state_export_keep = data_export["sim_state_export_keep"]
+
+    derived_values: dict = d["derived_values"]
+    sim_state_timesteps_per_export = derived_values["sim_state_timesteps_per_export"]
+    screenshots_timesteps_per_export = derived_values["screenshots_timesteps_per_export"]
+    plotting_interval_timesteps = derived_values["plotting_interval_timesteps"]
+    time_avg_accumulation_steps = derived_values["time_avg_accumulation_steps"]
