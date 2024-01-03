@@ -38,11 +38,12 @@ initialization_algo_graph_based: bool = True
 cell_division_enabled: bool = True
 # Cell division rate parameters:
 # Approximate number of divisions to take place (the actual value will be stochastically determined):
-total_epiboly_divisions: int = 7500  # currently throttled to 3064; TBD: how much to actually use
-# The percentage of epiboly by which total_epiboly_divisions (as entered or throttled) will be
-# reached, and after which cell division (if enabled) ceases:
-cell_division_cessation_percentage: int = 100
-# Spatial distribution of cell division events:
+total_epiboly_divisions: int = 1340  # (62% of what we started with: partial implementation of Campinho data)
+# The percentage of epiboly by which total_epiboly_divisions will be reached, and after which cell division ceases:
+cell_division_cessation_percentage: int = 55
+# Spatial distribution of cell division events: i.e. how to select particles to divide. Uniform vs. by tension
+# vs. largest first, are mutually exclusive; bias by tension squared is an option under bias by tension
+cell_division_largest_first: bool = True
 cell_division_biased_by_tension: bool = False
 tension_squared: bool = False  # (ignored unless cell_division_biased_by_tension is True)
 
@@ -223,6 +224,7 @@ def get_state() -> dict:
                         "cell_division_enabled": cell_division_enabled,
                         "total_epiboly_divisions": total_epiboly_divisions,
                         "cell_division_cessation_percentage": cell_division_cessation_percentage,
+                        "cell_division_largest_first": cell_division_largest_first,
                         "cell_division_biased_by_tension": cell_division_biased_by_tension,
                         "tension_squared": tension_squared,
                         "angle_bonds_enabled": angle_bonds_enabled,
@@ -297,7 +299,8 @@ def set_state(d: dict) -> None:
     
     # model
     global dt, initialization_algo_graph_based, cell_division_enabled, total_epiboly_divisions
-    global cell_division_cessation_percentage, cell_division_biased_by_tension, tension_squared
+    global cell_division_cessation_percentage, cell_division_largest_first
+    global cell_division_biased_by_tension, tension_squared
     global angle_bonds_enabled, space_filling_enabled, k_particle_diffusion, epiboly_initial_percentage
     global num_leading_edge_points, num_spherical_positions, min_neighbor_initial_distance_factor
     global harmonic_repulsion_spring_constant, harmonic_spring_constant, harmonic_edge_spring_constant
@@ -330,6 +333,7 @@ def set_state(d: dict) -> None:
     cell_division_enabled = model["cell_division_enabled"]
     total_epiboly_divisions = model["total_epiboly_divisions"]
     cell_division_cessation_percentage = model["cell_division_cessation_percentage"]
+    cell_division_largest_first = model["cell_division_largest_first"]
     cell_division_biased_by_tension = model["cell_division_biased_by_tension"]
     tension_squared = model["tension_squared"]
     angle_bonds_enabled = model["angle_bonds_enabled"]

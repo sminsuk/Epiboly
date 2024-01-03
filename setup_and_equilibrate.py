@@ -19,19 +19,9 @@ from utils import tf_utils as tfu,\
     plotting as plot
 from utils import video_export as vx
 
-# Cell radius is distinct from PARTICLE radius. It represents the true extent of the cell, an average distance
-# from the center of mass, to the edge of the cell. Particles only represent the point center of mass, and their
-# radii are mainly for visualization (though the TF neighbor search also uses them, to define the search space).
-# Cell radius is used to determine the equilibrium distances of Potentials between EVL cells, and therefore
-# determines the effective radius: how close particles can get to one another. This allows us to decouple cell
-# size from particle size. Particles are not intended to represent cells, just their centers.
-# Note that for yolk-to-evl potentials, we'll still use particle radius. That way, the EVL doesn't have to get
-# thicker, just because the cells get larger in apical surface area. So the particles can still hug the yolk surface
-# (it would look really weird if they didn't), and we achieve a "squamous cell" effect in TF even though TF only
-# knows about spheres.
-# ToDo: change the value. Starting with it equal to particle radius for the sake of refactoring and testing.
-# ToDo: Better yet, should be able to calculate this from the desired number of cells, rather than specifying it.
-_initial_cell_radius: float = 0.08
+# ToDo: Should be able to calculate this from the desired number of cells, rather than specifying it.
+#  Calculate it here, then set it on epu (that value is used elsewhere, for particle searching).
+_initial_cell_radius: float = epu.initial_cell_radius
 
 # Value depends on setup method being used. Module main needs this for certain timing
 equilibration_time: int = 0

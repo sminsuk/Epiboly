@@ -99,6 +99,18 @@ def get_cell_radius(phandle: tf.ParticleHandle) -> float:
     assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
     return particles_by_id[phandle.id]["cell_radius"]
 
+def set_cell_radius(phandle: tf.ParticleHandle, radius: float) -> None:
+    """Update the stored radius for a particle
+    
+    For now, this is actually just an alias for add_particle(), but semantically it makes more sense to use
+    this when updating a particle as opposed to creating a new one.
+    
+    If ParticleData is later enhanced with additional attributes, the two will no longer be identical.
+    """
+    # Just a pass-through. When particle does not yet exist in the table, add_particle() adds it. When it
+    # already exists, add_particle() overwrites it.
+    add_particle(phandle, radius)
+
 def initialize_state() -> None:
     """Recreates the global catalogs based on imported data from a previous run
     

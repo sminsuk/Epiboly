@@ -29,12 +29,16 @@ def get_non_bonded_neighbors(phandle: tf.ParticleHandle,
     
     (Sort of the inverse of particleHandle.bonded_neighbors.)
     
-    distance_factor: search out to this multiple of cell radius (not particle radius)
+    distance_factor: search out to this multiple of cell radius (not particle radius). But, its the INITIAL
+        cell radius, not the radius of the individual cell. Because we want all searches to be over the same
+        distance, regardless of cell size, because small cells (their centers) will generally be nearer
+        than large ones. Defining search space by individual cell radius would therefore bias the search on
+        smaller cells, to find other smaller cells.
     """
     neighbors: tf.ParticleList
     non_bonded_neighbors: list[tf.ParticleHandle]
     
-    search_distance: float = distance_factor * gc.get_cell_radius(phandle)
+    search_distance: float = distance_factor * epu.initial_cell_radius
     neighbors = phandle.neighbors(search_distance, ptypes)
     non_bonded_neighbors = [neighbor for neighbor in neighbors
                             if neighbor not in phandle.bonded_neighbors]

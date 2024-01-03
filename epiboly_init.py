@@ -12,7 +12,7 @@ import utils.video_export as vx
 
 class LittleType(tf.ParticleTypeSpec):
     mass = 1.0
-    radius = 0.08
+    radius = 0.04
     dynamics = tf.Overdamped
 
 class BigType(tf.ParticleTypeSpec):

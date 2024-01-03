@@ -14,6 +14,24 @@ import utils.tf_utils as tfu
 cumulative_to_edge: int = 0
 cumulative_from_edge: int = 0
 
+# Cell radius is distinct from PARTICLE radius. It represents the extent of the cell, an average distance
+# from the center of mass, to the edge of the cell. Particles only represent the point center of mass, and their
+# radii are mainly for visualization (though the TF neighbor search also uses them, to define the search space).
+# Cell radius is used to determine the equilibrium distances of Potentials between EVL cells, and therefore
+# determines the effective radius: how close particles can get to one another. This allows us to decouple cell
+# size from particle size. Particles are not intended to represent cells, just their centers.
+# Note that this is not the actual extent of the current cell, but more of a "target" value. So when bonds get made,
+# they can be under tension because the centers are actually further apart than the r0 we give to the potential.
+# Note also that for yolk-to-evl potentials, we'll still use particle radius. That way, the EVL doesn't have to get
+# thicker, just because the cells get larger in apical surface area. So the particles can still hug the yolk surface
+# (it would look really weird if they didn't), and we achieve a "squamous cell" effect in TF even though TF only
+# knows about spheres.
+# ToDo: change the value. Starting with it equal to old particle radius for the sake of refactoring and testing -
+#  minimal change to the physics.
+# ToDo: Better yet, should be able to calculate this from the desired number of cells, rather than specifying it.
+#  (This is why I placed it here in epu, instead of in config.)
+initial_cell_radius: float = 0.08
+
 def reset_camera():
     """A good place to park the camera for epiboly
     

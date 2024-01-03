@@ -16,6 +16,20 @@ import neighbors as nbrs
 def is_edge_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> bool:
     return p1.type_id == p2.type_id == g.LeadingEdge.id
 
+def update_bond(bhandle: tf.BondHandle) -> None:
+    """Change the r0 on a bond when the cells have become smaller due to cell division"""
+    p1: tf.ParticleHandle
+    p2: tf.ParticleHandle
+    p1, p2 = bhandle.parts
+    
+    # We want to change r0 of this bond's potential, but that's read-only. But I believe we can change the
+    # potential on the bond (don't have to actually destroy the bond and replace it with a new one).
+    # However, PyCharm claims the property cannot be set. That might be true or not (PyCharm gets confused
+    # about the properties of TF objects), but better not to have those warnings in the code. So, actually
+    # break the bond and make a new one.
+    gc.destroy_bond(bhandle)
+    make_bond(p1, p2)
+
 def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
     """Return a potential tailored to these 2 particles
     

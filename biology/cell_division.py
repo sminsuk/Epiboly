@@ -1,5 +1,5 @@
 """cell_division.py - Cell division"""
-import math
+# import math
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -73,24 +73,26 @@ def initialize_division_rate_tracking_by_evl_area() -> None:
     # manually by adjusting particle size to work well with the desired number of particles, but if I ever need to
     # change that config, this now provides an algorithm to tune the particle radius / particle count automatically.
     
-    # some geometry:
-    area_to_height_ratio = 2 * np.pi * embryo_radius  # from area of spherical segment = 2 pi R h
-    circumscribed_hexagon_ratio = 2 * np.sqrt(3) / np.pi  # area ratio of hexagon circumscribed around a circle
-
-    # Would the area occupied by the requested particles in a hexagonal packing, fit in the EVL area increase?
-    total_area_increase: float = evl_total_height_increase * area_to_height_ratio
-    particle_area: float = np.pi * (g.Little.radius ** 2)  # area occupied by rendered particle itself
-    circumscribed_hexagon_area: float = particle_area * circumscribed_hexagon_ratio
-    elbow_room_factor: float = 1.0  # For now. We may need fudge factor > 1 to realistically avoid crowding.
-    particle_footprint: float = elbow_room_factor * circumscribed_hexagon_area  # approx. because based on plane
-    new_particle_capacity: int = math.floor(total_area_increase / particle_footprint)
-    
-    # Throttle to the number of particles that can fit
-    print(f"Requested divisions: {cfg.total_epiboly_divisions}; capacity: {new_particle_capacity}")
-    total_epiboly_divisions: int = min(cfg.total_epiboly_divisions, new_particle_capacity)
+    # # some geometry:
+    # area_to_height_ratio = 2 * np.pi * embryo_radius  # from area of spherical segment = 2 pi R h
+    # circumscribed_hexagon_ratio = 2 * np.sqrt(3) / np.pi  # area ratio of hexagon circumscribed around a circle
+    #
+    # # Would the area occupied by the requested particles in a hexagonal packing, fit in the EVL area increase?
+    # total_area_increase: float = evl_total_height_increase * area_to_height_ratio
+    # particle_area: float = np.pi * (g.Little.radius ** 2)  # area occupied by rendered particle itself
+    # circumscribed_hexagon_area: float = particle_area * circumscribed_hexagon_ratio
+    # elbow_room_factor: float = 1.0  # For now. We may need fudge factor > 1 to realistically avoid crowding.
+    # particle_footprint: float = elbow_room_factor * circumscribed_hexagon_area  # approx. because based on plane
+    # new_particle_capacity: int = math.floor(total_area_increase / particle_footprint)
+    #
+    # # Throttle to the number of particles that can fit
+    # print(f"Requested divisions: {cfg.total_epiboly_divisions}; capacity: {new_particle_capacity}")
+    # total_epiboly_divisions: int = min(cfg.total_epiboly_divisions, new_particle_capacity)
 # #### ^ End of area that's totally deprecated now ^
 
-    _expected_divisions_per_height_unit = total_epiboly_divisions / evl_total_height_increase
+    print(f"Requested {cfg.total_epiboly_divisions} divisions,"
+          f" by {cfg.cell_division_cessation_percentage}% epiboly, then stop")
+    _expected_divisions_per_height_unit = cfg.total_epiboly_divisions / evl_total_height_increase
     _evl_previous_z = epu.leading_edge_mean_z()
 
 def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
@@ -112,7 +114,7 @@ def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
         # add a small random displacement to one of the particles until the two particles are no longer
         # aligned that way. Subsequent operation requires that there be some angle between them, to prevent
         # them from ending up in exactly the same location.
-        magnitude: float = p1.radius / 10
+        magnitude: float = p1.radius / 5
         displacement: tf.fVector3 = tf.random_unit_vector() * magnitude
         p1.position += displacement
         r1, theta1, phi1 = p1.sphericalPosition(particle=yolk_particle)
@@ -126,59 +128,97 @@ def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
         p1.position = yolk_phandle.position + relative_cartesian1
         p2.position = yolk_phandle.position + relative_cartesian2
         
-def _alt_split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
-    """This should work, but currently does not. Keep it around and unused until we get it worked out
+def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
+    """Divide the cell into two daughters, each with half the original apical surface area
     
-    Instead of dividing the particle in any random direction, and then having to adjust the positions
-    of the daughters, calculate a randomm direction within the tangent plane, and use the second overload
-    of ParticleHandle.split() to provide that direction.
+    Depending on config variable, use the original approach, or the new-and-improved approached which
+    does not work because of a Tissue Forge bug. Keep them both around until the bug is worked out:
     
-    Also, to get the daughters to be right next to each other, double the volume (and also the mass) of the
-    particle before splitting, and the splitting operation will then halve them, giving daughters of the
-    same dimension as the parent, placed adjacent to one another.
+    Original approach:
+    
+        Divide in random directions then adjust the daughters to how I want them.
+    
+        Resulting PARTICLES will have the same radius and mass as before, but the resulting CELLS
+        will have smaller radii sufficient to result in an apical surface area half the original.
+        
+        This is intended for particles that are significantly smaller than their cells; cells are squamous and
+        divide within the layer, so halving the volume also means halving the surface area; thickness doesn't change.
+        
+        Also, to place the daughter particles in the correct relative positions (not touching the way TF wants to do,
+        but placed far enough apart for the CELLS to be touching), increase the volume of the particles before
+        splitting, such that when TF halves that volume, we get the desired size and location based on cell radius
+        (see detailed comment within). (Also, double the mass of the particles, which TF will then halve.)
+        
+    New approach:
+    
+        Instead of dividing the particle in any random direction, and then having to adjust the positions
+        of the daughters, calculate a random direction within the tangent plane, and use the second overload
+        of ParticleHandle.split() to provide that direction. (Unfortunately, that overload has a bug in TF
+        v. 0.2.0, so I can't use this yet.)
     """
-    # Note: .split() reduces mass and volume both to half the parent's original value. So, double both of them,
-    # so that we get daughter particles of the same mass and volume as the parent.
-    # Double the particle volume (by multiplying the particle radius by cube root 2).
-    # This also means the daughters will be placed just touching, so we don't have to adjust their locations afterward.
-    parent.radius *= 2 ** (1 / 3)
+    # We trick Tissue Forge into generating the correct new size. It wants to make the descendants half the
+    # volume of the original parent, but the particles are always spheres. So it reduces radius by a factor
+    # of cube_rt(2). What we want is for the squamous surface area to be halved, so a radius reduction of sqrt(2).
+    # And TF doesn't know about our cell radius, only our particle radius. We increase the size of our particle
+    # to let it masquerade as our cell, by adopting the radius of the cell. But when TF halves the volume of
+    # the spherical particle, its equatorial surface (the cell squamous apical surface area) won't go down by
+    # half, but only by 2**(2/3). So we need to adjust to a smaller particle to result in the right apical surface
+    # area reduction. The math says this: if we set the particle radius prior to splitting, to the cell radius over
+    # 2**(1/6), its new radius after splitting by TF will be the CELL radius we want (the old cell radius over
+    # sqrt(2)), so we capture that and apply it to the CELL radii, then return the PARTICLE radii to what the
+    # original parent was:
+    #
+    # let r = current CELL radius
+    # so pi r**2 is the current cell apical surface area; we want to end up with half that, or pi r**2 / 2
+    # set particle radius = r/2**(1/6)
+    # thus particle volume has been set to (4/3)pi ( r/2**(1/6) )**3 = (4/3)pi r**3 / sqrt(2)
+    # thus after splitting by TF, particle volume is halved: (2/3)pi r**3 / sqrt(2)
+    # thus particle radius is now ( r**3 / 2sqrt(2) )**(1/3) = r / ( 2sqrt(2) )**(1/3) = r / sqrt(2)
+    # thus particle apical surface area is now pi ( r / sqrt(2) )**2 = pi r**2 / 2
+    # which is what we wanted. Apical surface area has been halved.
+    #
+    # We could also just calculate that new radius ourselves, but we do it this way so that
+    # TF will place the two descendant particles an appropriate distance apart. (It places them next to each other,
+    # and just touching.) Since TF will be calculating the new radius for us, we can just copy that result.
+    parent.radius = gc.get_cell_radius(parent) / (2 ** (1 / 6))
     parent.mass *= 2
     
-    # Note that split() takes a "direction" argument, but it's not recognized as a keyword argument
-    daughter: tf.ParticleHandle = parent.split(epu.random_tangent(parent))
-    assert daughter.radius == g.Little.radius, f"resulting radius = {daughter.radius}"
-    assert daughter.mass == g.Little.mass, f"resulting mass = {daughter.mass}"
-
-    return daughter
-
-def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
-    """Original approach. Divide in random directions then adjust the daughters to how I want them."""
-    daughter: tf.ParticleHandle = parent.split()
-    parent.radius = g.Little.radius
-    parent.mass = g.Little.mass
-    daughter.radius = parent.radius
-    daughter.mass = parent.mass
-    # Note: .split() reduces mass and volume both to half the parent's original value (so radius to 1/cube_rt(2)
-    # or about 0.8), and then places the parent and the daughter next to each other, and just touching.
-    # But once you override that by changing that radius, of course you lose the "just touching". These
-    # particles will now be overlapping, and moved in arbitrary directions (usually in/out from the yolk surface).
+    daughter: tf.ParticleHandle
+    if cfg.use_alt_cell_splitting_method:
+        # Note that split() takes a "direction" argument, but it's not recognized as a keyword argument
+        daughter = parent.split(epu.random_tangent(parent))
+    else:
+        daughter = parent.split()
+        
+    # Because the PARTICLE radius that TF calculated, is what we want the new CELL radius to be, the descendant
+    # particles have been placed one CELL diameter apart; and we can copy that resulting PARTICLE radius as the
+    # new CELL radius:
+    new_cell_radius: float = parent.radius
     
-    # This will at least bring them back to the yolk surface. They're still likely overlapping but that will resolve.
-    _adjust_positions(parent, daughter)
+    # Then the particles themselves can be set back to the original:
+    parent.radius = g.Little.radius
+    daughter.radius = g.Little.radius
+    gc.set_cell_radius(parent, radius=new_cell_radius)
+    gc.add_particle(daughter, radius=new_cell_radius)
+    
+    if not cfg.use_alt_cell_splitting_method:
+        # The descendants will now be oriented at an arbitrary angle (usually not in the sheet, but in/out from the
+        # yolk surface). We have to adjust them, bringing them back to the yolk surface. This will usually make them
+        # overlap (in terms of CELL radii), but that will resolve as they push each other apart.
+        _adjust_positions(parent, daughter)
     
     return daughter
 
 def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
-    daughter: tf.ParticleHandle
-    if cfg.use_alt_cell_splitting_method:
-        daughter = _alt_split(parent)
-    else:
-        daughter = _split(parent)
-    
+    daughter: tf.ParticleHandle = _split(parent)
     daughter.style = tf.rendering.Style()       # Not inherited from parent, so create it
     daughter.style.color = tfu.lighter_blue     # for now, change both, to indicate which have split
     parent.style.color = tfu.lighter_blue
-    gc.add_particle(daughter, radius=gc.get_cell_radius(parent))
+
+    # Need to change r0 on all the bonds on the parent to reflect its new cell radius
+    bhandle: tf.BondHandle
+    for bhandle in tfu.bonds(parent):
+        bonds.update_bond(bhandle)
 
     bond_count: int = len(daughter.bonded_neighbors)
     if bond_count > 0:
@@ -187,6 +227,7 @@ def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     bonds.make_all_bonds(daughter)  # ToDo: This needs a bug fix, never took into account cfg.max_edge_neighbor_count
     return daughter
 
+_one_time_cell_depletion_msg_sent: bool = False
 def cell_division() -> None:
     """Cell division
     
@@ -204,7 +245,7 @@ def cell_division() -> None:
     
     Use Poisson to determine how many cells will actually divide this time.
     """
-    global _cumulative_cell_divisions, _evl_previous_z
+    global _cumulative_cell_divisions, _evl_previous_z, _one_time_cell_depletion_msg_sent
     if not cfg.cell_division_enabled:
         return
     
@@ -230,7 +271,38 @@ def cell_division() -> None:
     phandle: tf.ParticleHandle
     particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()]
     selected_particles: np.ndarray
-    if cfg.cell_division_biased_by_tension:
+    if cfg.cell_division_largest_first:
+        # Find the undivided particles, based on their cell radius. Testing greater-than with a tolerance
+        # threshold, instead of just equality, in anticipation that epu.initial_cell_radius will be an arbitrary
+        # float and don't want to rely on equality comparison.
+        undivided_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
+                                                        if gc.get_cell_radius(phandle) > 0.9 * epu.initial_cell_radius]
+        
+        # If running out and there aren't enough, just divide the ones that remain
+        num_divisions = min(num_divisions, len(undivided_particles))
+        
+        if undivided_particles:
+            # As long as there are any cells left that haven't divided even once, strictly use those up
+            # before any other particle divides a second time. That should ALWAYS be true, assuming
+            # cfg.total_epiboly_divisions is less than the total original cell population. The pool of undivided
+            # cells should never get used up.
+            #
+            # In the event more divisions than that are requested, then once those run out, the correct solution
+            # is to then deplete the next lower cell size, and then the next, and so on. But I haven't decided
+            # the best way to write that code, and I don't expect it to ever happen, since zebrafish EVL cell
+            # population does not divide enough to double during the course of epiboly. Hence, just stop
+            # dividing and print a warning message in case too many cell divisions ever requested. If that ever
+            # needs to become a thing, I'll have to implement code to handle that.
+            
+            selected_particles = _generator.choice(undivided_particles, size=num_divisions, replace=False)
+        else:
+            selected_particles = np.ndarray([])
+            if not _one_time_cell_depletion_msg_sent:
+                msg: str = "Ran out of undivided particles (only 1 division per particle currently supported)"
+                tf.Logger.log(level=tf.Logger.WARNING, msg=msg)
+                print(tfu.bluecolor, msg, tfu.endcolor)
+                _one_time_cell_depletion_msg_sent = True
+    elif cfg.cell_division_biased_by_tension:
         # a particle's probability of being selected should be proportional to the tension it is under
         strains: list[float] = [tfu.strain(phandle) for phandle in particles]
         relative_probabilities: np.ndarray = np.clip(strains, a_min=0.0, a_max=None)
@@ -244,39 +316,42 @@ def cell_division() -> None:
     
     daughter: tf.ParticleHandle
     tf.Logger.setLevel(level=tf.Logger.INFORMATION)  # Not using DEBUG because that gets tons of internal TF Debug msgs
-    for phandle in selected_particles:
-        # ### DEBUG: For cells with small x, i.e. cells near the yz coordinate plane (relative to yolk center as origin)
-        # ###           either screen them out (don't split), or paint them to identify them. Either way, log it.
-        screen: bool = False    # Config: If True, screen them out, don't paint anything (paint flag ignored)
-        paint: bool = False     # Config: If NOT screening, whether to paint only these daughters
-        tolerance: float = 0.2
-        pos: tf.fVector3 = epu.embryo_cartesian_coords(phandle)
-        if abs(pos.x()) < tolerance:
-            if screen:
-                msg = f"Skipping split of particle at position = {pos}"
-                tf.Logger.log(level=tf.Logger.INFORMATION, msg=msg)
-                print(tfu.bluecolor, msg, tfu.endcolor)
-                continue
-            elif paint:
-                msg = f"Painting daughter pair from parent at position = {pos}"
-                tf.Logger.log(level=tf.Logger.INFORMATION, msg=msg)
-                print(tfu.bluecolor, msg, tfu.endcolor)
-        else:
-            paint = False       # Don't change this one. Never paint daughters from > tolerance parent
-        # ### END DEBUG
-
-        _cumulative_cell_divisions += 1
-        daughter = _divide(phandle)
-        assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
-        print(f"New cell division (cumulative: {_cumulative_cell_divisions},"
-              f" total cells: {len(g.Little.items()) + len(g.LeadingEdge.items())}),"
-              f" daughter id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")
-        
-        # ### DEBUG: Color the cells so I can see where they end up
-        if paint:
-            phandle.style.color = tfu.light_gray
-            daughter.style.color = tfu.green
-        # ### END DEBUG
+    if num_divisions > 0:
+        # (silliness to screen out empty list because it's an np.ndarray, and empty np.ndarrays are not iterable!)
+        for phandle in selected_particles:
+            # ### DEBUG:
+            # ### For cells with small x, i.e. cells near the yz coordinate plane (relative to yolk center as origin)
+            # ### either screen them out (don't split), or paint them to identify them. Either way, log it.
+            screen: bool = False    # Config: If True, screen them out, don't paint anything (paint flag ignored)
+            paint: bool = False     # Config: If NOT screening, whether to paint only these daughters
+            tolerance: float = 0.2
+            pos: tf.fVector3 = epu.embryo_cartesian_coords(phandle)
+            if abs(pos.x()) < tolerance:
+                if screen:
+                    msg = f"Skipping split of particle at position = {pos}"
+                    tf.Logger.log(level=tf.Logger.INFORMATION, msg=msg)
+                    print(tfu.bluecolor, msg, tfu.endcolor)
+                    continue
+                elif paint:
+                    msg = f"Painting daughter pair from parent at position = {pos}"
+                    tf.Logger.log(level=tf.Logger.INFORMATION, msg=msg)
+                    print(tfu.bluecolor, msg, tfu.endcolor)
+            else:
+                paint = False       # Don't change this one. Never paint daughters from > tolerance parent
+            # ### END DEBUG
+    
+            _cumulative_cell_divisions += 1
+            daughter = _divide(phandle)
+            assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
+            print(f"New cell division (cumulative: {_cumulative_cell_divisions},"
+                  f" total cells: {len(g.Little.items()) + len(g.LeadingEdge.items())}),"
+                  f" daughter id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")
+            
+            # ### DEBUG: Color the cells so I can see where they end up
+            if paint:
+                phandle.style.color = tfu.light_gray
+                daughter.style.color = tfu.green
+            # ### END DEBUG
     tf.Logger.setLevel(level=tf.Logger.ERROR)
 
 def get_state() -> dict:
