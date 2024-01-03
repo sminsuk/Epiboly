@@ -325,9 +325,9 @@ def set_state(d: dict) -> None:
     global sim_state_timesteps_per_export, screenshots_timesteps_per_export
     global plotting_interval_timesteps, time_avg_accumulation_steps
     
-    comment = d["comment"]
+    comment = d["config_values"]["comment"]
     
-    model: dict = d["model"]
+    model: dict = d["config_values"]["model"]
     dt = model["dt"]
     initialization_algo_graph_based = model["initialization_algo_graph_based"]
     cell_division_enabled = model["cell_division_enabled"]
@@ -364,7 +364,7 @@ def set_state(d: dict) -> None:
     target_edge_angle = model["target_edge_angle"]
     leading_edge_recruitment_limit = model["leading_edge_recruitment_limit"]
     
-    control: dict = d["model control"]
+    control: dict = d["config_values"]["model control"]
     run_balanced_force_control = control["run_balanced_force_control"]
     test_recoil_without_bond_remodeling = control["test_recoil_without_bond_remodeling"]
     test_recoil_with_bond_remodeling = control["test_recoil_with_bond_remodeling"]
@@ -372,7 +372,7 @@ def set_state(d: dict) -> None:
     recoil_duration_with_remodeling = control["recoil_duration_with_remodeling"]
     stopping_condition_phi = control["stopping_condition_phi"]
 
-    visualization: dict = d["visualization"]
+    visualization: dict = d["config_values"]["visualization"]
     show_equilibration = visualization["show_equilibration"]
     screenshots_simtime_per_export = visualization["screenshots_simtime_per_export"]
     plotting_interval_simtime = visualization["plotting_interval_simtime"]
@@ -380,7 +380,7 @@ def set_state(d: dict) -> None:
     config_time_avg_accumulation_steps = visualization["config_time_avg_accumulation_steps"]
     plot_t0_as_single_timestep = visualization["plot_t0_as_single_timestep"]
 
-    data_export: dict = d["data export"]
+    data_export: dict = d["config_values"]["data export"]
     sim_state_simtime_per_export = data_export["sim_state_simtime_per_export"]
     sim_state_minutes_per_export = data_export["sim_state_minutes_per_export"]
     sim_state_export_keep = data_export["sim_state_export_keep"]
