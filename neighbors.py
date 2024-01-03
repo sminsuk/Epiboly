@@ -201,8 +201,7 @@ def get_ordered_neighbors_and_angles(p: tf.ParticleHandle,
                 # < 0: vector angle > pi/2; particle on the opposite side from reference_cross;
                 return 2 * math.pi - theta
     
-        big_particle: tf.ParticleHandle = g.Big.items()[0]
-        normal_vector: tf.fVector3 = p.position - big_particle.position
+        normal_vector: tf.fVector3 = epu.embryo_cartesian_coords(p)
         reference_cross: tf.fVector3 = tfu.cross(reference_vector, normal_vector)
         corrected_angles: list[float] = [corrected_angle(theta, neighbor_unit_vectors[i], reference_cross)
                                          for i, theta in enumerate(original_angles)]

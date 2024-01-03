@@ -70,11 +70,8 @@ def embryo_coords(p: tf.fVector3 | tf.ParticleHandle) -> tuple[float, float]:
     
     return theta, phi
 
-def embryo_cartesian_coords(p: tf.fVector3 | tf.ParticleHandle) -> tf.fVector3:
-    """x, y, z relative to the yolk center
-    
-    Overload to get theta, phi based on either a position or an existing particle.
-    """
+def embryo_cartesian_coords(p: tf.ParticleHandle) -> tf.fVector3:
+    """x, y, z relative to the yolk center"""
     yolk_particle: tf.ParticleHandle = g.Big.items()[0]
     normal_vec: tf.fVector3 = p.position - yolk_particle.position
     return normal_vec
