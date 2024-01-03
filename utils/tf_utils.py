@@ -221,6 +221,9 @@ light_gray = tf.fVector3([0.75, 0.75, 0.75])
 gray = tf.fVector3([0.5, 0.5, 0.5])
 red = tf.fVector3([0.7, 0.0, 0.0])
 green = tf.fVector3([0.0, 0.7, 0.0])
+red_brown = tf.fVector3([0.65, 0.16, 0.16])
+brown = tf.fVector3([0.65, 0.4, 0.16])
+dk_yellow_brown = tf.fVector3([0.5, 0.4, 0.16])
 
 def exception_handler():
     """General exception handler to be used inside TF events.

@@ -13,6 +13,7 @@ import utils.tf_utils as tfu
 # Keep track of movement of EVL cells into and out of the leading edge:
 cumulative_to_edge: int = 0
 cumulative_from_edge: int = 0
+cumulative_edge_divisions: int = 0
 
 # Cell radius is distinct from PARTICLE radius. It represents the extent of the cell, an average distance
 # from the center of mass, to the edge of the cell. Particles only represent the point center of mass, and their
@@ -82,6 +83,11 @@ def random_tangent(p: tf.ParticleHandle) -> tf.fVector3:
     """Return a vector pointing randomly within the plane tangent to the yolk surface at particle p"""
     normal_vec: tf.fVector3 = embryo_cartesian_coords(p)
     return tfu.random_perpendicular(normal_vec)
+
+def horizontal_tangent(p: tf.ParticleHandle) -> tf.fVector3:
+    """Return a unit vector pointing horizontally within the plane tangent to the yolk surface at particle p"""
+    theta, phi = embryo_coords(p)
+    return tf.fVector3(tfu.cartesian_from_spherical([1, theta + np.pi / 2, np.pi / 2]))
 
 def vegetalward(p: tf.ParticleHandle) -> tf.fVector3:
     """Return a unit vector pointing in the vegetalward direction from particle p"""

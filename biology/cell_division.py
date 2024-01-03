@@ -8,6 +8,7 @@ import epiboly_globals as g
 
 import config as cfg
 import biology.bond_maintenance as bonds
+import neighbors as nbrs
 import utils.epiboly_utils as epu
 import utils.global_catalogs as gc
 import utils.tf_utils as tfu
@@ -131,7 +132,7 @@ def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
 def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     """Divide the cell into two daughters, each with half the original apical surface area
     
-    Depending on config variable, use the original approach, or the new-and-improved approached which
+    Depending on config variable, use the original approach, or the new-and-improved approach which
     does not work because of a Tissue Forge bug. Keep them both around until the bug is worked out:
     
     Original approach:
@@ -152,7 +153,8 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     New approach:
     
         Instead of dividing the particle in any random direction, and then having to adjust the positions
-        of the daughters, calculate a random direction within the tangent plane, and use the second overload
+        of the daughters, calculate a random direction within the tangent plane (unless the particle is in
+        the margin, then take the horizontal direction within the tangent plane), and use the second overload
         of ParticleHandle.split() to provide that direction. (Unfortunately, that overload has a bug in TF
         v. 0.2.0, so I can't use this yet.)
     """
@@ -172,7 +174,7 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     # so pi r**2 is the current cell apical surface area; we want to end up with half that, or pi r**2 / 2
     # set particle radius = r/2**(1/6)
     # thus particle volume has been set to (4/3)pi ( r/2**(1/6) )**3 = (4/3)pi r**3 / sqrt(2)
-    # thus after splitting by TF, particle volume is halved: (2/3)pi r**3 / sqrt(2)
+    # after splitting by TF, particle volume is halved, thus is now: (2/3)pi r**3 / sqrt(2)
     # thus particle radius is now ( r**3 / 2sqrt(2) )**(1/3) = r / ( 2sqrt(2) )**(1/3) = r / sqrt(2)
     # thus particle apical surface area is now pi ( r / sqrt(2) )**2 = pi r**2 / 2
     # which is what we wanted. Apical surface area has been halved.
@@ -186,7 +188,10 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter: tf.ParticleHandle
     if cfg.use_alt_cell_splitting_method:
         # Note that split() takes a "direction" argument, but it's not recognized as a keyword argument
-        daughter = parent.split(epu.random_tangent(parent))
+        if parent.type() == g.LeadingEdge:
+            daughter = parent.split(epu.horizontal_tangent(parent))
+        else:
+            daughter = parent.split(epu.random_tangent(parent))
     else:
         daughter = parent.split()
         
@@ -212,8 +217,10 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
 def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter: tf.ParticleHandle = _split(parent)
     daughter.style = tf.rendering.Style()       # Not inherited from parent, so create it
-    daughter.style.color = tfu.lighter_blue     # for now, change both, to indicate which have split
-    parent.style.color = tfu.lighter_blue
+    offspring_color: tf.fVector3 = tfu.dk_yellow_brown if daughter.type() == g.LeadingEdge else tfu.lighter_blue
+    daughter.style.color = offspring_color  # for now, change both cells, to indicate which have split
+    parent.style.color = offspring_color
+    # ToDo: ought to respect cell size when recoloring them upon entering/leaving margin. Currently I do not.
 
     # Need to change r0 on all the bonds on the parent to reflect its new cell radius
     bhandle: tf.BondHandle
@@ -221,8 +228,22 @@ def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
         bonds.update_bond(bhandle)
 
     bond_count: int = len(daughter.bonded_neighbors)
-    if bond_count > 0:
-        print(tfu.bluecolor + f"New particle has {bond_count} bonds before any have been made!" + tfu.endcolor)
+    assert bond_count == 0, f"New particle has {bond_count} bonds before any have been made!"
+    
+    if daughter.type() == g.LeadingEdge:
+        # First, find its 2 nearest edge neighbors (which presumably includes its parent), break the bond
+        # between those two particles, and bond them each to daughter, before then bonding to internal ones
+        neigh1: tf.ParticleHandle
+        neigh2: tf.ParticleHandle
+        neigh1, neigh2 = nbrs.get_nearest_non_bonded_neighbors_constrained(daughter, [g.LeadingEdge],
+                                                                           min_neighbors=2,
+                                                                           max_neighbors=2)
+        edge_bond: tf.BondHandle = tfu.bond_between(neigh1, neigh2)
+        assert edge_bond, "The two nearest edge particles are not bonded, hence not adjacent in the ring!"
+        gc.destroy_bond(edge_bond)
+        bonds.make_bond(daughter, neigh1)
+        bonds.make_bond(daughter, neigh2)
+        bonds.remodel_angles(neigh1, neigh2, p_becoming=daughter, add=True)
 
     bonds.make_all_bonds(daughter)  # ToDo: This needs a bug fix, never took into account cfg.max_edge_neighbor_count
     return daughter
@@ -270,12 +291,13 @@ def cell_division() -> None:
     # Select the particles to split
     phandle: tf.ParticleHandle
     particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()]
+    particles.extend(g.LeadingEdge.items())
     selected_particles: np.ndarray
     if cfg.cell_division_largest_first:
         # Find the undivided particles, based on their cell radius. Testing greater-than with a tolerance
         # threshold, instead of just equality, in anticipation that epu.initial_cell_radius will be an arbitrary
         # float and don't want to rely on equality comparison.
-        undivided_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
+        undivided_particles: list[tf.ParticleHandle] = [phandle for phandle in particles
                                                         if gc.get_cell_radius(phandle) > 0.9 * epu.initial_cell_radius]
         
         # If running out and there aren't enough, just divide the ones that remain
@@ -341,8 +363,10 @@ def cell_division() -> None:
             # ### END DEBUG
     
             _cumulative_cell_divisions += 1
+            if phandle.type() == g.LeadingEdge:
+                epu.cumulative_edge_divisions += 1
             daughter = _divide(phandle)
-            assert daughter.type_id == g.Little.id, f"Daughter is of type {daughter.type()}!"
+            assert daughter.type() == phandle.type(), f"Daughter is type {daughter.type()}, parent is {phandle.type()}!"
             print(f"New cell division (cumulative: {_cumulative_cell_divisions},"
                   f" total cells: {len(g.Little.items()) + len(g.LeadingEdge.items())}),"
                   f" daughter id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")

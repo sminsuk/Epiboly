@@ -40,6 +40,7 @@ _straightness: list[float] = []
 _margin_count: list[int] = []
 _margin_cum_in: list[int] = []
 _margin_cum_out: list[int] = []
+_margin_cum_divide: list[int] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
@@ -613,9 +614,11 @@ def _show_margin_population() -> None:
     _margin_count.append(len(g.LeadingEdge.items()))
     _margin_cum_in.append(epu.cumulative_to_edge)
     _margin_cum_out.append(epu.cumulative_from_edge)
+    if cfg.cell_division_enabled:
+        _margin_cum_divide.append(epu.cumulative_edge_divisions)
     
     # plot just the total
-    margin_ax.plot(_timesteps, _margin_count, "b.", label="Total margin cell count")
+    margin_ax.plot(_timesteps, _margin_count, ".b", label="Total margin cell count")
 
     # save
     margin_path: str = os.path.join(_plot_path, "Margin cell rearrangement.png")
@@ -623,8 +626,10 @@ def _show_margin_population() -> None:
     
     # add additional lines to the plot and resave under a different name
     margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
-    margin_ax.plot(_timesteps, _margin_cum_out, "-.b", label="Cumulative out")
-    margin_ax.legend()
+    margin_ax.plot(_timesteps, _margin_cum_out, ":b", label="Cumulative out")
+    if cfg.cell_division_enabled:
+        margin_ax.plot(_timesteps, _margin_cum_divide, "-b", label="Cumulative divisions")
+    margin_ax.legend()  # ToDo? Force to loc="center right"? Haven't decided
 
     margin_path = os.path.join(_plot_path, "Margin cell rearrangement, plus cumulative.png")
     margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")

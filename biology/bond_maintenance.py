@@ -60,12 +60,22 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
         # p2.style.color = tfu.white  # testing
 
 def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
-    # Bond to all neighbors not already bonded to
-    # Except ToDo: This needs to take into account cfg.max_edge_neighbor_count
+    """Bond to all neighbors not already bonded to; if phandle is margin cell, only bond to internal cells
+    
+    (That's because the point here is to just find a bunch of nearby neighbors and grab 'em. Bonds between
+    two margin cells must be handled more carefully. So when calling this function with a margin cell,
+    it should already be bonded to its two carefully selected neighboring margin cells; this function call
+    then takes care of hooking it up to the non-margin neighbors. This function was never even needed for
+    margin cells until I implemented cell division within the margin, creating a new daughter cell of
+    margin type, not bonded to anything at all. So hook it up to its two margin neighbors, then send it here.)
+    
+    Except ToDo: This needs to take into account cfg.max_edge_neighbor_count
+    """
     existing_neighbor_count: int = len(phandle.bonded_neighbors)
     additional_neighbors_needed: int = max(cfg.min_neighbor_count - existing_neighbor_count, 0)
+    ptypes: list[tf.ParticleType] = [g.Little] if phandle.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
     neighbors: list[tf.ParticleHandle]
-    neighbors = nbrs.get_nearest_non_bonded_neighbors(phandle,
+    neighbors = nbrs.get_nearest_non_bonded_neighbors(phandle, ptypes,
                                                       min_neighbors=additional_neighbors_needed,
                                                       min_distance=cfg.min_neighbor_initial_distance_factor)
     for neighbor in neighbors:
