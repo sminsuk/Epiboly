@@ -71,8 +71,8 @@ min_neighbor_initial_distance_factor: float = 1.5
 
 # Some items for Potential- and Bond-making:
 harmonic_repulsion_spring_constant: float = 0.3
-harmonic_spring_constant: float = 0.8
-harmonic_edge_spring_constant: float = 0.8  # (for the Bonds)
+harmonic_spring_constant: float = 0.4
+harmonic_edge_spring_constant: float = 0.4
 harmonic_yolk_evl_spring_constant: float = 2.7
 # With k=0.067: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
 # Using k=0.033 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
@@ -97,7 +97,7 @@ class ForceAlgorithm(Enum):
 # run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: float = 8  # just balances interior bonds at initialization
-external_force: float = 7 if cell_division_enabled else 17  # +additional to produce full epiboly
+external_force: float = 7  # +additional to produce full epiboly
 
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
