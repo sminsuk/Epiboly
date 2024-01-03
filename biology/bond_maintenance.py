@@ -105,6 +105,110 @@ def test_ring_is_fubar():
         break_point = 1
     return
 
+def remodel_angles(p1: tf.ParticleHandle, p2: tf.ParticleHandle, p_becoming: tf.ParticleHandle, add: bool) -> None:
+    """Handle the transformation of the Angle bonds accompanying the transformation of a leading edge particle
+
+    p1 and p2 flank p_becoming, which is either entering (add == True) or leaving (add == False) the leading edge.
+    """
+    
+    def cleanup(p: tf.ParticleHandle) -> None:
+        """This is to deal with a TF bug which randomly creates garbage AngleHandles out of thin air.
+
+        If this particle has any such Angles on it, destroy them. Unclear whether they cause any damage to
+        the sim, but, they certainly cause my asserts to trigger and they shouldn't be here. After this,
+        the asserts shouldn't fire anymore unless my own code is doing something wrong.
+
+        Use TF native destroy(), not my gc.destroy_angle(), because these are already not in the global
+        catalog, hence can't be del'ed.
+        """
+        angle: tf.AngleHandle
+        false_angles: list[tf.AngleHandle] = [angle for angle in p.angles
+                                              if angle.id not in gc.angles_by_id]
+        for angle in false_angles:
+            print(tfu.bluecolor +
+                  f"Destroying false angle (id={angle.id}) on particle {p.id}, leaving {len(p.angles) - 1}" +
+                  tfu.endcolor)
+            angle.destroy()
+    
+    def get_pivot_angle(p: tf.ParticleHandle) -> tf.AngleHandle | None:
+        """Return the particle's pivot Angle (the Angle that has this particle as the CENTER particle) - if any"""
+        angle: tf.AngleHandle
+        angles: list[tf.AngleHandle] = [angle for angle in p.angles
+                                        if p == angle.parts[1]]
+        assert len(angles) < 2, f"Found 2 or more pivot Angles on particle {p.id}"
+        return None if not angles else angles[0]
+    
+    def exchange_particles(angle: tf.AngleHandle, bonded_p: tf.ParticleHandle, new_p: tf.ParticleHandle,
+                           potential: tf.Potential) -> None:
+        """Make this angle connect to the new particle instead of to the previously bonded neighbor.
+
+        Conceptually, delete the old outer particle and replace it with the new one. But AngleHandle.parts is
+        not writeable, so actually create a new Angle with the proper connection, then delete the old Angle.
+        """
+        old_outer_p1: tf.ParticleHandle
+        new_outer_p1: tf.ParticleHandle
+        center_p: tf.ParticleHandle
+        old_outer_p2: tf.ParticleHandle
+        new_outer_p2: tf.ParticleHandle
+        
+        old_outer_p1, center_p, old_outer_p2 = angle.parts
+        assert bonded_p in (old_outer_p1, old_outer_p2), f"bonded_p ({bonded_p}) is not part of this Angle!"
+        if bonded_p == old_outer_p1:
+            new_outer_p1 = new_p
+            new_outer_p2 = old_outer_p2
+        else:
+            new_outer_p1 = old_outer_p1
+            new_outer_p2 = new_p
+        
+        gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
+        
+        gc.destroy_angle(angle)
+    
+    if not cfg.angle_bonds_enabled:
+        return
+    
+    cleanup(p1)
+    cleanup(p2)
+    cleanup(p_becoming)
+    
+    assert len(p1.angles) == 3 and len(p2.angles) == 3, \
+        f"While {'joining' if add else 'leaving'} the leading edge, " \
+        f"particles {p1.id}, {p2.id} have {len(p1.angles)}, {len(p2.angles)} Angles, respectively (should have 3)." \
+        f" p_becoming (id={p_becoming.id}) has {len(p_becoming.angles)} Angles (should have {0 if add else 3})."
+    a1: tf.AngleHandle = get_pivot_angle(p1)
+    a2: tf.AngleHandle = get_pivot_angle(p2)
+    assert a1, f"Particle {p1.id} has no pivot Angle!"
+    assert a2, f"Particle {p2.id} has no pivot Angle!"
+    
+    k: float = cfg.harmonic_angle_spring_constant
+    theta0: float = harmonic_angle_equilibrium_value()
+    tol: float = cfg.harmonic_angle_tolerance
+    edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=k, theta0=theta0, tol=tol)
+    assert edge_angle_potential is not None, f"Failed harmonic_angle potential, k={k}, theta0={theta0}, tol={tol}"
+    
+    if add:
+        assert len(p_becoming.angles) == 0, f"Recruited particle (id={p_becoming.id}) already has" \
+                                            f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
+        exchange_particles(a1, bonded_p=p2, new_p=p_becoming, potential=edge_angle_potential)
+        exchange_particles(a2, bonded_p=p1, new_p=p_becoming, potential=edge_angle_potential)
+        # Trouble-shooting new bug (with TF v 0.1.0) – ended up with 2 instead of 3 Angle bonds on it.
+        # This assert is excessive, can be removed once that's solved. Just want to find out, did it happen during
+        # exchange_particles(), or during gc.create_angle()? (Note, probably on the back end because TF did
+        # generate an error in the log. In which case, doesn't matter when it happened, both use tf.Angle.create())
+        assert len(p_becoming.angles) == 2, f"Recruited particle (id={p_becoming.id}) now has" \
+                                            f" {len(p_becoming.angles)} Angle bonds on it! Should have 2!"
+        gc.create_angle(edge_angle_potential, p1, p_becoming, p2)
+        assert len(p_becoming.angles) == 3, f"Recruited particle (id={p_becoming.id}) ended up with" \
+                                            f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
+    else:
+        assert len(p_becoming.angles) == 3, f"Particle becoming internal (id={p_becoming.id}) starting with" \
+                                            f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
+        exchange_particles(a1, bonded_p=p_becoming, new_p=p2, potential=edge_angle_potential)
+        exchange_particles(a2, bonded_p=p_becoming, new_p=p1, potential=edge_angle_potential)
+        gc.destroy_angle(p_becoming.angles[0])
+        assert len(p_becoming.angles) == 0, f"Particle becoming internal (id={p_becoming.id}) ended up with" \
+                                            f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
+
 def _make_break_or_become(k_neighbor_count: float, k_angle: float,
                           k_edge_neighbor_count: float, k_edge_angle: float) -> None:
     """
@@ -591,109 +695,6 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             make_bond(p, making_particle, verbose=False)
             return 1
         return 0
-
-    def remodel_angles(p1: tf.ParticleHandle, p2: tf.ParticleHandle, p_becoming: tf.ParticleHandle, add: bool) -> None:
-        """Handle the transformation of the Angle bonds accompanying the transformation of a leading edge particle
-        
-        p1 and p2 flank p_becoming, which is either entering (add == True) or leaving (add == False) the leading edge.
-        """
-        def cleanup(p: tf.ParticleHandle) -> None:
-            """This is to deal with a TF bug which randomly creates garbage AngleHandles out of thin air.
-            
-            If this particle has any such Angles on it, destroy them. Unclear whether they cause any damage to
-            the sim, but, they certainly cause my asserts to trigger and they shouldn't be here. After this,
-            the asserts shouldn't fire anymore unless my own code is doing something wrong.
-            
-            Use TF native destroy(), not my gc.destroy_angle(), because these are already not in the global
-            catalog, hence can't be del'ed.
-            """
-            angle: tf.AngleHandle
-            false_angles: list[tf.AngleHandle] = [angle for angle in p.angles
-                                                  if angle.id not in gc.angles_by_id]
-            for angle in false_angles:
-                print(tfu.bluecolor +
-                      f"Destroying false angle (id={angle.id}) on particle {p.id}, leaving {len(p.angles) - 1}" +
-                      tfu.endcolor)
-                angle.destroy()
-        
-        def get_pivot_angle(p: tf.ParticleHandle) -> tf.AngleHandle | None:
-            """Return the particle's pivot Angle (the Angle that has this particle as the CENTER particle) - if any"""
-            angle: tf.AngleHandle
-            angles: list[tf.AngleHandle] = [angle for angle in p.angles
-                                            if p == angle.parts[1]]
-            assert len(angles) < 2, f"Found 2 or more pivot Angles on particle {p.id}"
-            return None if not angles else angles[0]
-        
-        def exchange_particles(angle: tf.AngleHandle, bonded_p: tf.ParticleHandle, new_p: tf.ParticleHandle,
-                               potential: tf.Potential) -> None:
-            """Make this angle connect to the new particle instead of to the previously bonded neighbor.
-            
-            Conceptually, delete the old outer particle and replace it with the new one. But AngleHandle.parts is
-            not writeable, so actually create a new Angle with the proper connection, then delete the old Angle.
-            """
-            old_outer_p1: tf.ParticleHandle
-            new_outer_p1: tf.ParticleHandle
-            center_p: tf.ParticleHandle
-            old_outer_p2: tf.ParticleHandle
-            new_outer_p2: tf.ParticleHandle
-
-            old_outer_p1, center_p, old_outer_p2 = angle.parts
-            assert bonded_p in (old_outer_p1, old_outer_p2), f"bonded_p ({bonded_p}) is not part of this Angle!"
-            if bonded_p == old_outer_p1:
-                new_outer_p1 = new_p
-                new_outer_p2 = old_outer_p2
-            else:
-                new_outer_p1 = old_outer_p1
-                new_outer_p2 = new_p
-
-            gc.create_angle(potential, new_outer_p1, center_p, new_outer_p2)
-
-            gc.destroy_angle(angle)
-
-        if not cfg.angle_bonds_enabled:
-            return
-        
-        cleanup(p1)
-        cleanup(p2)
-        cleanup(p_becoming)
-        
-        assert len(p1.angles) == 3 and len(p2.angles) == 3,\
-            f"While {'joining' if add else 'leaving'} the leading edge, " \
-            f"particles {p1.id}, {p2.id} have {len(p1.angles)}, {len(p2.angles)} Angles, respectively (should have 3)."\
-            f" p_becoming (id={p_becoming.id}) has {len(p_becoming.angles)} Angles (should have {0 if add else 3})."
-        a1: tf.AngleHandle = get_pivot_angle(p1)
-        a2: tf.AngleHandle = get_pivot_angle(p2)
-        assert a1, f"Particle {p1.id} has no pivot Angle!"
-        assert a2, f"Particle {p2.id} has no pivot Angle!"
-
-        k: float = cfg.harmonic_angle_spring_constant
-        theta0: float = harmonic_angle_equilibrium_value()
-        tol: float = cfg.harmonic_angle_tolerance
-        edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=k, theta0=theta0, tol=tol)
-        assert edge_angle_potential is not None, f"Failed harmonic_angle potential, k={k}, theta0={theta0}, tol={tol}"
-
-        if add:
-            assert len(p_becoming.angles) == 0, f"Recruited particle (id={p_becoming.id}) already has" \
-                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
-            exchange_particles(a1, bonded_p=p2, new_p=p_becoming, potential=edge_angle_potential)
-            exchange_particles(a2, bonded_p=p1, new_p=p_becoming, potential=edge_angle_potential)
-            # Trouble-shooting new bug (with TF v 0.1.0) – ended up with 2 instead of 3 Angle bonds on it.
-            # This assert is excessive, can be removed once that's solved. Just want to find out, did it happen during
-            # exchange_particles(), or during gc.create_angle()? (Note, probably on the back end because TF did
-            # generate an error in the log. In which case, doesn't matter when it happened, both use tf.Angle.create())
-            assert len(p_becoming.angles) == 2, f"Recruited particle (id={p_becoming.id}) now has" \
-                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have 2!"
-            gc.create_angle(edge_angle_potential, p1, p_becoming, p2)
-            assert len(p_becoming.angles) == 3, f"Recruited particle (id={p_becoming.id}) ended up with" \
-                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
-        else:
-            assert len(p_becoming.angles) == 3, f"Particle becoming internal (id={p_becoming.id}) starting with" \
-                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have 3!"
-            exchange_particles(a1, bonded_p=p_becoming, new_p=p2, potential=edge_angle_potential)
-            exchange_particles(a2, bonded_p=p_becoming, new_p=p1, potential=edge_angle_potential)
-            gc.destroy_angle(p_becoming.angles[0])
-            assert len(p_becoming.angles) == 0, f"Particle becoming internal (id={p_becoming.id}) ended up with" \
-                                                f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
 
     def attempt_become_internal(p: tf.ParticleHandle) -> int:
         """For LeadingEdge particles only. Become internal, and let its two bonded leading edge neighbors
