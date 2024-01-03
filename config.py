@@ -27,7 +27,7 @@ comment: str = ""
 # to timesteps, so that you can adjust dt without having to make compensating adjustments in those. But I
 # wasn't sure what exactly is the best behavior for time_avg_accumulation_steps, so I'm leaving it alone
 # for now. May need to manually adjust as appopriate.)
-dt: float = 0.1
+dt: float = 0.16
 
 # Use newer init method (discover leading edge of particles using graph theory definition of "boundary"; as opposed
 # to the older method of arbitrarily deciding how many edge particles to have, and creating a ring of them.
@@ -174,13 +174,13 @@ show_equilibration: bool = False
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
-screenshots_simtime_per_export: float = 0.9
+screenshots_simtime_per_export: float = 1.6
 screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 0 else
                                          max(1, round(screenshots_simtime_per_export / dt)))
 
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
-plotting_interval_simtime: float = 100
+plotting_interval_simtime: float = 160
 plotting_interval_timesteps: int = round(plotting_interval_simtime / dt)
 # Should certain metrics be plotted as time-averages, instead of as single timesteps?
 plot_time_averages: bool = True
