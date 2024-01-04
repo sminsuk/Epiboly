@@ -186,10 +186,13 @@ def phi_for_epiboly(epiboly_percentage: float):
 def get_state() -> dict:
     """In composite runs, save state of accumulated cell migration statistics"""
     return {"cumulative_from_edge": cumulative_from_edge,
-            "cumulative_to_edge": cumulative_to_edge}
+            "cumulative_to_edge": cumulative_to_edge,
+            "cumulative_edge_divisions": cumulative_edge_divisions,
+            }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global cumulative_from_edge, cumulative_to_edge
+    global cumulative_from_edge, cumulative_to_edge, cumulative_edge_divisions
     cumulative_from_edge = d["cumulative_from_edge"]
     cumulative_to_edge = d["cumulative_to_edge"]
+    cumulative_edge_divisions = d["cumulative_edge_divisions"]

@@ -753,6 +753,7 @@ def get_state() -> dict:
             "margin_count": _margin_count,
             "margin_cum_in": _margin_cum_in,
             "margin_cum_out": _margin_cum_out,
+            "margin_cum_divide": _margin_cum_divide,
             "timesteps": _timesteps,
             
             "tension_bin_axis_history": _tension_bin_axis_history,
@@ -780,7 +781,7 @@ def get_state() -> dict:
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _straightness, _timesteps
-    global _margin_count, _margin_cum_in, _margin_cum_out
+    global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _speeds_bin_axis_history, _median_speeds_history, _speeds_timestep_history
     global _strain_rates_by_speed_diffs_history
@@ -796,6 +797,7 @@ def set_state(d: dict) -> None:
     _margin_count = d["margin_count"]
     _margin_cum_in = d["margin_cum_in"]
     _margin_cum_out = d["margin_cum_out"]
+    _margin_cum_divide = d["margin_cum_divide"]
     _timesteps = d["timesteps"]
     
     _tension_bin_axis_history = d["tension_bin_axis_history"]
