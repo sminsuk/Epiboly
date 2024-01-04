@@ -107,7 +107,7 @@ def get_nearest_non_bonded_neighbors_constrained(phandle: tf.ParticleHandle,
     if max_neighbors < min_neighbors:
         max_neighbors = min_neighbors
     neighbors: list[tf.ParticleHandle] = get_nearest_non_bonded_neighbors(phandle, ptypes, min_neighbors)
-    neighbors.sort(key=lambda neighbor: phandle.distance(neighbor))
+    neighbors.sort(key=phandle.distance)
     return neighbors[:max_neighbors]
 
 def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
@@ -118,7 +118,7 @@ def get_nearest_non_bonded_neighbor(phandle: tf.ParticleHandle,
     You can always find a nearest non-bonded neighbor, long before hitting the max allowable distance.
     """
     neighbors: list[tf.ParticleHandle] = get_nearest_non_bonded_neighbors(phandle, ptypes, min_neighbors=1)
-    nearest_neighbor: tf.ParticleHandle = min(neighbors, key=lambda neighbor: phandle.distance(neighbor), default=None)
+    nearest_neighbor: tf.ParticleHandle = min(neighbors, key=phandle.distance, default=None)
     return nearest_neighbor
 
 def get_shared_bonded_neighbors(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> list[tf.ParticleHandle]:
