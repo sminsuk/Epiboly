@@ -229,19 +229,18 @@ def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     assert bond_count == 0, f"New particle has {bond_count} bonds before any have been made!"
     
     if daughter.type() == g.LeadingEdge:
-        # First, find its 2 nearest edge neighbors (which presumably includes its parent), break the bond
-        # between those two particles, and bond them each to daughter, before then bonding to internal ones
-        neigh1: tf.ParticleHandle
-        neigh2: tf.ParticleHandle
-        neigh1, neigh2 = nbrs.get_nearest_non_bonded_neighbors_constrained(daughter, [g.LeadingEdge],
-                                                                           min_neighbors=2,
-                                                                           max_neighbors=2)
-        edge_bond: tf.BondHandle = tfu.bond_between(neigh1, neigh2)
-        assert edge_bond, "The two nearest edge particles are not bonded, hence not adjacent in the ring!"
+        # Find the parent's 2 edge neighbors, and select the one closer to daughter.
+        neighbor: tf.ParticleHandle = min(nbrs.bonded_neighbors_of_types(parent, [g.LeadingEdge]),
+                                          key=daughter.distance)
+
+        # Break the bond between that neighbor and parent, and bond them each to daughter,
+        # before finally bonding daughter to internal particles
+        edge_bond: tf.BondHandle = tfu.bond_between(neighbor, parent)
+        assert edge_bond, "parent and its bonded neighbor share no bond? Of course they do, this should never happen!"
         gc.destroy_bond(edge_bond)
-        bonds.make_bond(daughter, neigh1)
-        bonds.make_bond(daughter, neigh2)
-        bonds.remodel_angles(neigh1, neigh2, p_becoming=daughter, add=True)
+        bonds.make_bond(daughter, neighbor)
+        bonds.make_bond(daughter, parent)
+        bonds.remodel_angles(neighbor, parent, p_becoming=daughter, add=True)
 
     bonds.make_all_bonds(daughter)  # ToDo: This needs a bug fix, never took into account cfg.max_edge_neighbor_count
     return daughter
