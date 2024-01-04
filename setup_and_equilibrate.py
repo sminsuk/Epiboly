@@ -97,8 +97,8 @@ def initialize_full_sphere_evl_cells() -> None:
     phandle: tf.ParticleHandle
     for phandle in g.Little.items():
         phandle.style = tf.rendering.Style()
-        phandle.style.color = g.Little.style.color
         gc.add_particle(phandle, radius=_initial_cell_radius)
+        epu.update_color(phandle)
     
     finished = time.perf_counter()
     # print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
@@ -197,8 +197,8 @@ def initialize_bonded_edge():
         phandle: tf.ParticleHandle
         for phandle in g.LeadingEdge.items():
             phandle.style = tf.rendering.Style()
-            phandle.style.color = g.LeadingEdge.style.color
             gc.add_particle(phandle, radius=_initial_cell_radius)
+            epu.update_color(phandle)
     
     create_ring()
     create_edge_bonds()
@@ -373,7 +373,7 @@ def find_boundary() -> None:
         if epu.embryo_phi(p) < leading_edge_phi:
             if any([epu.embryo_phi(neighbor) >= leading_edge_phi for neighbor in p.bonded_neighbors]):
                 p.become(g.LeadingEdge)
-                p.style.color = g.LeadingEdge.style.color
+                epu.update_color(p)
                 
     # Delete all the particles below the leading edge
     filter_evl_to_animal_cap_phi(leading_edge_phi)

@@ -741,7 +741,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             # test_ring_is_fubar()
             make_bond(neighbor1, neighbor2, verbose=False)
             p.become(g.Little)
-            p.style.color = g.Little.style.color
+            epu.update_color(p)
             p.style.visible = gc.visibility_state
             p.force_init = [0, 0, 0]
 
@@ -833,7 +833,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             
             gc.destroy_bond(tfu.bond_between(p, other_leading_edge_p))
             recruit.become(g.LeadingEdge)
-            recruit.style.color = g.LeadingEdge.style.color
+            epu.update_color(recruit)
             recruit.style.visible = True
             recruit.force_init = [0, 0, 0]  # remove particle diffusion force
             

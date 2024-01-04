@@ -217,10 +217,8 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
 def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter: tf.ParticleHandle = _split(parent)
     daughter.style = tf.rendering.Style()       # Not inherited from parent, so create it
-    offspring_color: tf.fVector3 = tfu.dk_yellow_brown if daughter.type() == g.LeadingEdge else tfu.lighter_blue
-    daughter.style.color = offspring_color  # for now, change both cells, to indicate which have split
-    parent.style.color = offspring_color
-    # ToDo: ought to respect cell size when recoloring them upon entering/leaving margin. Currently I do not.
+    epu.update_color(daughter)
+    epu.update_color(parent)
 
     # Need to change r0 on all the bonds on the parent to reflect its new cell radius
     bhandle: tf.BondHandle
@@ -294,11 +292,8 @@ def cell_division() -> None:
     particles.extend(g.LeadingEdge.items())
     selected_particles: np.ndarray
     if cfg.cell_division_largest_first:
-        # Find the undivided particles, based on their cell radius. Testing greater-than with a tolerance
-        # threshold, instead of just equality, in anticipation that epu.initial_cell_radius will be an arbitrary
-        # float and don't want to rely on equality comparison.
         undivided_particles: list[tf.ParticleHandle] = [phandle for phandle in particles
-                                                        if gc.get_cell_radius(phandle) > 0.9 * epu.initial_cell_radius]
+                                                        if epu.is_undivided(phandle)]
         
         # If running out and there aren't enough, just divide the ones that remain
         num_divisions = min(num_divisions, len(undivided_particles))

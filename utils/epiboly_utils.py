@@ -7,6 +7,7 @@ from statistics import fmean
 
 import tissue_forge as tf
 import epiboly_globals as g
+import utils.global_catalogs as gc
 import utils.tf_utils as tfu
 
 # parking place for some cumulative measures that other modules can write to, and read from:
@@ -32,6 +33,32 @@ cumulative_edge_divisions: int = 0
 # ToDo: Better yet, should be able to calculate this from the desired number of cells, rather than specifying it.
 #  (This is why I placed it here in epu, instead of in config.)
 initial_cell_radius: float = 0.08
+
+# Central place to define colors used in the simulation, by their purpose.
+# Everywhere else, use these rather than the color names
+evl_undivided_color: tf.fVector3 = tfu.cornflower_blue
+evl_divided_color: tf.fVector3 = tfu.lighter_blue
+evl_margin_undivided_color: tf.fVector3 = tfu.gold
+evl_margin_divided_color: tf.fVector3 = tfu.dk_yellow_brown
+
+def is_undivided(p: tf.ParticleHandle) -> bool:
+    """Determine whether particle is undivided, based on its CELL radius"""
+    # Testing greater-than with a tolerance threshold, instead of just equality, in anticipation that
+    # initial_cell_radius will be an arbitrary float and don't want to rely on equality comparison.
+    return gc.get_cell_radius(p) > 0.9 * initial_cell_radius
+
+def update_color(p: tf.ParticleHandle) -> None:
+    """Paint the particle the correct color for its ParticleType and cell division state
+    
+    Useful after .become() or after cell division
+    Cell must be in the global dictionary, with its correct cell radius assigned, and must have a .style object
+    """
+    if p.type() == g.LeadingEdge:
+        p.style.color = (evl_margin_undivided_color if is_undivided(p)
+                         else evl_margin_divided_color)
+    elif p.type() == g.Little:
+        p.style.color = (evl_undivided_color if is_undivided(p)
+                         else evl_divided_color)
 
 def reset_camera():
     """A good place to park the camera for epiboly

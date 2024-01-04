@@ -4,6 +4,7 @@ import os
 import tissue_forge as tf
 import epiboly_globals as g
 import config as cfg
+import utils.epiboly_utils as epu
 import utils.global_catalogs as gc
 import utils.tf_logging as logging
 import utils.sim_state_export as state
@@ -109,5 +110,5 @@ def init() -> None:
     g.Big = BigType.get()
     g.LeadingEdge = LeadingEdgeType.get()
     
-    g.Little.style.color = tfu.cornflower_blue
-    g.LeadingEdge.style.color = tfu.gold
+    g.Little.style.color = epu.evl_undivided_color
+    g.LeadingEdge.style.color = epu.evl_margin_undivided_color
