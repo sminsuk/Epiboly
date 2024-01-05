@@ -191,7 +191,11 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
         if parent.type() == g.LeadingEdge:
             daughter = parent.split(epu.horizontal_tangent(parent))
         else:
-            daughter = parent.split(epu.random_tangent(parent))
+            # ToDo: split(direction) requires a unit vector in TF v. 0.2.0, but that requirement will be
+            #  removed in the next release. Can then ditch .normalized().
+            #  And of course once that is settled, I can remove support for the original non-alt method,
+            #  and removed the debug code in cell_division(), below.
+            daughter = parent.split(epu.random_tangent(parent).normalized())
     else:
         daughter = parent.split()
         
@@ -338,6 +342,8 @@ def cell_division() -> None:
             # ### DEBUG:
             # ### For cells with small x, i.e. cells near the yz coordinate plane (relative to yolk center as origin)
             # ### either screen them out (don't split), or paint them to identify them. Either way, log it.
+            # ### ToDo: We now have workaround for the bug; but changes coming in next release. Once that's
+            # ###  stabilized, can ditch all this debug code (including those Logger statements bracketing this).
             screen: bool = False    # Config: If True, screen them out, don't paint anything (paint flag ignored)
             paint: bool = False     # Config: If NOT screening, whether to paint only these daughters
             tolerance: float = 0.2

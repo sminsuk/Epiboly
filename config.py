@@ -6,7 +6,8 @@ from enum import Enum
 import math
 
 # Temporary (and not bothering to export):
-use_alt_cell_splitting_method: bool = False
+# ToDo: Finally works, but changes coming in next release. Once that's stabilized, make this the new normal.
+use_alt_cell_splitting_method: bool = True
 
 # For normal initialization, leave blank. To start from a previously exported state, provide the
 # directory name of the export. This is the parent directory with the datetime in the name. Script
