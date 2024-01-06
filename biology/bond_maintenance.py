@@ -803,8 +803,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
         # distance_to_radians_ratio =
         # full circumference of circle (i.e. 2*pi*r) / radians in a full circle (i.e. 2*pi), which = r;
         # hence if we know the distance, then the radians = distance / r
-        embryo_radius: float = g.Big.radius + g.Little.radius
-        leading_edge_recruitment_limit_radians: float = leading_edge_recruitment_limit_distance / embryo_radius
+        leading_edge_recruitment_limit_radians: float = leading_edge_recruitment_limit_distance / epu.embryo_radius()
         if epu.embryo_phi(recruit) < leading_edge_baseline_phi + leading_edge_recruitment_limit_radians:
             return 0, 0
 

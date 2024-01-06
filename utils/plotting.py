@@ -545,7 +545,7 @@ def _show_straightness() -> None:
     
     # Beeline is not the circumference, it's a polygon. Project each particle along a longitude line
     # to a circle located at the mean phi position. That's the polygon to measure
-    r: float = g.Big.radius + g.LeadingEdge.radius
+    r: float = epu.embryo_radius()
     beeline_phi: float = epu.leading_edge_mean_phi()
     beeline_positions: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi])
                                             for p in sorted_particles]

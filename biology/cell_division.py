@@ -46,8 +46,7 @@ def initialize_division_rate_tracking_by_evl_area() -> None:
     if not cfg.cell_division_enabled:
         return
     
-    embryo_radius: float = g.Big.radius + g.Little.radius
-    embryo_height: float = 2 * embryo_radius
+    embryo_height: float = 2 * epu.embryo_radius()
     evl_initial_height: float = embryo_height * cfg.epiboly_initial_percentage / 100
     cell_division_cessation_height: float = embryo_height * cfg.cell_division_cessation_percentage / 100
     evl_total_height_increase: float = cell_division_cessation_height - evl_initial_height
@@ -122,7 +121,7 @@ def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
         
     if r1 != r2:
         # Keep both particles within the layer. One is too close to the yolk center, one is too far away.
-        corrected_r = g.Big.radius + g.Little.radius
+        corrected_r = epu.embryo_radius()
         relative_cartesian1: tf.fVector3 = tfu.cartesian_from_spherical([corrected_r, theta1, phi1])
         relative_cartesian2: tf.fVector3 = tfu.cartesian_from_spherical([corrected_r, theta2, phi2])
         yolk_phandle: tf.ParticleHandle = yolk_particle.handle()
