@@ -39,7 +39,7 @@ initialization_algo_graph_based: bool = True
 cell_division_enabled: bool = True
 # Cell division rate parameters:
 # Approximate number of divisions to take place (the actual value will be stochastically determined):
-total_epiboly_divisions: int = 1364  # (62% of what we started with: partial implementation of Campinho data)
+total_epiboly_divisions: int = 412  # (Campinho et al., 2013; a 62% increase)
 # The percentage of epiboly by which total_epiboly_divisions will be reached, and after which cell division ceases:
 cell_division_cessation_percentage: int = 55
 # Spatial distribution of cell division events: i.e. how to select particles to divide. Uniform vs. by tension
@@ -61,11 +61,11 @@ k_particle_diffusion: float = 1.7
 
 # Starting point of the simulation. Note that 43% is the true value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
-epiboly_initial_num_evl_cells: int = 2200
+epiboly_initial_num_evl_cells: int = 660  # (Campinho et al., 2013)
 
 # This is the size of the particle, not of the cell. The size of the cell will be derived from
 # epiboly_initial_percentage and epiboly_initial_num_evl_cells.
-evl_particle_radius: float = 0.04
+evl_particle_radius: float = 0.045
 
 # Search for neighbors within this distance (multiple of cell radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5
