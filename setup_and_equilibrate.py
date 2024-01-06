@@ -19,9 +19,10 @@ from utils import tf_utils as tfu,\
     plotting as plot
 from utils import video_export as vx
 
-# ToDo: Should be able to calculate this from the desired number of cells, rather than specifying it.
-#  Calculate it here, then set it on epu (that value is used elsewhere, for particle searching).
-_initial_cell_radius: float = epu.initial_cell_radius
+# We'll calculate these from the desired number of cells in the EVL.
+_initial_cell_radius: float = 0
+_num_spherical_positions: int = 0
+_num_leading_edge_points: int = 0
 
 # Value depends on setup method being used. Module main needs this for certain timing
 equilibration_time: int = 0
@@ -41,12 +42,12 @@ def initialize_full_sphere_evl_cells() -> None:
     if True:
         # new method:
         # (gets list of plain python list[3])
-        vectors = tfu.random_nd_spherical(npoints=cfg.num_spherical_positions, dim=3)
+        vectors = tfu.random_nd_spherical(npoints=_num_spherical_positions, dim=3)
     else:
         # or alternatively, old method using tf built-in (and transform to match the output type of
         # the new method, so I can test either way):
         # noinspection PyTypeChecker
-        vectors = tf.random_points(tf.PointsType.Sphere.value, cfg.num_spherical_positions)
+        vectors = tf.random_points(tf.PointsType.Sphere.value, _num_spherical_positions)
         vectors = [vector.as_list() for vector in vectors]
     
     random_points_time = time.perf_counter()
@@ -118,10 +119,15 @@ def filter_evl_to_animal_cap_phi(leading_edge_phi: float) -> None:
     print(f"{len(g.Little.items())} particles remaining")
 
 def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
-    """Filter to include only the ones above where the ring will be."""
+    """Filter to include only the ones above where the ring will be.
+    
+    Now with the move to cell radius >> particle radius, need to account for that, and
+    cut off the cells that are too close to the edge, which would otherwise push the edge
+    down before the simulation even starts.
+    """
     phandle: tf.ParticleHandle
     vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
-                                                  if phandle.position.z() < leading_edge_z]
+                                                  if phandle.position.z() < leading_edge_z + 2.5 * _initial_cell_radius]
     for phandle in vegetal_particles:
         gc.destroy_particle(phandle)
         
@@ -178,7 +184,7 @@ def initialize_bonded_edge():
         
         # (gets list of plain python list[2] - unit vectors)
         # (note, unit circle, i.e., size of the unit sphere *equator*, not the size of that latitude circle)
-        unit_circle_vectors = tfu.random_nd_spherical(npoints=cfg.num_leading_edge_points, dim=2)
+        unit_circle_vectors = tfu.random_nd_spherical(npoints=_num_leading_edge_points, dim=2)
         
         # make 3D and scaled
         z_latitude = math.cos(leading_edge_phi) * scale
@@ -382,6 +388,43 @@ def find_boundary() -> None:
     remove_edge_bonds()
     create_edge_bonds()
     
+def setup_initial_cell_number_and_size() -> None:
+    """Based on the requested initial number of EVL cells, calculate their size
+
+    Also store how many cells it takes to cover the whole sphere (and in the case of the older initialization
+    methodology, also how many we want in the marginal ring); we'll use these intermediate results to know
+    how many to instantiate.
+    """
+    global _initial_cell_radius, _num_spherical_positions, _num_leading_edge_points
+    
+    _num_spherical_positions = math.floor(cfg.epiboly_initial_num_evl_cells * 100 / cfg.epiboly_initial_percentage)
+    embryo_surface_area: float = 4 * math.pi * epu.embryo_radius() ** 2
+    initial_cell_area: float = embryo_surface_area / _num_spherical_positions
+    _initial_cell_radius = math.sqrt(initial_cell_area / math.pi)
+
+    # Hand this result off to the epu module, where it will live for the remainder of the simulation
+    epu.initial_cell_radius = _initial_cell_radius
+    print(f"Calculated initial cell radius: {_initial_cell_radius}")
+    print(f"Calculated total particles on sphere before filtering: {_num_spherical_positions}")
+
+    # For new init methodology (graph based), the above is all we need. We'll create all cells at once
+    # from _num_spherical_positions, and then discover which ones are the margin. But with the
+    # older init methodology ("with config" because it used to use explicit config values for both
+    # size and number of cells, but now we config only total number of cells and derive cell size
+    # from that), we do it differently:
+    if not cfg.initialization_algo_graph_based:
+        # Probably going to get rid of this in the near future anyway. ToDo
+        
+        # We'll set up a ring of EVL margin cells separately, so we need to know how many. It can't
+        # be a config because we can only calculate it now that we know the cell radius:
+        relative_z: float = epu.relative_z_from_epiboly_percentage(cfg.epiboly_initial_percentage)
+        _num_leading_edge_points = math.floor(epu.circumference_of_circle_at_relative_z(relative_z) /
+                                              (2 * _initial_cell_radius))
+        print(f"Calculated total particles in ring: {_num_leading_edge_points}")
+
+        # And _num_spherical_positions is also now incorrect for this method, but there isn't a suitable way to
+        # correct it here. Instead, we correct for it later with very strict filtering in filter_evl_to_animal_cap().
+
 def initialize_embryo() -> None:
     """Initialize all particles and bonds
     
@@ -399,6 +442,7 @@ def initialize_embryo() -> None:
     sim proper begins. To see the stable state where yolk cortical tension has been added but no additional force
     to drive epiboly, set cfg.run_balanced_force_control to True, and run the full sim from main.
     """
+    setup_initial_cell_number_and_size()
     if cfg.initialization_algo_graph_based:
         initialize_embryo_with_graph_boundary()
     else:
@@ -596,6 +640,8 @@ if __name__ == "__main__":
     epu.reset_camera()  # Maybe should be vx.init_camera_data() now? Deal with, if I ever need to do this again.
     events.initialize_master_event()
     events.execute_repeatedly(tasks=[{"invoke": show_utime}])
+    
+    setup_initial_cell_number_and_size()
     
     # ***** Choose one: *****
     alt_initialize_embryo_with_config()     # to run initialization with the ability to pause and examine each step

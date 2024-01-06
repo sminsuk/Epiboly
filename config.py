@@ -39,7 +39,7 @@ initialization_algo_graph_based: bool = True
 cell_division_enabled: bool = True
 # Cell division rate parameters:
 # Approximate number of divisions to take place (the actual value will be stochastically determined):
-total_epiboly_divisions: int = 1340  # (62% of what we started with: partial implementation of Campinho data)
+total_epiboly_divisions: int = 1364  # (62% of what we started with: partial implementation of Campinho data)
 # The percentage of epiboly by which total_epiboly_divisions will be reached, and after which cell division ceases:
 cell_division_cessation_percentage: int = 55
 # Spatial distribution of cell division events: i.e. how to select particles to divide. Uniform vs. by tension
@@ -61,11 +61,11 @@ k_particle_diffusion: float = 1.7
 
 # Starting point of the simulation. Note that 43% is the true value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
+epiboly_initial_num_evl_cells: int = 2200
 
-# How many leading edge and interior cells to make (for entire sphere, prior to filtering out the ones below the edge)
-# num_leading_edge_points ignored if initialization_algo_graph_based == True
-num_leading_edge_points: int = 110
-num_spherical_positions: int = 5110 if initialization_algo_graph_based else 5000
+# This is the size of the particle, not of the cell. The size of the cell will be derived from
+# epiboly_initial_percentage and epiboly_initial_num_evl_cells.
+evl_particle_radius: float = 0.04
 
 # Search for neighbors within this distance (multiple of cell radius) to set up initial bond network.
 min_neighbor_initial_distance_factor: float = 1.5
@@ -169,7 +169,7 @@ windowed_mode: bool = False
 # Whether to show the equilibration steps.
 # In windowless mode, whether to include them in any exported screenshots;
 # in windowed mode, whether to show them in the simulator window (and any exported screenshots), or hide in tf.step();
-# useful to set True during development so I can see what I'm doing; otherwise leave as False.
+# useful to set True during development so I can see what I'm doing (or for demos); otherwise leave as False.
 show_equilibration: bool = False
 
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
@@ -232,8 +232,8 @@ def get_state() -> dict:
                         "space_filling_enabled": space_filling_enabled,
                         "k_particle_diffusion": k_particle_diffusion,
                         "epiboly_initial_percentage": epiboly_initial_percentage,
-                        "num_leading_edge_points": num_leading_edge_points,
-                        "num_spherical_positions": num_spherical_positions,
+                        "epiboly_initial_num_evl_cells": epiboly_initial_num_evl_cells,
+                        "evl_particle_radius": evl_particle_radius,
                         "min_neighbor_initial_distance_factor": min_neighbor_initial_distance_factor,
                         "harmonic_repulsion_spring_constant": harmonic_repulsion_spring_constant,
                         "harmonic_spring_constant": harmonic_spring_constant,
@@ -302,8 +302,9 @@ def set_state(d: dict) -> None:
     global dt, initialization_algo_graph_based, cell_division_enabled, total_epiboly_divisions
     global cell_division_cessation_percentage, cell_division_largest_first
     global cell_division_biased_by_tension, tension_squared
-    global angle_bonds_enabled, space_filling_enabled, k_particle_diffusion, epiboly_initial_percentage
-    global num_leading_edge_points, num_spherical_positions, min_neighbor_initial_distance_factor
+    global angle_bonds_enabled, space_filling_enabled, k_particle_diffusion
+    global epiboly_initial_percentage, epiboly_initial_num_evl_cells, evl_particle_radius
+    global min_neighbor_initial_distance_factor
     global harmonic_repulsion_spring_constant, harmonic_spring_constant, harmonic_edge_spring_constant
     global harmonic_yolk_evl_spring_constant, harmonic_angle_spring_constant, harmonic_angle_tolerance
     global yolk_cortical_tension, external_force, force_algorithm, force_target_fraction, max_potential_cutoff
@@ -341,8 +342,8 @@ def set_state(d: dict) -> None:
     space_filling_enabled = model["space_filling_enabled"]
     k_particle_diffusion = model["k_particle_diffusion"]
     epiboly_initial_percentage = model["epiboly_initial_percentage"]
-    num_leading_edge_points = model["num_leading_edge_points"]
-    num_spherical_positions = model["num_spherical_positions"]
+    epiboly_initial_num_evl_cells = model["epiboly_initial_num_evl_cells"]
+    evl_particle_radius = model["evl_particle_radius"]
     min_neighbor_initial_distance_factor = model["min_neighbor_initial_distance_factor"]
     harmonic_repulsion_spring_constant = model["harmonic_repulsion_spring_constant"]
     harmonic_spring_constant = model["harmonic_spring_constant"]

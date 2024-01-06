@@ -28,11 +28,10 @@ cumulative_edge_divisions: int = 0
 # thicker, just because the cells get larger in apical surface area. So the particles can still hug the yolk surface
 # (it would look really weird if they didn't), and we achieve a "squamous cell" effect in TF even though TF only
 # knows about spheres.
-# ToDo: change the value. Starting with it equal to old particle radius for the sake of refactoring and testing -
-#  minimal change to the physics.
-# ToDo: Better yet, should be able to calculate this from the desired number of cells, rather than specifying it.
-#  (This is why I placed it here in epu, instead of in config.)
-initial_cell_radius: float = 0.08
+#
+# This will be calculated from the desired number of cells during initialization of the simulation,
+# and stored here for later use.
+initial_cell_radius: float = 0
 
 # Central place to define colors used in the simulation, by their purpose.
 # Everywhere else, use these rather than the color names
@@ -43,8 +42,8 @@ evl_margin_divided_color: tf.fVector3 = tfu.dk_yellow_brown
 
 def is_undivided(p: tf.ParticleHandle) -> bool:
     """Determine whether particle is undivided, based on its CELL radius"""
-    # Testing greater-than with a tolerance threshold, instead of just equality, in anticipation that
-    # initial_cell_radius will be an arbitrary float and don't want to rely on equality comparison.
+    # Testing greater-than with a tolerance threshold, instead of just equality, because
+    # initial_cell_radius is an arbitrary float, so I don't want to rely on equality comparison.
     return gc.get_cell_radius(p) > 0.9 * initial_cell_radius
 
 def update_color(p: tf.ParticleHandle) -> None:
@@ -68,6 +67,9 @@ def reset_camera():
     """
     tf.system.camera_view_front()
     tf.system.camera_zoom_to(-12)
+
+def embryo_radius() -> float:
+    return g.Big.radius + g.Little.radius
 
 def embryo_phi(p: tf.fVector3 | tf.ParticleHandle) -> float:
     """phi relative to the animal/vegetal axis
@@ -145,12 +147,45 @@ def internal_evl_max_phi() -> float:
     """
     return max([embryo_phi(particle) for particle in g.Little.items()])
 
+def radius_of_circle_at_relative_z(relative_z: float) -> float:
+    """Radius of a circle on the surface of the embryo (latitude line) at a given z value relative to the equator
+
+    :param relative_z: height above or below the equator (sign does not matter, because of symmetry of the result)
+    :return: radius of the circle at that height
+    """
+    return np.sqrt(np.square(embryo_radius()) - np.square(relative_z))
+
+def circumference_of_circle_at_relative_z(relative_z: float) -> float:
+    """Circumference of a circle on the surface of the embryo (latitude line) at a given z value relative to the equator
+    
+    :param relative_z: height above or below the equator (sign does not matter, because of symmetry of the result)
+    :return: circumference of the circle at that height
+    """
+    return 2 * np.pi * radius_of_circle_at_relative_z(relative_z)
+
 def leading_edge_circumference() -> float:
-    hypotenuse: float = g.Big.radius + g.Little.radius
+    """Circumference of the idealized marginal ring (circumference of a circle at mean z of all the margin particles)"""
     yolk: tf.ParticleHandle = g.Big.items()[0]
     leading_edge_height: float = leading_edge_mean_z() - yolk.position.z()
-    leading_edge_radius: float = np.sqrt(np.square(hypotenuse) - np.square(leading_edge_height))
-    return 2 * np.pi * leading_edge_radius
+    return circumference_of_circle_at_relative_z(leading_edge_height)
+
+def fraction_of_radius_above_equator(epiboly_percentage: float) -> float:
+    """Vertical position on the embryo expressed as a fraction of the embryo radius
+    
+    :param epiboly_percentage: standard zebrafish staging metric; see definition in phi_for_epiboly()
+    :return: distance above the equator as a fraction of embryo radius; ranges from -1 (vegetal pole)
+        to +1 (animal pole)
+    """
+    percentage_above_equator: float = 50 - epiboly_percentage
+    return percentage_above_equator / 50
+
+def relative_z_from_epiboly_percentage(epiboly_percentage: float) -> float:
+    """Return height above the equator for a given position on the embryo surface
+    
+    :param epiboly_percentage: standard zebrafish staging metric; see definition in phi_for_epiboly()
+    :return: height above the equator (negative if position is below the equator)
+    """
+    return embryo_radius() * fraction_of_radius_above_equator(epiboly_percentage)
 
 def phi_for_epiboly(epiboly_percentage: float):
     """Convert % epiboly into phi for spherical coordinates (in radians)
@@ -174,12 +209,8 @@ def phi_for_epiboly(epiboly_percentage: float):
     quantitative definition. In fact, from the canonical figure 8F in Kimmel et al. 1995, also found here:
     https://zfin.org/zf_info/zfbook/stages/figs/fig8.html - it turns out you can measure the 43% directly!)
     """
-    radius_percentage: float = 2 * epiboly_percentage
-    adjacent: float = 100 - radius_percentage
-    cosine_phi: float = adjacent / 100
+    cosine_phi: float = fraction_of_radius_above_equator(epiboly_percentage)
     phi_rads = np.arccos(cosine_phi)
-    # print("intermediate results: radius_percentage, adjacent, cosine_phi, degrees =",
-    #       radius_percentage, adjacent, cosine_phi, np.rad2deg(phi_rads))
     print(f"{epiboly_percentage}% epiboly = {round(phi_rads, 4)} radians or {round(np.rad2deg(phi_rads), 2)} degrees")
     return phi_rads
 
@@ -188,11 +219,13 @@ def get_state() -> dict:
     return {"cumulative_from_edge": cumulative_from_edge,
             "cumulative_to_edge": cumulative_to_edge,
             "cumulative_edge_divisions": cumulative_edge_divisions,
+            "initial_cell_radius": initial_cell_radius,
             }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global cumulative_from_edge, cumulative_to_edge, cumulative_edge_divisions
+    global cumulative_from_edge, cumulative_to_edge, cumulative_edge_divisions, initial_cell_radius
     cumulative_from_edge = d["cumulative_from_edge"]
     cumulative_to_edge = d["cumulative_to_edge"]
     cumulative_edge_divisions = d["cumulative_edge_divisions"]
+    initial_cell_radius = d["initial_cell_radius"]
