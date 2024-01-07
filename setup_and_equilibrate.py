@@ -614,6 +614,7 @@ def alt_initialize_embryo_with_config() -> None:
     
     print("Now adding interior bonds and edge angles")
     add_interior_bonds()
+    remove_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
     tf.show()   # (If you run this simulator, it will start to shrink, because balancing yolk tension not added yet.)
 
