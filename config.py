@@ -182,7 +182,7 @@ screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
 plotting_interval_simtime: float = 160
-plotting_interval_timesteps: int = round(plotting_interval_simtime / dt)
+plotting_interval_timesteps: int = int(round(plotting_interval_simtime / dt, -2))
 # Should certain metrics be plotted as time-averages, instead of as single timesteps?
 plot_time_averages: bool = True
 # How many timesteps? (Calculated limit will keep the value sane.)
