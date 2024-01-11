@@ -92,11 +92,10 @@ class ForceAlgorithm(Enum):
 # so have to be tuned accordingly if those change.
 # yolk_cortical_tension: force generated within the yolk, balancing out the EVL internal tension (at T=0)
 #   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
-# external_force: additional force applied to drive epiboly.
+# external_force: additional force applied to drive epiboly. Will be overridden and set to 0 if
+#   run_balanced_force_control == True (see below, under "Controlling the model")
 # force_algorithm: Defines relationship between total force and circumference
 # force_target_fraction: For LINEAR, fraction of initial force to approach as circumf approaches 0
-# run_balanced_force_control: if true, use 0 external force. (For a turnkey entry point, other things will
-#   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 yolk_cortical_tension: float = 8  # just balances interior bonds at initialization
 external_force: float = 7  # +additional to produce full epiboly
 
@@ -148,6 +147,8 @@ leading_edge_recruitment_limit: float = 2.0     # in number of cell radii (not p
 
 # -------------------- Controlling the model --------------------
 
+# If true, use 0 external force. (For a turnkey entry point, other things will
+#   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 run_balanced_force_control: bool = False
 
 test_recoil_without_bond_remodeling: bool = False
