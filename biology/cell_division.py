@@ -95,7 +95,7 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     """Divide the cell into two daughters, each with half the original apical surface area
     
     Depending on config variable, use the original approach, or the new-and-improved approach which
-    does not work because of a Tissue Forge bug. Keep them both around until the bug is worked out:
+    needs a temporary workaround because of a Tissue Forge bug. Keep them both around until next TF version finalized:
     
     Original approach:
     
@@ -134,8 +134,8 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     #
     # let r = current CELL radius
     # so pi r**2 is the current cell apical surface area; we want to end up with half that, or pi r**2 / 2
-    # set particle radius = r/2**(1/6)
-    # thus particle volume has been set to (4/3)pi ( r/2**(1/6) )**3 = (4/3)pi r**3 / sqrt(2)
+    # set particle radius = r/(2**(1/6))
+    # thus particle volume has been set to (4/3)pi ( r/(2**(1/6)) )**3 = (4/3)pi r**3 / sqrt(2)
     # after splitting by TF, particle volume is halved, thus is now: (2/3)pi r**3 / sqrt(2)
     # thus particle radius is now ( r**3 / 2sqrt(2) )**(1/3) = r / ( 2sqrt(2) )**(1/3) = r / sqrt(2)
     # thus particle apical surface area is now pi ( r / sqrt(2) )**2 = pi r**2 / 2
