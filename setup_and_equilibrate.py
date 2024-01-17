@@ -347,18 +347,25 @@ def setup_global_potentials() -> None:
     # big_small_pot.plot(potential=True, force=True, ymin=-1e2, ymax=1e2)
     # small_small_repulsion.plot(potential=True, force=True, ymin=-0.1, ymax=0.01)
     
-def remove_global_evl_potentials() -> None:
-    """Remove global potentials between EVL particles. (Leaves yolk-EVL global potentials alone.)
+def adjust_global_evl_potentials() -> None:
+    """Adjust r0 for type-based repulsion between EVL particles. (Leaves yolk-EVL potentials alone.)
     
-    The global EVL-EVL potential is repulsion only and is used to aid in equilibration during setup.
-    Once we have bonds between the particles, we don't need it anymore. (And don't want it, because we
-    need to control potential on a particle-by-particle basis.)
+    The global EVL-EVL potential is repulsion only and is used to provide volume exclusion. This is important
+    for equilibration during setup, and also throughout the simulation. During setup, all cells are the
+    same size, so it was clean to have r0 be twice that radius. Once the main sim begins, if cell division
+    enabled, it's a bit more awkward because of different sized cells. More elaborate solution would be to
+    have the different cell sizes use different ParticleTypes so that global type-based potentials could
+    differ depending on cell size. But for now, keep things simple. Divided and undivided cells use the same
+    ParticleType, hence must all have the same potential with the same r0. So base r0 on the smaller cell size.
     """
-    # TF doesn't actually have a way to remove a type-based potential; but each pair of types can only
-    # have one. So if you bind a new one, the old one goes away. So, replace it with one that has k=0,
-    # hence energy will always be 0, force will always be 0.
-    evl_evl_removal = tf.Potential.harmonic(r0=1, k=0)
-    replace_all_small_small_potentials(new_potential=evl_evl_removal)
+    if cfg.cell_division_enabled:
+        # Reduce repulsion to amount appropriate for divided cells.
+        r0: float = _initial_cell_radius * math.sqrt(2)
+        evl_evl_repulsion: tf.Potential = tf.Potential.harmonic(r0=r0,
+                                                                k=cfg.harmonic_repulsion_spring_constant,
+                                                                max=r0)
+
+        replace_all_small_small_potentials(new_potential=evl_evl_repulsion)
 
 def find_boundary() -> None:
     """Boundary cells are those above the line that are bonded to any below the line"""
@@ -481,13 +488,13 @@ def initialize_embryo_with_graph_boundary() -> None:
     # This equilibration, quite long, removes most of the particle overlap as shown by the tension graphs at T=0
     equilibrate(durations[0])
     add_interior_bonds()
-    remove_global_evl_potentials()
     
     # Safe to equilibrate even though there's bonds under tension without external balancing force, because the
     # bonded network covers the WHOLE surface. It's stable until after part of that network is removed.
     equilibrate(durations[1])
     
     find_boundary()
+    adjust_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
     
 def initialize_embryo_with_config() -> None:
@@ -541,7 +548,7 @@ def initialize_embryo_with_config() -> None:
     equilibrate(durations[3])
 
     add_interior_bonds()
-    remove_global_evl_potentials()
+    adjust_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
     
     # # ################# Test ##################
@@ -614,7 +621,7 @@ def alt_initialize_embryo_with_config() -> None:
     
     print("Now adding interior bonds and edge angles")
     add_interior_bonds()
-    remove_global_evl_potentials()
+    adjust_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
     tf.show()   # (If you run this simulator, it will start to shrink, because balancing yolk tension not added yet.)
 
