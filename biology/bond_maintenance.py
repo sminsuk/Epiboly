@@ -59,7 +59,9 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
         # p1.style.color = tfu.gray   # testing
         # p2.style.color = tfu.white  # testing
 
-def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
+def make_all_bonds(phandle: tf.ParticleHandle,
+                   min_neighbor_count: int = cfg.min_neighbor_count,
+                   verbose: bool = False) -> None:
     """Bond to all neighbors not already bonded to; if phandle is margin cell, only bond to internal cells
     
     (That's because the point here is to just find a bunch of nearby neighbors and grab 'em. Bonds between
@@ -69,10 +71,13 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
     margin cells until I implemented cell division within the margin, creating a new daughter cell of
     margin type, not bonded to anything at all. So hook it up to its two margin neighbors, then send it here.)
     
+    min_neighbor_count: to override the configured one. This is only for use during setup, to make sure the
+    initialized sim has sufficient connectivity.
+    
     Except ToDo: This needs to take into account cfg.max_edge_neighbor_count
     """
     existing_neighbor_count: int = len(phandle.bonded_neighbors)
-    additional_neighbors_needed: int = max(cfg.min_neighbor_count - existing_neighbor_count, 0)
+    additional_neighbors_needed: int = max(min_neighbor_count - existing_neighbor_count, 0)
     ptypes: list[tf.ParticleType] = [g.Little] if phandle.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
     neighbors: list[tf.ParticleHandle]
     neighbors = nbrs.get_nearest_non_bonded_neighbors(phandle, ptypes,
@@ -81,7 +86,7 @@ def make_all_bonds(phandle: tf.ParticleHandle, verbose=False) -> None:
     for neighbor in neighbors:
         make_bond(neighbor, phandle, verbose)
         
-    assert len(phandle.bonded_neighbors) >= cfg.min_neighbor_count, \
+    assert len(phandle.bonded_neighbors) >= min_neighbor_count, \
         "Failed particle bonding: particle can't find enough nearby neighbors to bond to."
 
 def harmonic_angle_equilibrium_value() -> float:

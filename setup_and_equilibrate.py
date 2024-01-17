@@ -137,7 +137,7 @@ def add_interior_bonds():
     print("Bonding interior particles.")
     particle: tf.ParticleHandle
     for particle in g.Little.items():
-        bonds.make_all_bonds(particle)
+        bonds.make_all_bonds(particle, min_neighbor_count=5)
     
     print(f"Created {len(tf.BondHandle.items())} bonds.")
 
