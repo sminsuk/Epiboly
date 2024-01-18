@@ -149,7 +149,7 @@ def remove_edge_bonds() -> None:
         p1: tf.ParticleHandle
         p2: tf.ParticleHandle
         p1, p2 = bhandle.parts
-        if p1.type() == p2.type() == g.LeadingEdge:
+        if bonds.is_edge_bond(p1, p2):
             gc.destroy_bond(bhandle)
 
 def create_edge_bonds() -> None:
