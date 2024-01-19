@@ -375,7 +375,7 @@ def find_boundary() -> None:
     # Call it again with a value one cell radius below that, to get the value of phi to use
     # for separating those cells (the "inner boundary" of the subgraph) from the ones bonded to
     # (the "outer boundary" of the subgraph).
-    radius_as_percentage: float = 50 * _initial_cell_radius / g.Big.radius
+    radius_as_percentage: float = 50 * _initial_cell_radius / epu.embryo_radius()
     cutoff_line: float = cfg.epiboly_initial_percentage + radius_as_percentage
     leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cutoff_line)
     
