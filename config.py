@@ -28,7 +28,7 @@ comment: str = ""
 # to timesteps, so that you can adjust dt without having to make compensating adjustments in those. But I
 # wasn't sure what exactly is the best behavior for time_avg_accumulation_steps, so I'm leaving it alone
 # for now. May need to manually adjust as appopriate.)
-dt: float = 0.16
+dt: float = 0.1
 
 # Use newer init method (discover leading edge of particles using graph theory definition of "boundary"; as opposed
 # to the older method of arbitrarily deciding how many edge particles to have, and creating a ring of them.

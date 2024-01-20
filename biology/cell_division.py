@@ -145,7 +145,17 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     # TF will place the two descendant particles an appropriate distance apart. (It places them next to each other,
     # and just touching.) Since TF will be calculating the new radius for us, we can just copy that result.
     parent.radius = gc.get_cell_radius(parent) / (2 ** (1 / 6))
-    parent.mass *= 2
+    
+    # Treat "mass" (because in Overdamped dynamics it actually represents drag) as proportional to surface area.
+    # TF wants to treat it like volume, i.e. halving it when the volume of the particle is halved. My current
+    # working hypothesis: that's appropriate for Newtonian dynamics, not for Overdamped. But in this particular
+    # case, dealing with squamous cells constrained to move within the sheet, I believe the relevant surface area
+    # is that of the lateral cell surface, excluding apical and basal; therefore it's really proportional to the
+    # circumference, hence is like a linear dimension and should decrease during a split by the same proportion
+    # as radius does. (CELL radius, not PARTICLE radius.) Thus after splitting, it should go down by a factor
+    # of sqrt(2). But we bump it UP by a factor of sqrt(2) before splitting, then TF will halve that, producing
+    # the net change we want.
+    parent.mass *= np.sqrt(2)
     
     daughter: tf.ParticleHandle
     if cfg.use_alt_cell_splitting_method:
