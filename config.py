@@ -173,6 +173,9 @@ windowed_mode: bool = False
 # useful to set True during development so I can see what I'm doing (or for demos); otherwise leave as False.
 show_equilibration: bool = False
 
+# Whether to color daughter cells differently from parent cells
+color_code_daughter_cells: bool = True
+
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
@@ -267,6 +270,7 @@ def get_state() -> dict:
                         },
                 "visualization": {
                         "show_equilibration": show_equilibration,
+                        "color_code_daughter_cells": color_code_daughter_cells,
                         "screenshots_simtime_per_export": screenshots_simtime_per_export,
                         "plotting_interval_simtime": plotting_interval_simtime,
                         "plot_time_averages": plot_time_averages,
@@ -318,7 +322,7 @@ def set_state(d: dict) -> None:
     global recoil_duration_without_remodeling, recoil_duration_with_remodeling, stopping_condition_phi
     
     # visualization
-    global show_equilibration, screenshots_simtime_per_export, plotting_interval_simtime
+    global show_equilibration, color_code_daughter_cells, screenshots_simtime_per_export, plotting_interval_simtime
     global plot_time_averages, config_time_avg_accumulation_steps, plot_t0_as_single_timestep
     
     # data export
@@ -377,6 +381,7 @@ def set_state(d: dict) -> None:
 
     visualization: dict = d["config_values"]["visualization"]
     show_equilibration = visualization["show_equilibration"]
+    color_code_daughter_cells = visualization["color_code_daughter_cells"]
     screenshots_simtime_per_export = visualization["screenshots_simtime_per_export"]
     plotting_interval_simtime = visualization["plotting_interval_simtime"]
     plot_time_averages = visualization["plot_time_averages"]

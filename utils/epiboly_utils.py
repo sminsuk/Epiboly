@@ -7,6 +7,7 @@ from statistics import fmean
 
 import tissue_forge as tf
 import epiboly_globals as g
+import config as cfg
 import utils.global_catalogs as gc
 import utils.tf_utils as tfu
 
@@ -36,9 +37,12 @@ initial_cell_radius: float = 0
 # Central place to define colors used in the simulation, by their purpose.
 # Everywhere else, use these rather than the color names
 evl_undivided_color: tf.fVector3 = tfu.cornflower_blue
-evl_divided_color: tf.fVector3 = tfu.lighter_blue
+evl_divided_color: tf.fVector3 = evl_undivided_color
 evl_margin_undivided_color: tf.fVector3 = tfu.gold
-evl_margin_divided_color: tf.fVector3 = tfu.dk_yellow_brown
+evl_margin_divided_color: tf.fVector3 = evl_margin_undivided_color
+if cfg.color_code_daughter_cells:
+    evl_divided_color = tfu.lighter_blue
+    evl_margin_divided_color = tfu.dk_yellow_brown
 
 def is_undivided(p: tf.ParticleHandle) -> bool:
     """Determine whether particle is undivided, based on its CELL radius"""
