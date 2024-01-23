@@ -406,8 +406,14 @@ def setup_initial_cell_number_and_size() -> None:
     
     _num_spherical_positions = math.floor(cfg.epiboly_initial_num_evl_cells * 100 / cfg.epiboly_initial_percentage)
     embryo_surface_area: float = 4 * math.pi * epu.embryo_radius() ** 2
-    initial_cell_area: float = embryo_surface_area / _num_spherical_positions
-    _initial_cell_radius = math.sqrt(initial_cell_area / math.pi)
+    
+    # Footprint area of each cell should be treated as a hexagon, not a circle
+    initial_cell_hexagonal_footprint_area: float = embryo_surface_area / _num_spherical_positions
+    
+    # Cell radius is therefore the radius of the inscribed circle (NOT the radius of a presumed circular footprint).
+    # i.e., distance from hexagon center to center of hexagon edge. This results in a radius about 5% smaller.
+    # Makes a big difference. Otherwise, cells are too large and are crowded.
+    _initial_cell_radius = math.sqrt(initial_cell_hexagonal_footprint_area / (2 * math.sqrt(3)))
 
     # Hand this result off to the epu module, where it will live for the remainder of the simulation
     epu.initial_cell_radius = _initial_cell_radius
