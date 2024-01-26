@@ -50,6 +50,13 @@ _tension_bin_axis_history: list[list[float]] = []
 _median_tensions_history: list[list[float]] = []
 _tension_timestep_history: list[int] = []
 
+_undivided_tensions_bin_axis_history: list[list[float]] = []
+_undivided_tensions_history: list[list[float]] = []
+_undivided_tensions_timestep_history: list[int] = []
+_divided_tensions_bin_axis_history: list[list[float]] = []
+_divided_tensions_history: list[list[float]] = []
+_divided_tensions_timestep_history: list[int] = []
+
 _speeds_bin_axis_history: list[list[float]] = []
 _median_speeds_history: list[list[float]] = []
 # Name this strain rate variable after the algorithm it's using, which is the difference between the speed bin values.
@@ -127,6 +134,8 @@ def _plot_data_history(values_history: list[list[float]],
                        bin_axis_history: list[list[float]],
                        timestep_history: list[int],
                        filename: str,
+                       secondary_values_history: list[list[float]] = None,
+                       secondary_bin_axis_history: list[list[float]] = None,
                        xlabel: str = None,
                        ylabel: str = None,
                        ylim: tuple[float, float] = None,
@@ -135,13 +144,16 @@ def _plot_data_history(values_history: list[list[float]],
                        legend_loc: str = None,
                        end_legend_loc: str = None,
                        end: bool = False) -> None:
-    """Plot the history of binned data over multiple time points.
+    """Plot the history of binned data over multiple time points. If a secondary set is passed, plot those dotted.
 
     Required parameters:
     history lists: Global storage, preserving all data drawn over multiple time points.
     filename: where to save the plot image. Do not include file extension.
 
     Optional parameters:
+    secondary history lists: to plot two datasets together, the secondary with dots. Both sets use the same
+        set of timepoints, so no need to pass a secondary timestep history. But bin_axis is needed because
+        primary and secondary can differ. Both secondary history lists must be present if either is.
     xlabel, ylabel: x & y axis labels
     ylim: lower and upper y axis bounds. (xlim is assumed to be (0, pi).)
           y axis scale is left unconstrained if ylim is None, or if end == True.
@@ -154,6 +166,22 @@ def _plot_data_history(values_history: list[list[float]],
     
     # All the timesteps on one plot, but all of them re-plotted from scratch each time
     binned_values_fig, binned_values_ax = plt.subplots()
+    
+    secondary: bool = (secondary_values_history is not None and
+                       secondary_bin_axis_history is not None)
+    if secondary:
+        # We will want to double each color in the color cycle so that the primary and secondary values
+        # at a given timestep will have the same color.
+        # Also rotate the first color to the back because we'll be skipping T=0.
+        # (The latter really ought to be controlled by the caller with a flag parameter rather than here. In
+        # the current usage, secondary will be empty at T=0 and cause problems, so better to skip it. But that
+        # shouldn't be part of this general function, but of the specific call.)
+        default_cycle = list(plt.rcParams['axes.prop_cycle'].by_key()['color'])
+        rotated_cycle = default_cycle[1:]
+        rotated_cycle.append(default_cycle[0])
+        doubled_cycle = [color for color in rotated_cycle for _ in range(2)]
+        binned_values_ax.set_prop_cycle(color=doubled_cycle)
+    
     if xlabel is not None:
         binned_values_ax.set_xlabel(xlabel)
     if axvline is not None:
@@ -166,7 +194,10 @@ def _plot_data_history(values_history: list[list[float]],
         binned_values_ax.axhline(y=axhline, linestyle=":", color="k", linewidth=0.5)
     if ylim is not None:
         if end:
-            ylim = _expand_limits_if_needed(ylim, values_history)
+            if secondary:
+                ylim = _expand_limits_if_needed(ylim, values_history + secondary_values_history)
+            else:
+                ylim = _expand_limits_if_needed(ylim, values_history)
         binned_values_ax.set_ylim(*ylim)
     
     # plot the entire history
@@ -174,6 +205,14 @@ def _plot_data_history(values_history: list[list[float]],
         bin_axis: list[float] = bin_axis_history[i]
         timestep: int = timestep_history[i]
         binned_values_ax.plot(bin_axis, median_values, "-", label=f"T = {timestep}")
+        if secondary:
+            # Dotted this time, should be same color. Skip the label - too much legend, makes too busy.
+            # While the bin boundaries are the same, the two bin_axis variables can be different because
+            # the content is different and each variable excludes empty bins, which can occur.
+            secondary_median_values: list[float] = secondary_values_history[i]
+            secondary_bin_axis: list[float] = secondary_bin_axis_history[i]
+            binned_values_ax.plot(secondary_bin_axis, secondary_median_values, ":")
+
     if end:
         if end_legend_loc is None:
             binned_values_ax.legend()  # unconstrained
@@ -216,6 +255,8 @@ def _add_binned_medians_to_history(values: list[float],
     
     returns: actual bin size used for the current timepoint, as adjusted from approx_bin_size
     """
+    assert values and positions, "Attempting to bin an empty dataset!"
+    
     # bin the data and calculate the median for each bin
     np_values = np.array(values)
     np_positions = np.array(positions)
@@ -306,6 +347,57 @@ def _show_test_tension_v_phi(end: bool) -> None:
                        _tension_bin_axis_history,
                        _tension_timestep_history,
                        filename="Aggregate tension vs. phi, multiple timepoints",
+                       xlabel=r"Particle position $\phi$",
+                       ylabel="Median particle tension",
+                       ylim=(-0.05, 0.20),
+                       axhline=0,  # compression/tension boundary
+                       # legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
+                       # end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
+                       end=end)
+
+def _show_tension_by_cell_size(end: bool) -> None:
+    """Plot median tensions of undivided and divided cells separately"""
+    if not cfg.cell_division_enabled:
+        # Plot this only if cell division is happening
+        return
+    
+    phandle: tf.ParticleHandle
+    undivided_tensions: list[float] = []
+    undivided_particle_phi: list[float] = []
+    divided_tensions: list[float] = []
+    divided_particle_phi: list[float] = []
+    for phandle in g.Little.items():
+        if epu.is_undivided(phandle):
+            undivided_tensions.append(tfu.strain(phandle))
+            undivided_particle_phi.append(epu.embryo_phi(phandle))
+        else:
+            divided_tensions.append(tfu.strain(phandle))
+            divided_particle_phi.append(epu.embryo_phi(phandle))
+            
+    if len(divided_tensions) == 0:
+        # If there are no divided cells yet, just skip this. Avoid handling that case.
+        # So at T=0, no plot at all; at later times, this plot won't have a T=0 line.
+        return
+        
+    # Bin the raw data and plot its median
+    _add_binned_medians_to_history(undivided_tensions,
+                                   undivided_particle_phi,
+                                   _undivided_tensions_history,
+                                   _undivided_tensions_bin_axis_history,
+                                   _undivided_tensions_timestep_history)
+    
+    _add_binned_medians_to_history(divided_tensions,
+                                   divided_particle_phi,
+                                   _divided_tensions_history,
+                                   _divided_tensions_bin_axis_history,
+                                   _divided_tensions_timestep_history)
+    
+    _plot_data_history(_undivided_tensions_history,
+                       _undivided_tensions_bin_axis_history,
+                       _undivided_tensions_timestep_history,
+                       secondary_values_history=_divided_tensions_history,
+                       secondary_bin_axis_history=_divided_tensions_bin_axis_history,
+                       filename="Tensions by cell size",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Median particle tension",
                        ylim=(-0.05, 0.20),
@@ -708,6 +800,7 @@ def show_graphs(end: bool = False) -> None:
     if _timestep % plot_interval == 0 or end:
         # These aggregate graphs don't need to be time-averaged, so just call them exactly on the interval (including 0)
         _show_test_tension_v_phi(end)
+        _show_tension_by_cell_size(end)
 
     if not cfg.plot_time_averages:
         if _timestep % plot_interval == 0 or end:
@@ -760,6 +853,13 @@ def get_state() -> dict:
             "median_tensions_history": _median_tensions_history,
             "tension_timestep_history": _tension_timestep_history,
             
+            "undivided_tensions_bin_axis_history": _undivided_tensions_bin_axis_history,
+            "undivided_tensions_history": _undivided_tensions_history,
+            "undivided_tensions_timestep_history": _undivided_tensions_timestep_history,
+            "divided_tensions_bin_axis_history": _divided_tensions_bin_axis_history,
+            "divided_tensions_history": _divided_tensions_history,
+            "divided_tensions_timestep_history": _divided_tensions_timestep_history,
+            
             "speeds_bin_axis_history": _speeds_bin_axis_history,
             "median_speeds_history": _median_speeds_history,
             "strain_rates_by_speed_diffs_history": _strain_rates_by_speed_diffs_history,
@@ -783,6 +883,8 @@ def set_state(d: dict) -> None:
     global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _straightness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
+    global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
+    global _divided_tensions_bin_axis_history, _divided_tensions_history, _divided_tensions_timestep_history
     global _speeds_bin_axis_history, _median_speeds_history, _speeds_timestep_history
     global _strain_rates_by_speed_diffs_history
     global _speeds, _speeds_particle_phi
@@ -803,6 +905,13 @@ def set_state(d: dict) -> None:
     _tension_bin_axis_history = d["tension_bin_axis_history"]
     _median_tensions_history = d["median_tensions_history"]
     _tension_timestep_history = d["tension_timestep_history"]
+    
+    _undivided_tensions_bin_axis_history = d["undivided_tensions_bin_axis_history"]
+    _undivided_tensions_history = d["undivided_tensions_history"]
+    _undivided_tensions_timestep_history = d["undivided_tensions_timestep_history"]
+    _divided_tensions_bin_axis_history = d["divided_tensions_bin_axis_history"]
+    _divided_tensions_history = d["divided_tensions_history"]
+    _divided_tensions_timestep_history = d["divided_tensions_timestep_history"]
     
     _speeds_bin_axis_history = d["speeds_bin_axis_history"]
     _median_speeds_history = d["median_speeds_history"]
