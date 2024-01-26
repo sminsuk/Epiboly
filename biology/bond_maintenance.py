@@ -31,10 +31,7 @@ def update_bond(bhandle: tf.BondHandle) -> None:
     make_bond(p1, p2)
 
 def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = False) -> None:
-    """Return a potential tailored to these 2 particles
-    
-    [generates no force because r0 = their current distance.]
-    ^^^ (This is not true anymore, but I may change my mind on it yet again)
+    """Generate a potential tailored to these 2 particles and create a bond between them
     
     Accepts the TF default min (half of r0).
     
@@ -44,7 +41,19 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
     """
     k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
     
-    # r0: float = p1.distance(p2)
+    # Smaller cells get lower spring constant. Rationale/conjecture: strength of bonding is related to surface-area-
+    # to-volume ratio. The relevant surface area is the lateral surface of the squamous cell (excluding apical and
+    # basal surfaces). Our post-division cells have half the volume of our undivided cells, and the relevant
+    # surface area sqrt(2)/2 times the surface area of the larger cells, thus SA-to-V ratio is sqrt(2) times that
+    # of the larger cells. We reason that the spring constant should behave as the inverse of that, going DOWN
+    # by sqrt(2), for a bond between 2 smaller cells relative to one between 2 larger cells. And a bond between
+    # a large and a small cell will be the geometric mean of those two values.
+    cell_size_factor: float = 2 ** (1/4)
+    if epu.is_divided(p1):
+        k /= cell_size_factor
+    if epu.is_divided(p2):
+        k /= cell_size_factor
+    
     r0: float = gc.get_cell_radius(p1) + gc.get_cell_radius(p2)
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
                                                     k=k,

@@ -50,6 +50,10 @@ def is_undivided(p: tf.ParticleHandle) -> bool:
     # initial_cell_radius is an arbitrary float, so I don't want to rely on equality comparison.
     return gc.get_cell_radius(p) > 0.9 * initial_cell_radius
 
+def is_divided(p: tf.ParticleHandle) -> bool:
+    """Convenience function"""
+    return not is_undivided(p)
+
 def update_color(p: tf.ParticleHandle) -> None:
     """Paint the particle the correct color for its ParticleType and cell division state
     
