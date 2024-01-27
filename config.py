@@ -138,6 +138,13 @@ coupled_bond_remodeling_freq: float = 0
 min_neighbor_count: int = 3
 max_edge_neighbor_count: int = 3
 
+# Strength of each term in energy calculations on topological constraints (neighbor count, bond angle).
+# Separate values for the edge transformations, so they can be tuned separately if desired.
+k_neighbor_count: float = 0.4
+k_edge_neighbor_count: float = 2
+k_bond_angle: float = 2
+k_edge_bond_angle: float = 2
+
 # For neighbor angle energy calculations
 target_neighbor_angle: float = math.pi / 3
 target_edge_angle: float = math.pi
@@ -256,6 +263,10 @@ def get_state() -> dict:
                         "coupled_bond_remodeling_freq": coupled_bond_remodeling_freq,
                         "min_neighbor_count": min_neighbor_count,
                         "max_edge_neighbor_count": max_edge_neighbor_count,
+                        "k_neighbor_count": k_neighbor_count,
+                        "k_edge_neighbor_count": k_edge_neighbor_count,
+                        "k_bond_angle": k_bond_angle,
+                        "k_edge_bond_angle": k_edge_bond_angle,
                         "target_neighbor_angle": target_neighbor_angle,
                         "target_edge_angle": target_edge_angle,
                         "leading_edge_recruitment_limit": leading_edge_recruitment_limit,
@@ -315,6 +326,7 @@ def set_state(d: dict) -> None:
     global yolk_cortical_tension, external_force, force_algorithm, force_target_fraction, max_potential_cutoff
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
+    global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle
     global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
     
     # model control
@@ -367,6 +379,10 @@ def set_state(d: dict) -> None:
     coupled_bond_remodeling_freq = model["coupled_bond_remodeling_freq"]
     min_neighbor_count = model["min_neighbor_count"]
     max_edge_neighbor_count = model["max_edge_neighbor_count"]
+    k_neighbor_count = model["k_neighbor_count"]
+    k_edge_neighbor_count = model["k_edge_neighbor_count"]
+    k_bond_angle = model["k_bond_angle"]
+    k_edge_bond_angle = model["k_edge_bond_angle"]
     target_neighbor_angle = model["target_neighbor_angle"]
     target_edge_angle = model["target_edge_angle"]
     leading_edge_recruitment_limit = model["leading_edge_recruitment_limit"]

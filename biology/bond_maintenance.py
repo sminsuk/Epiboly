@@ -233,12 +233,12 @@ def remodel_angles(p1: tf.ParticleHandle, p2: tf.ParticleHandle, p_becoming: tf.
         assert len(p_becoming.angles) == 0, f"Particle becoming internal (id={p_becoming.id}) ended up with" \
                                             f" {len(p_becoming.angles)} Angle bonds on it! Should have zero!"
 
-def _make_break_or_become(k_neighbor_count: float, k_angle: float,
-                          k_edge_neighbor_count: float, k_edge_angle: float) -> None:
-    """
-    All the "k": coefficient, like lambda for each energy term in the Potts model, but "lambda" is python reserved word.
-    Energy terms: neighbor-count constraint (like Potts model volume constraint), angle constraint.
-    k_edge_neighbor_count, k_edge_angle: same, for the leading-edge transformations, so they can be tuned separately.
+def _make_break_or_become() -> None:
+    """Bond remodeling
+    
+    "become" refers to the Tissue Forge .become() method on tf.ParticleHandle, which converts a particle to a new
+    tf.ParticleType. So in this function, we make bonds, break bonds, or move a particle into or out of the margin,
+    which requires converting it between internal and margin EVL particle types (Little and LeadingEdge).
     """
 
     def accept(main_particle: tf.ParticleHandle,
@@ -279,7 +279,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             p1: tf.ParticleHandle = main_particle
             p2: tf.ParticleHandle = making_particle or breaking_particle
 
-            k_neighbor_count_energy: float = k_edge_neighbor_count if is_edge_bond(p1, p2) else k_neighbor_count
+            k_neighbor_count_energy: float = cfg.k_edge_neighbor_count if is_edge_bond(p1, p2) else cfg.k_neighbor_count
             if k_neighbor_count_energy == 0:
                 return 0
             
@@ -500,7 +500,7 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
 
                 return AngleStateChange(before, after)
             
-            k_angle_energy: float = k_edge_angle if becoming else k_angle
+            k_angle_energy: float = cfg.k_edge_bond_angle if becoming else cfg.k_bond_angle
             if k_angle_energy == 0:
                 return 0
             
@@ -856,11 +856,6 @@ def _make_break_or_become(k_neighbor_count: float, k_angle: float,
             return 1, 1 + len(saturated_internal_neighbors)
         return 0, 0
 
-    assert k_neighbor_count >= 0 and k_angle >= 0, f"k values must be non-negative; " \
-                                                   f"k_neighbor_count = {k_neighbor_count}, k_angle = {k_angle}"
-    assert k_edge_neighbor_count >= 0 and k_edge_angle >= 0, f"k values must be non-negative; " \
-                                                             f"k_edge_neighbor_count = {k_edge_neighbor_count}, " \
-                                                             f"k_edge_angle = {k_edge_angle}"
     total_bonded: int = 0
     total_broken: int = 0
     total_coupled: int = 0
@@ -975,9 +970,7 @@ def _move_toward_open_space() -> None:
         phandle.force_init = force.as_list()
         
 
-def maintain_bonds(k_neighbor_count: float = 0.4, k_angle: float = 2,
-                   k_edge_neighbor_count: float = 2, k_edge_angle: float = 2) -> None:
-    _make_break_or_become(k_neighbor_count, k_angle,
-                          k_edge_neighbor_count, k_edge_angle)
+def maintain_bonds() -> None:
+    _make_break_or_become()
     if cfg.space_filling_enabled:
         _move_toward_open_space()

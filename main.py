@@ -91,19 +91,16 @@ events.execute_repeatedly(tasks=[
 vx.set_screenshot_export_interval()
 if cfg.windowed_mode:
     tf.show()
+    # Could modify the following dict if wanted to run differently after the second invoke of tf.show().
+    # I used to use this to pass different parameters to the functions using the "args" key in the dict, but
+    # now I've converted all those parameters to config vars. So now, if you wanted to change things up mid-simulation
+    # in this way, you'd have to do something different. Might have to bring those args back, or set a global flag or
+    # something. But windowed_mode hasn't been in my work flow for a long time, so, not bothering to provide for this.
     events.execute_repeatedly(tasks=[
             {"invoke": vx.save_screenshot_repeatedly},
             {"invoke": plot.show_graphs},
             {"invoke": mt.apply_even_tangent_forces},
-            {"invoke": bonds.maintain_bonds,
-             "args": {
-                      #     ###For making/breaking algorithm:
-                      # "k_neighbor_count": 1.0,
-                      # "k_angle": 1.0,
-                      # "k_edge_neighbor_count": 1.0,
-                      # "k_edge_angle": 1.0
-                      }
-             },
+            {"invoke": bonds.maintain_bonds},
             {"invoke": cd.cell_division},
             {"invoke": state.export_repeatedly},
             ])
