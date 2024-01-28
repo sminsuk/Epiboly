@@ -75,10 +75,33 @@ harmonic_repulsion_spring_constant: float = 0.5
 harmonic_spring_constant: float = 0.5
 harmonic_edge_spring_constant: float = 0.5
 harmonic_yolk_evl_spring_constant: float = 2.7
+
+# Bonds on smaller cells need smaller spring constant. For each bond, divide spring constant
+# by this amount once for each smaller (divided) cell involved with the bond. When it was 1 (i.e. not yet
+# implemented; all bonds had same spring constant), small cells were compressed, and large cells were overstretched,
+# so their actual sizes did not match their assigned "target" size. This was readily visible in the plot of
+# tension on the large vs. small cells, where larger cells experienced higher tension than smaller ones.
+# Relaxing spring constant on the smaller cells counteracts this. This is important for tissue integrity.
+#
+# Note: initially tried the value 2 ** (1/4), about 1.1892, based on the conjecture that strength
+# of cell adhesion should scale with surface-area-to-volume ratio. The relevant surface area being the
+# lateral surface of the squamous cell (excluding apical and basal surfaces); for smaller cells, this means
+# the relevant SA-to-V ratio is sqrt(2) times that of the larger cells. So divide by that when both cells
+# are small; and by the square root of that (because it's the geometric mean of 1 and that value) when only
+# one of the cells is small. That was the theory, so started with that. Worked great at first, but then it
+# turned out that the effect is highly sensitive to other parameters, so, as we adjust other forces on the
+# cells, have to adjust this as well. Aim for tension equalized on both sets of cells. If larger cells experience
+# LESS tension than smaller ones (smaller cells are relatively stretched and larger ones compressed; in extreme
+# cases eliminating the size difference entirely), then the value is too high.
+spring_constant_cell_size_factor: float = 2 ** (1/4)
+
 # With k=0.067: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
 # Using k=0.033 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
 # some buckling of the leading edge at the very end of certain experiments.
 # So, probably best to stick with k=0.067 and dt = 0.02.
+# Note, the angle-bonds feature was deprecated - see angle_bonds_enabled - long before I implemented
+# variable cell sizes, and spring_constant_cell_size_factor; I have no idea how that would apply to angle bonds,
+# and I have not tried it. So, angle-bonds feature might be broken now. Probably should remove from code.
 harmonic_angle_spring_constant: float = 0.067  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
@@ -250,6 +273,7 @@ def get_state() -> dict:
                         "harmonic_spring_constant": harmonic_spring_constant,
                         "harmonic_edge_spring_constant": harmonic_edge_spring_constant,
                         "harmonic_yolk_evl_spring_constant": harmonic_yolk_evl_spring_constant,
+                        "spring_constant_cell_size_factor": spring_constant_cell_size_factor,
                         "harmonic_angle_spring_constant": harmonic_angle_spring_constant,
                         "harmonic_angle_tolerance": harmonic_angle_tolerance,
                         "yolk_cortical_tension": yolk_cortical_tension,
@@ -322,6 +346,7 @@ def set_state(d: dict) -> None:
     global epiboly_initial_percentage, epiboly_initial_num_evl_cells, evl_particle_radius
     global min_neighbor_initial_distance_factor
     global harmonic_repulsion_spring_constant, harmonic_spring_constant, harmonic_edge_spring_constant
+    global spring_constant_cell_size_factor
     global harmonic_yolk_evl_spring_constant, harmonic_angle_spring_constant, harmonic_angle_tolerance
     global yolk_cortical_tension, external_force, force_algorithm, force_target_fraction, max_potential_cutoff
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
@@ -366,6 +391,7 @@ def set_state(d: dict) -> None:
     harmonic_spring_constant = model["harmonic_spring_constant"]
     harmonic_edge_spring_constant = model["harmonic_edge_spring_constant"]
     harmonic_yolk_evl_spring_constant = model["harmonic_yolk_evl_spring_constant"]
+    spring_constant_cell_size_factor = model["spring_constant_cell_size_factor"]
     harmonic_angle_spring_constant = model["harmonic_angle_spring_constant"]
     harmonic_angle_tolerance = model["harmonic_angle_tolerance"]
     yolk_cortical_tension = model["yolk_cortical_tension"]

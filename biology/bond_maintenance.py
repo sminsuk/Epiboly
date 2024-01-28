@@ -41,18 +41,13 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
     """
     k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
     
-    # Smaller cells get lower spring constant. Rationale/conjecture: strength of bonding is related to surface-area-
-    # to-volume ratio. The relevant surface area is the lateral surface of the squamous cell (excluding apical and
-    # basal surfaces). Our post-division cells have half the volume of our undivided cells, and the relevant
-    # surface area sqrt(2)/2 times the surface area of the larger cells, thus SA-to-V ratio is sqrt(2) times that
-    # of the larger cells. We reason that the spring constant should behave as the inverse of that, going DOWN
-    # by sqrt(2), for a bond between 2 smaller cells relative to one between 2 larger cells. And a bond between
-    # a large and a small cell will be the geometric mean of those two values.
-    cell_size_factor: float = 2 ** (1/4)
+    # Smaller cells get lower spring constant. See comment in congig.py for rationale of how much to reduce by.
+    # Configured amount is applicable to a bond between one small cell and one large; square that (apply it
+    # twice) for a bond between 2 smaller cells.
     if epu.is_divided(p1):
-        k /= cell_size_factor
+        k /= cfg.spring_constant_cell_size_factor
     if epu.is_divided(p2):
-        k /= cell_size_factor
+        k /= cfg.spring_constant_cell_size_factor
     
     r0: float = gc.get_cell_radius(p1) + gc.get_cell_radius(p2)
     potential: tf.Potential = tf.Potential.harmonic(r0=r0,
