@@ -721,7 +721,7 @@ def _show_margin_population() -> None:
     margin_ax.plot(_timesteps, _margin_cum_out, ":b", label="Cumulative out")
     if cfg.cell_division_enabled:
         margin_ax.plot(_timesteps, _margin_cum_divide, "-b", label="Cumulative divisions")
-    margin_ax.legend()  # ToDo? Force to loc="center right"? Haven't decided
+    margin_ax.legend(loc="center right")
 
     margin_path = os.path.join(_plot_path, "Margin cell rearrangement, plus cumulative.png")
     margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")
