@@ -57,7 +57,7 @@ angle_bonds_enabled: bool = False
 # Prevent holes (especially when cell division is disabled) by giving particles a nudge away from the
 # particles they are bound to, and hence toward open space.
 space_filling_enabled: bool = True
-k_particle_diffusion: float = 1.7
+k_particle_diffusion: float = 0.9
 
 # Starting point of the simulation. Note that 43% is the true value for the misnomer "30% epiboly")
 epiboly_initial_percentage: int = 43
@@ -71,9 +71,9 @@ evl_particle_radius: float = 0.045
 min_neighbor_initial_distance_factor: float = 1.5
 
 # Some items for Potential- and Bond-making:
-harmonic_repulsion_spring_constant: float = 0.3
-harmonic_spring_constant: float = 0.4
-harmonic_edge_spring_constant: float = 0.4
+harmonic_repulsion_spring_constant: float = 0.5
+harmonic_spring_constant: float = 0.5
+harmonic_edge_spring_constant: float = 0.5
 harmonic_yolk_evl_spring_constant: float = 2.7
 # With k=0.067: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
 # Using k=0.033 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
@@ -97,7 +97,7 @@ class ForceAlgorithm(Enum):
 # force_algorithm: Defines relationship between total force and circumference
 # force_target_fraction: For LINEAR, fraction of initial force to approach as circumf approaches 0
 yolk_cortical_tension: float = 8  # just balances interior bonds at initialization
-external_force: float = 7  # +additional to produce full epiboly
+external_force: float = 5  # +additional to produce full epiboly
 
 force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
 force_target_fraction: float = 0
