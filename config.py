@@ -92,8 +92,11 @@ harmonic_yolk_evl_spring_constant: float = 2.7
 # turned out that the effect is highly sensitive to other parameters, so, as we adjust other forces on the
 # cells, have to adjust this as well. Aim for tension equalized on both sets of cells. If larger cells experience
 # LESS tension than smaller ones (smaller cells are relatively stretched and larger ones compressed; in extreme
-# cases eliminating the size difference entirely), then the value is too high.
-spring_constant_cell_size_factor: float = 2 ** (1/4)
+# cases eliminating the size difference entirely), then the value is too high. If larger cells experience MORE
+# tension than smaller ones (larger cells relatively stretched and smaller ones compressed; actual size
+# difference between cells is larger than their target sizes / assigned cell radii would indicate), then
+# the value is too low.
+spring_constant_cell_size_factor: float = 1.1
 
 # With k=0.067: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
 # Using k=0.033 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
@@ -163,10 +166,10 @@ max_edge_neighbor_count: int = 3
 
 # Strength of each term in energy calculations on topological constraints (neighbor count, bond angle).
 # Separate values for the edge transformations, so they can be tuned separately if desired.
-k_neighbor_count: float = 0.4
-k_edge_neighbor_count: float = 2
-k_bond_angle: float = 2
-k_edge_bond_angle: float = 2
+k_neighbor_count: float = 0
+k_edge_neighbor_count: float = 0
+k_bond_angle: float = 3.75
+k_edge_bond_angle: float = 3.75
 
 # For neighbor angle energy calculations
 target_neighbor_angle: float = math.pi / 3
