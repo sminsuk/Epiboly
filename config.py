@@ -55,8 +55,10 @@ tension_squared: bool = False  # (ignored unless cell_division_biased_by_tension
 angle_bonds_enabled: bool = False
 
 # Prevent holes (especially when cell division is disabled) by giving particles a nudge away from the
-# particles they are bound to, and hence toward open space.
-space_filling_enabled: bool = True
+# particles they are bound to, and hence toward open space. (Deprecated! Appears that the way I switched up
+# the topological constraints - neighbor count and bond angle - surprisingly solved the problem better than
+# this algorithm did, making this an unnecessary complication. Leave False from now on!)
+space_filling_enabled: bool = False
 k_particle_diffusion: float = 0.9
 
 # Starting point of the simulation. Note that 43% is the true value for the misnomer "30% epiboly")
