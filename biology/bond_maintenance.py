@@ -864,37 +864,44 @@ def _make_break_or_become() -> None:
     uncoupled_bond_remodeling_freq: float = 1 - max(0.0, min(1.0, cfg.coupled_bond_remodeling_freq))
     
     start = time.perf_counter()
-    for p in g.Little.items():
+    
+    # Get one giant list of all EVL particles, and shuffle it, so we visit in random order
+    all_particles: list[tf.ParticleHandle] = []
+    all_particles.extend(g.Little.items())
+    all_particles.extend(g.LeadingEdge.items())
+    random.shuffle(all_particles)
+    
+    for p in all_particles:
         ran = random.random()
-        if ran < uncoupled_bond_remodeling_freq / 2:
-            total_bonded += attempt_make_bond(p)
-        elif ran < uncoupled_bond_remodeling_freq:
-            total_broken += attempt_break_bond(p)
+        if p.type() == g.Little:
+            if ran < uncoupled_bond_remodeling_freq / 2:
+                total_bonded += attempt_make_bond(p)
+            elif ran < uncoupled_bond_remodeling_freq:
+                total_broken += attempt_break_bond(p)
+            else:
+                result = attempt_coupled_make_break_bond(p)
+                total_broken += result
+                total_bonded += result
+                total_coupled += result
         else:
-            result = attempt_coupled_make_break_bond(p)
-            total_broken += result
-            total_bonded += result
-            total_coupled += result
-        
-    for p in g.LeadingEdge.items():
-        ran = random.random()
-        if ran < uncoupled_bond_remodeling_freq / 4:
-            total_bonded += attempt_make_bond(p)
-        elif ran < uncoupled_bond_remodeling_freq / 2:
-            total_broken += attempt_break_bond(p)
-        elif ran < 0.5:
-            result = attempt_coupled_make_break_bond(p)
-            total_broken += result
-            total_bonded += result
-            total_coupled += result
-        elif ran < 0.75:
-            result = attempt_become_internal(p)
-            total_bonded += result
-            total_to_internal += result
-        else:
-            became_edge, got_broken = attempt_recruit_from_internal(p)
-            total_broken += got_broken
-            total_to_edge += became_edge
+            # LeadingEdge
+            if ran < uncoupled_bond_remodeling_freq / 4:
+                total_bonded += attempt_make_bond(p)
+            elif ran < uncoupled_bond_remodeling_freq / 2:
+                total_broken += attempt_break_bond(p)
+            elif ran < 0.5:
+                result = attempt_coupled_make_break_bond(p)
+                total_broken += result
+                total_bonded += result
+                total_coupled += result
+            elif ran < 0.75:
+                result = attempt_become_internal(p)
+                total_bonded += result
+                total_to_internal += result
+            else:
+                became_edge, got_broken = attempt_recruit_from_internal(p)
+                total_broken += got_broken
+                total_to_edge += became_edge
     end = time.perf_counter()
 
     print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {round(end - start, 2)} sec.; "
