@@ -187,7 +187,7 @@ leading_edge_recruitment_limit: float = 2.0     # in number of cell radii (not p
 run_balanced_force_control: bool = False
 
 test_recoil_without_bond_remodeling: bool = False
-test_recoil_with_bond_remodeling: bool = False  # Ignored when cell division enabled, since not meaningful in that case
+test_recoil_with_bond_remodeling: bool = False
 recoil_duration_without_remodeling: float = 75
 recoil_duration_with_remodeling: float = 75
 
