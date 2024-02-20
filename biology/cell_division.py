@@ -130,8 +130,8 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     # volume of the original parent, but the particles are always spheres. So it reduces radius by a factor
     # of cube_rt(2). What we want is for the squamous surface area to be halved, so a radius reduction of sqrt(2).
     # And TF doesn't know about our cell radius, only our particle radius. We increase the size of our particle
-    # to let it masquerade as our cell, by adopting the radius of the cell. But when TF halves the volume of
-    # the spherical particle, its equatorial surface (the cell squamous apical surface area) won't go down by
+    # to let it masquerade as our cell, by adopting the radius of the cell. But when TF halves the volume of the
+    # spherical particle, its equatorial cross-sectional area (the cell squamous apical surface area) won't go down by
     # half, but only by 2**(2/3). So we need to adjust to a smaller particle to result in the right apical surface
     # area reduction. The math says this: if we set the particle radius prior to splitting, to the cell radius over
     # 2**(1/6), its new radius after splitting by TF will be the CELL radius we want (the old cell radius over
