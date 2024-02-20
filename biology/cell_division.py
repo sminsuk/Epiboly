@@ -110,15 +110,21 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
         Also, to place the daughter particles in the correct relative positions (not touching the way TF wants to do,
         but placed far enough apart for the CELLS to be touching), increase the volume of the particles before
         splitting, such that when TF halves that volume, we get the desired size and location based on cell radius
-        (see detailed comment within). (Also, double the mass of the particles, which TF will then halve.)
+        (see detailed comment within).
+        
+        Also, treat the mass of the particles as a linear dimension, because it represents drag, which in a
+        squamous epithelium is proportional to lateral surface area (excluding apical and basal), which in turn
+        is proportional to circumference because width does not change. So increase it by a factor of sqrt(2)
+        before splitting; TF will then halve that, for a net adjustment of sqrt(2)/2, just like for any other
+        linear dimension like radius.
         
     New approach:
     
         Instead of dividing the particle in any random direction, and then having to adjust the positions
         of the daughters, calculate a random direction within the tangent plane (unless the particle is in
         the margin, then take the horizontal direction within the tangent plane), and use the second overload
-        of ParticleHandle.split() to provide that direction. (Unfortunately, that overload has a bug in TF
-        v. 0.2.0, so I can't use this yet.)
+        of ParticleHandle.split() to provide that direction. (For now, using a workaround for the bug in that
+        overload in TF v. 0.2.0, to be fixed in the next release.)
     """
     # We trick Tissue Forge into generating the correct new size. It wants to make the descendants half the
     # volume of the original parent, but the particles are always spheres. So it reduces radius by a factor
@@ -146,15 +152,10 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     # and just touching.) Since TF will be calculating the new radius for us, we can just copy that result.
     parent.radius = gc.get_cell_radius(parent) / (2 ** (1 / 6))
     
-    # Treat "mass" (because in Overdamped dynamics it actually represents drag) as proportional to surface area.
-    # TF wants to treat it like volume, i.e. halving it when the volume of the particle is halved. My current
-    # working hypothesis: that's appropriate for Newtonian dynamics, not for Overdamped. But in this particular
-    # case, dealing with squamous cells constrained to move within the sheet, I believe the relevant surface area
-    # is that of the lateral cell surface, excluding apical and basal; therefore it's really proportional to the
-    # circumference, hence is like a linear dimension and should decrease during a split by the same proportion
-    # as radius does. (CELL radius, not PARTICLE radius.) Thus after splitting, it should go down by a factor
-    # of sqrt(2). But we bump it UP by a factor of sqrt(2) before splitting, then TF will halve that, producing
-    # the net change we want.
+    # Treat "mass" (because in Overdamped dynamics it actually represents drag) the same as a linear dimension
+    # like radius (CELL radius, not PARTICLE radius). TF wants to treat it like volume, i.e. halving it when the
+    # volume of the particle is halved. Thus after splitting, it should go down by a factor of sqrt(2), but we
+    # bump it UP by a factor of sqrt(2) before splitting, then TF will halve that, producing the net change we want.
     parent.mass *= np.sqrt(2)
     
     daughter: tf.ParticleHandle
@@ -166,7 +167,7 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
             # ToDo: split(direction) requires a unit vector in TF v. 0.2.0, but that requirement will be
             #  removed in the next release. Can then ditch .normalized().
             #  And of course once that is settled, I can remove support for the original non-alt method,
-            #  and removed the debug code in cell_division(), below.
+            #  and remove the debug code in cell_division(), below.
             daughter = parent.split(epu.random_tangent(parent).normalized())
     else:
         daughter = parent.split()
