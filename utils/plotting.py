@@ -238,7 +238,7 @@ def _add_binned_medians_to_history(values: list[float],
                                    timestep_history: list[int],
                                    first: bool = True,
                                    last: bool = True,
-                                   approx_bin_size: float = np.pi / 20) -> float:
+                                   approx_bin_size: float = np.pi / 6) -> float:
     """From list of data points and positions, generate bins and median values, and add to history
     
     values, positions: data for a single plotted line on the graph. May be only from the current timestep,
@@ -442,7 +442,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
         # accumulate more timesteps before plotting
         return
 
-    approximate_bin_size: float = np.pi / 20
+    approximate_bin_size: float = np.pi / 6
     actual_bin_size: float = _add_binned_medians_to_history(_speeds,
                                                             _speeds_particle_phi,
                                                             _median_speeds_history,
