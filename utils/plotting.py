@@ -321,11 +321,11 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions: list[float] = []
     particle_phi: list[float] = []
     for phandle in g.Little.items():
-        tensions.append(tfu.strain(phandle))
+        tensions.append(epu.tension(phandle))
         particle_phi.append(epu.embryo_phi(phandle))
     
     # plot
-    ylim: tuple[float, float] = (-0.05, 0.25)
+    ylim: tuple[float, float] = (-0.05, 0.15)
     if end:
         ylim = _expand_limits_if_needed(ylim, tensions)
     tensions_ax.set_ylim(*ylim)
@@ -349,7 +349,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
                        filename="Aggregate tension vs. phi, multiple timepoints",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Median particle tension",
-                       ylim=(-0.05, 0.20),
+                       ylim=(-0.01, 0.10),
                        axhline=0,  # compression/tension boundary
                        # legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                        # end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
@@ -368,10 +368,10 @@ def _show_tension_by_cell_size(end: bool) -> None:
     divided_particle_phi: list[float] = []
     for phandle in g.Little.items():
         if epu.is_undivided(phandle):
-            undivided_tensions.append(tfu.strain(phandle))
+            undivided_tensions.append(epu.tension(phandle))
             undivided_particle_phi.append(epu.embryo_phi(phandle))
         else:
-            divided_tensions.append(tfu.strain(phandle))
+            divided_tensions.append(epu.tension(phandle))
             divided_particle_phi.append(epu.embryo_phi(phandle))
             
     if len(divided_tensions) == 0:
@@ -400,7 +400,7 @@ def _show_tension_by_cell_size(end: bool) -> None:
                        filename="Tensions by cell size",
                        xlabel=r"Particle position $\phi$",
                        ylabel="Median particle tension",
-                       ylim=(-0.05, 0.20),
+                       ylim=(-0.01, 0.10),
                        axhline=0,  # compression/tension boundary
                        # legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                        # end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,

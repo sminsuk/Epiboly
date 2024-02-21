@@ -54,6 +54,19 @@ def is_divided(p: tf.ParticleHandle) -> bool:
     """Convenience function"""
     return not is_undivided(p)
 
+def bond_tension(bhandle: tf.BondHandle) -> float:
+    """Return the tension on a bond
+    
+    This depends on the spring constant, which cannot be read out of the potential!
+    """
+    k: float = gc.get_spring_constant(bhandle)
+    return k * (bhandle.length - bhandle.potential.r0)
+
+def tension(p: tf.ParticleHandle) -> float:
+    """Return the aggregate tension on a particle, which is the mean of the signed tension of all its bonds"""
+    p_bonds: list[tf.BondHandle] = tfu.bonds(p)
+    return 0 if not p_bonds else fmean([bond_tension(bhandle) for bhandle in p_bonds])
+
 def update_color(p: tf.ParticleHandle) -> None:
     """Paint the particle the correct color for its ParticleType and cell division state
     

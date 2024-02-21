@@ -295,15 +295,18 @@ def bonds(p: tf.ParticleHandle) -> list[tf.BondHandle]:
     neighbor: tf.ParticleHandle
     return [bond_between(p, neighbor) for neighbor in p.bonded_neighbors]
 
+def bond_strain(bhandle: tf.BondHandle) -> float:
+    """Return the strain on a bond"""
+    return (bhandle.length - bhandle.potential.r0) / bhandle.potential.r0
+    
 def strain(p: tf.ParticleHandle) -> float:
     """Return the aggregate strain on a particle, which is the mean of the signed strain of all its bonds
     
     Note that if the bond potentials are harmonic, then strain is proportional to tension, so this can
-    be used as a proxy for the latter.
+    be used as a proxy for the latter. (But only if all the spring constants are the same!)
     """
     p_bonds: list[tf.BondHandle] = bonds(p)
-    return 0 if not p_bonds else fmean([bhandle.length - bhandle.potential.r0
-                                        for bhandle in p_bonds])
+    return 0 if not p_bonds else fmean([bond_strain(bhandle) for bhandle in p_bonds])
     
 def particle_from_id(id: int, type: tf.ParticleType = None) -> tf.ParticleHandle | None:
     """Temporary work around, delete after issue is fixed in future Tissue Forge release

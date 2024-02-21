@@ -297,8 +297,8 @@ def cell_division() -> None:
                 _one_time_cell_depletion_msg_sent = True
     elif cfg.cell_division_biased_by_tension:
         # a particle's probability of being selected should be proportional to the tension it is under
-        strains: list[float] = [tfu.strain(phandle) for phandle in particles]
-        relative_probabilities: np.ndarray = np.clip(strains, a_min=0.0, a_max=None)
+        tensions: list[float] = [epu.tension(phandle) for phandle in particles]
+        relative_probabilities: np.ndarray = np.clip(tensions, a_min=0.0, a_max=None)
         if cfg.tension_squared:
             relative_probabilities = np.square(relative_probabilities)
         p_normalized: np.ndarray = relative_probabilities / np.sum(relative_probabilities)
