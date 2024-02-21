@@ -54,7 +54,7 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
                                                     k=k,
                                                     max=cfg.max_potential_cutoff
                                                     )
-    handle: tf.BondHandle = gc.create_bond(potential, p1, p2)
+    handle: tf.BondHandle = gc.create_bond(potential, k, p1, p2)
 
     if verbose:
         distance: float = p1.distance(p2)

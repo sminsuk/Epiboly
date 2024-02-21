@@ -38,8 +38,8 @@ from typing import TypedDict
 import tissue_forge as tf
 import utils.tf_utils as tfu
 
-class BondData(TypedDict, total=False):
-    dummy: int
+class BondData(TypedDict, total=True):
+    spring_constant: float
 
 class ParticleData(TypedDict, total=True):
     cell_radius: float
@@ -48,11 +48,17 @@ bonds_by_id: dict[int, BondData] = {}
 angles_by_id: dict[int, int] = {}
 particles_by_id: dict[int, ParticleData] = {}
 
-def create_bond(potential: tf.Potential, p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> tf.BondHandle:
+def create_bond(potential: tf.Potential, k: float, p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> tf.BondHandle:
+    """Create the bond, and store k for future retrieval, because the value in the potential isn't accessible"""
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
-    bond_values: BondData = {}
+    bond_values: BondData = {"spring_constant": k}
     bonds_by_id[handle.id] = bond_values
     return handle
+
+def get_spring_constant(bhandle: tf.BondHandle) -> float:
+    """Return spring constant for a given bond"""
+    assert bhandle.id in bonds_by_id, f"Bond {bhandle.id} not in dictionary!"
+    return bonds_by_id[bhandle.id]["spring_constant"]
 
 def destroy_bond(bhandle: tf.BondHandle) -> None:
     del bonds_by_id[bhandle.id]
