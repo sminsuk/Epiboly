@@ -224,7 +224,7 @@ def initialize_leading_edge_bending_resistance() -> None:
     print("Adding Angle bonds to ring particles.")
 
     edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=cfg.harmonic_angle_spring_constant,
-                                                                     theta0=bonds.harmonic_angle_equilibrium_value(),
+                                                                     theta0=bonds.evl_edge_vertex_equilibrium_angle(),
                                                                      tol=cfg.harmonic_angle_tolerance)
     
     # Sort all the leading edge particles on spherical coordinate theta, into a new list (copy, not live).

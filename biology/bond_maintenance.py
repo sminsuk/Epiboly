@@ -93,13 +93,17 @@ def make_all_bonds(phandle: tf.ParticleHandle,
     assert len(phandle.bonded_neighbors) >= min_neighbor_count, \
         "Failed particle bonding: particle can't find enough nearby neighbors to bond to."
 
-def harmonic_angle_equilibrium_value() -> float:
-    """A function rather than just a config constant because it depends on the number of particles in the ring"""
-    # Equilibrium angle might look like π from within the plane of the leading edge, but the actual angle is
-    # different. And, it changes if the number of leading edge particles changes. Hopefully it won't need to be
-    # dynamically updated to be that precise. If the number of particles changes, they'll "try" to reach a target angle
-    # that is not quite right, but will be opposed by the same force acting on the neighbor particles, so hopefully
-    # it all balances out. (For the same reason, π would probably also work, but this value is closer to the real one.)
+def evl_edge_vertex_equilibrium_angle() -> float:
+    """A function rather than just a config constant because it depends on the number of particles in the ring
+    
+    This indicates what "straight" means at the leading edge. It is used both for the angle bonds (when enabled),
+    and for the target angle between pairs of edge bonds in the bond-angle constraint calculation.
+    """
+    # Equilibrium angle might look like pi when viewed from within the plane of the leading edge (because
+    # every angle looks like pi when viewed from within its plane!), but the actual angle in 3-D is
+    # different. And, it changes if the number of leading edge particles changes. We arent' keeping it strictly
+    # up-to-date dynamically; this only gets called when an angle bond happens to get updated or when evaluating
+    # the target angle for an edge bond transformation, but that should be good enough.
     return math.pi - (2 * math.pi / len(g.LeadingEdge.items()))
 
 def test_ring_is_fubar():
@@ -200,7 +204,7 @@ def remodel_angles(p1: tf.ParticleHandle, p2: tf.ParticleHandle, p_becoming: tf.
     assert a2, f"Particle {p2.id} has no pivot Angle!"
     
     k: float = cfg.harmonic_angle_spring_constant
-    theta0: float = harmonic_angle_equilibrium_value()
+    theta0: float = evl_edge_vertex_equilibrium_angle()
     tol: float = cfg.harmonic_angle_tolerance
     edge_angle_potential: tf.Potential = tf.Potential.harmonic_angle(k=k, theta0=theta0, tol=tol)
     assert edge_angle_potential is not None, f"Failed harmonic_angle potential, k={k}, theta0={theta0}, tol={tol}"
@@ -384,6 +388,7 @@ def _make_break_or_become() -> None:
                     target_leading: float
                     target_trailing: float
                     target_composite: float
+                    target_edge: float
                     
                     theta_leading = tfu.angle_from_particles(ordered_neighbor_list[leading_index],
                                                              vertex_particle,
@@ -394,16 +399,18 @@ def _make_break_or_become() -> None:
     
                     target_leading = target_trailing = target_composite = cfg.target_neighbor_angle
                     if becoming:
+                        target_edge = evl_edge_vertex_equilibrium_angle()
+                        
                         # Assume(?) that the two component angles are very different sizes; and that the
                         # larger one is the EVL leading edge, so should have a bigger target.
                         # (Note: is this assumption correct?)
                         if theta_leading > theta_trailing:
-                            target_leading = cfg.target_edge_angle
+                            target_leading = target_edge
                         else:
-                            target_trailing = cfg.target_edge_angle
+                            target_trailing = target_edge
         
                         # And when the bond is absent, the composite angle will be the EVL leading edge
-                        target_composite = cfg.target_edge_angle
+                        target_composite = target_edge
                     
                     return [ConstrainedAngle(value=theta_leading, target=target_leading),
                             ConstrainedAngle(value=theta_trailing, target=target_trailing),
