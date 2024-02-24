@@ -68,20 +68,23 @@ def apply_even_tangent_forces() -> None:
     particle_data: ParticleData
     weight_total: float = 0
     for particle_data in sorted_on_theta:
-        arc: float = (particle_data.theta - before_previous_theta)
-        # The relevant "radius" of the leading edge "circle" is actually the distance (or arc) from the vegetal pole:
-        radius: float = math.pi - previous_particle_data.phi
-        weight: float = radius * arc
-        previous_particle_data.weight = weight
-        weight_total += weight
+        # As we traverse the sorted list, we gather enough data to calculate the weight of a particle
+        # when we reach the particle after that. So we are calculating the weight for previous_particle.
+        previous_particle_arc_to_neighbors: float = particle_data.theta - before_previous_theta
+        previous_particle_arc_to_veg_pole: float = math.pi - previous_particle_data.phi
+        cell_relative_weight: float = previous_particle_arc_to_veg_pole * previous_particle_arc_to_neighbors
+        previous_particle_data.weight = cell_relative_weight
+        weight_total += cell_relative_weight
         
         before_previous_theta = previous_theta
         previous_particle_data = particle_data
         previous_theta = particle_data.theta
         
     # Second loop: now that we have all the weights and the total, we can calculate the forces
+    leading_edge_circumference: float = epu.leading_edge_circumference()
     for particle_data in sorted_on_theta:
-        mag: float = current_total_force() * particle_data.weight / weight_total
+        weighted_cell_width: float = leading_edge_circumference * particle_data.weight / weight_total
+        mag: float = _force_per_unit_length * weighted_cell_width
         tangent_phi = particle_data.phi + math.pi / 2
         tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([mag, particle_data.theta, tangent_phi])
         
@@ -91,13 +94,8 @@ def apply_even_tangent_forces() -> None:
 def current_total_force() -> float:
     """Calculate the total force to apply to the leading edge
     
-    This function has a dual use. When called from within this module, the return value is interpreted to indicate
-    how much force SHOULD be applied, and this will result in setting the forces on the particles. This
-    only happens when forces are enabled.
-    
-    But when called from outside this module (i.e. from plotting module), the return value is interpreted to
-    indicate hou much force IS being applied, and the reported value is displayed.
-    Therefore still need to return a value (0) when forces are disabled, so that the value is displayed correctly.
+    This function is used by the plotting module, which plots even when forces are disabled.
+    Therefore need to return a value (0) in that case, so that the value is displayed correctly.
     """
     return _force_per_unit_length * epu.leading_edge_circumference() if force_enabled else 0
     
