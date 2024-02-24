@@ -9,10 +9,7 @@ import utils.tf_utils as tfu
 import utils.epiboly_utils as epu
 
 force_enabled: bool = True
-
-# Linear relationship between circumference and force, y = mx + b:
-_m: float = 0.0
-_b: float = 0.0
+_force_per_unit_length: float = 0.0
 
 def initialize_tangent_forces() -> None:
     """Establish the linear relationship between total downward force on the leading edge, and its circumference
@@ -25,21 +22,12 @@ def initialize_tangent_forces() -> None:
     With the APPROACH_0 algorithm, the ratio of force per unit length of leading edge stays constant over time,
     which was expected to also result in constant speed of epiboly. (Not what it actually does, though!)
     """
-    global _m, _b, force_enabled
+    global _force_per_unit_length, force_enabled
     
     force_enabled = True
     external_force: float = 0 if cfg.run_balanced_force_control else cfg.external_force
     total_force_start: float = cfg.yolk_cortical_tension + external_force
-    initial_force_circumference_ratio: float = total_force_start / epu.leading_edge_circumference()
-    force_algorithm: cfg.ForceAlgorithm = cfg.force_algorithm
-    
-    if force_algorithm == cfg.ForceAlgorithm.CONSTANT:
-        # Can fold this into the same formula, but for now I'm retaining the enums, so just leave it
-        _m = 0
-        _b = total_force_start
-    elif force_algorithm == cfg.ForceAlgorithm.LINEAR:
-        _m = (1 - cfg.force_target_fraction) * initial_force_circumference_ratio
-        _b = cfg.force_target_fraction * total_force_start
+    _force_per_unit_length = total_force_start / epu.leading_edge_circumference()
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""
@@ -111,18 +99,15 @@ def current_total_force() -> float:
     indicate hou much force IS being applied, and the reported value is displayed.
     Therefore still need to return a value (0) when forces are disabled, so that the value is displayed correctly.
     """
-    # x = circumference, y = force = mx + b
-    return (_m * epu.leading_edge_circumference() + _b) if force_enabled else 0
+    return _force_per_unit_length * epu.leading_edge_circumference() if force_enabled else 0
     
 def get_state() -> dict:
     """generate state to be saved to disk"""
     return {"force_enabled": force_enabled,
-            "m": _m,
-            "b": _b}
+            "force_per_unit_length": _force_per_unit_length}
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _m, _b, force_enabled
+    global _force_per_unit_length, force_enabled
     force_enabled = d["force_enabled"]
-    _m = d["m"]
-    _b = d["b"]
+    _force_per_unit_length = d["force_per_unit_length"]

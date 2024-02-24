@@ -351,8 +351,6 @@ def _show_test_tension_v_phi(end: bool) -> None:
                        ylabel="Median particle tension",
                        ylim=(-0.01, 0.10),
                        axhline=0,  # compression/tension boundary
-                       # legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
-                       # end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                        end=end)
 
 def _show_tension_by_cell_size(end: bool) -> None:
@@ -402,8 +400,6 @@ def _show_tension_by_cell_size(end: bool) -> None:
                        ylabel="Median particle tension",
                        ylim=(-0.01, 0.10),
                        axhline=0,  # compression/tension boundary
-                       # legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
-                       # end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                        end=end)
 
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
@@ -501,8 +497,6 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
                        ylim=(-0.005, 0.04),
                        axvline=np.pi/2,  # equator
                        axhline=0,        # stretch/compression boundary
-                       # legend_loc="lower right" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
-                       # end_legend_loc="upper left" if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                        end=end)
 
 def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
@@ -608,7 +602,6 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
                            ylim=ylim,
                            axvline=np.pi/2,  # equator
                            axhline=0,        # stretch/compression boundary
-                           # legend_loc=legend_loc if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT else None,
                            end=end)
 
 def _show_straightness() -> None:
@@ -728,10 +721,6 @@ def _show_margin_population() -> None:
     plt.close(margin_fig)
 
 def _show_forces() -> None:
-    if cfg.force_algorithm is cfg.ForceAlgorithm.CONSTANT:
-        # Nothing terribly interesting to plot!
-        return
-    
     forces_fig: Figure
     forces_ax: Axes
 

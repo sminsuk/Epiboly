@@ -110,11 +110,6 @@ spring_constant_cell_size_factor: float = 1.1
 harmonic_angle_spring_constant: float = 0.067  # (for the Angles)
 harmonic_angle_tolerance: float = 0.008 * math.pi
 
-# ToDo: Maybe get rid of this entirely later? Or may try other algorithms?
-class ForceAlgorithm(Enum):
-    CONSTANT = 1          # Total force is constant, stays at its initial value
-    LINEAR = 2            # Total force vs circumference is linear; defined by force_target_fraction
-
 # Vegetalward forces applied to LeadingEdge. Initial values from manual tuning.
 # These are highly dependent on the particle radius, spring constants, etc.,
 # so have to be tuned accordingly if those change.
@@ -122,13 +117,8 @@ class ForceAlgorithm(Enum):
 #   so that the leading edge is stable (not advancing) until some extrinsic additional force is applied.
 # external_force: additional force applied to drive epiboly. Will be overridden and set to 0 if
 #   run_balanced_force_control == True (see below, under "Controlling the model")
-# force_algorithm: Defines relationship between total force and circumference
-# force_target_fraction: For LINEAR, fraction of initial force to approach as circumf approaches 0
 yolk_cortical_tension: float = 8  # just balances interior bonds at initialization
 external_force: float = 5  # +additional to produce full epiboly
-
-force_algorithm: ForceAlgorithm = ForceAlgorithm.LINEAR
-force_target_fraction: float = 0
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
@@ -283,8 +273,6 @@ def get_state() -> dict:
                         "harmonic_angle_tolerance": harmonic_angle_tolerance,
                         "yolk_cortical_tension": yolk_cortical_tension,
                         "external_force": external_force,
-                        "force_algorithm": force_algorithm.name,
-                        "force_target_fraction": force_target_fraction,
                         "max_potential_cutoff": max_potential_cutoff,
                         "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
                         "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
@@ -353,7 +341,7 @@ def set_state(d: dict) -> None:
     global harmonic_repulsion_spring_constant, harmonic_spring_constant, harmonic_edge_spring_constant
     global spring_constant_cell_size_factor
     global harmonic_yolk_evl_spring_constant, harmonic_angle_spring_constant, harmonic_angle_tolerance
-    global yolk_cortical_tension, external_force, force_algorithm, force_target_fraction, max_potential_cutoff
+    global yolk_cortical_tension, external_force, max_potential_cutoff
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
     global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle
@@ -401,8 +389,6 @@ def set_state(d: dict) -> None:
     harmonic_angle_tolerance = model["harmonic_angle_tolerance"]
     yolk_cortical_tension = model["yolk_cortical_tension"]
     external_force = model["external_force"]
-    force_algorithm = ForceAlgorithm[model["force_algorithm"]]
-    force_target_fraction = model["force_target_fraction"]
     max_potential_cutoff = model["max_potential_cutoff"]
     bondable_neighbor_discovery = BondableNeighborDiscovery[model["bondable_neighbor_discovery"]]
     bondable_neighbors_min_candidates = model["bondable_neighbors_min_candidates"]
