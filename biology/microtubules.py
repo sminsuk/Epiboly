@@ -83,8 +83,8 @@ def apply_even_tangent_forces() -> None:
     # Second loop: now that we have all the weights and the total, we can calculate the forces
     leading_edge_circumference: float = epu.leading_edge_circumference()
     for particle_data in sorted_on_theta:
-        weighted_cell_width: float = leading_edge_circumference * particle_data.weight / weight_total
-        mag: float = _force_per_unit_length * weighted_cell_width
+        effective_cell_width: float = leading_edge_circumference * particle_data.weight / weight_total
+        mag: float = _force_per_unit_length * effective_cell_width
         tangent_phi = particle_data.phi + math.pi / 2
         tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([mag, particle_data.theta, tangent_phi])
         
