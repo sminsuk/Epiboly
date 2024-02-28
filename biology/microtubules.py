@@ -70,9 +70,9 @@ def apply_even_tangent_forces() -> None:
     for particle_data in sorted_on_theta:
         # As we traverse the sorted list, we gather enough data to calculate the weight of a particle
         # when we reach the particle after that. So we are calculating the weight for previous_particle.
-        previous_particle_arc_to_neighbors: float = particle_data.theta - before_previous_theta
-        previous_particle_arc_to_veg_pole: float = math.pi - previous_particle_data.phi
-        cell_relative_weight: float = previous_particle_arc_to_veg_pole * previous_particle_arc_to_neighbors
+        previous_p_relative_cell_width: float = particle_data.theta - before_previous_theta
+        previous_p_relative_distance_to_pole: float = math.pi - previous_particle_data.phi
+        cell_relative_weight: float = previous_p_relative_distance_to_pole * previous_p_relative_cell_width
         previous_particle_data.weight = cell_relative_weight
         weight_total += cell_relative_weight
         
@@ -83,7 +83,8 @@ def apply_even_tangent_forces() -> None:
     # Second loop: now that we have all the weights and the total, we can calculate the forces
     leading_edge_circumference: float = epu.leading_edge_circumference()
     for particle_data in sorted_on_theta:
-        effective_cell_width: float = leading_edge_circumference * particle_data.weight / weight_total
+        normalized_cell_weight: float = particle_data.weight / weight_total
+        effective_cell_width: float = leading_edge_circumference * normalized_cell_weight
         mag: float = _force_per_unit_length * effective_cell_width
         tangent_phi = particle_data.phi + math.pi / 2
         tangent_force_vec: tf.fVector3 = tfu.cartesian_from_spherical([mag, particle_data.theta, tangent_phi])
