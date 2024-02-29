@@ -742,6 +742,11 @@ def _make_break_or_become() -> None:
         assert len(bonded_neighbors) == 2, f"Leading edge particle {p.id} has {len(bonded_neighbors)}" \
                                            f" leading edge neighbors??? Should always be exactly 2!"
         
+        if len(g.LeadingEdge.items()) < 4:
+            # If down to 3 cells, can't remove any more because it would try to make a new bond between the other
+            # two, which would violate the connectivity rules and hit an assert. So reject the illegal operation.
+            return 0
+        
         neighbor1, neighbor2 = bonded_neighbors
         p_phi: float = epu.embryo_phi(p)
         if p_phi >= epu.embryo_phi(neighbor1) or p_phi >= epu.embryo_phi(neighbor2):
