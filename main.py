@@ -140,7 +140,9 @@ else:
             return tf.Universe.time > setup.equilibration_time + 800
         else:
             # Full epiboly:
-            return epu.leading_edge_mean_phi() > cfg.stopping_condition_phi
+            minimum, mid, maximum = epu.leading_edge_min_mean_max_phi()
+            return (mid > cfg.stopping_condition_phi or                 # catches the well-behaved case
+                    maximum > cfg.unbalanced_stopping_condition_phi)    # catches the unbalanced case
     
     def run_sim() -> None:
         while True:

@@ -182,6 +182,7 @@ recoil_duration_without_remodeling: float = 75
 recoil_duration_with_remodeling: float = 75
 
 stopping_condition_phi: float = math.pi * 0.95
+unbalanced_stopping_condition_phi: float = math.pi * 0.98
 
 # -------------------- Tissue Forge --------------------
 
@@ -295,6 +296,7 @@ def get_state() -> dict:
                         "recoil_duration_without_remodeling": recoil_duration_without_remodeling,
                         "recoil_duration_with_remodeling": recoil_duration_with_remodeling,
                         "stopping_condition_phi": stopping_condition_phi,
+                        "unbalanced_stopping_condition_phi": unbalanced_stopping_condition_phi,
                         },
                 "visualization": {
                         "show_equilibration": show_equilibration,
@@ -349,7 +351,8 @@ def set_state(d: dict) -> None:
     
     # model control
     global run_balanced_force_control, test_recoil_without_bond_remodeling, test_recoil_with_bond_remodeling
-    global recoil_duration_without_remodeling, recoil_duration_with_remodeling, stopping_condition_phi
+    global recoil_duration_without_remodeling, recoil_duration_with_remodeling
+    global stopping_condition_phi, unbalanced_stopping_condition_phi
     
     # visualization
     global show_equilibration, color_code_daughter_cells, screenshots_simtime_per_export, plotting_interval_simtime
@@ -411,6 +414,7 @@ def set_state(d: dict) -> None:
     recoil_duration_without_remodeling = control["recoil_duration_without_remodeling"]
     recoil_duration_with_remodeling = control["recoil_duration_with_remodeling"]
     stopping_condition_phi = control["stopping_condition_phi"]
+    unbalanced_stopping_condition_phi = control["unbalanced_stopping_condition_phi"]
 
     visualization: dict = d["config_values"]["visualization"]
     show_equilibration = visualization["show_equilibration"]
