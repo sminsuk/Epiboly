@@ -172,6 +172,8 @@ leading_edge_recruitment_limit: float = 1.5     # in number of cell radii (not p
 
 # -------------------- Controlling the model --------------------
 
+weight_force_by_dist_from_veg_pole: bool = True
+
 # If true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
 run_balanced_force_control: bool = False
@@ -290,6 +292,7 @@ def get_state() -> dict:
                         "leading_edge_recruitment_limit": leading_edge_recruitment_limit,
                         },
                 "model control": {
+                        "weight_force_by_dist_from_veg_pole": weight_force_by_dist_from_veg_pole,
                         "run_balanced_force_control": run_balanced_force_control,
                         "test_recoil_without_bond_remodeling": test_recoil_without_bond_remodeling,
                         "test_recoil_with_bond_remodeling": test_recoil_with_bond_remodeling,
@@ -350,7 +353,8 @@ def set_state(d: dict) -> None:
     global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
     
     # model control
-    global run_balanced_force_control, test_recoil_without_bond_remodeling, test_recoil_with_bond_remodeling
+    global weight_force_by_dist_from_veg_pole, run_balanced_force_control
+    global test_recoil_without_bond_remodeling, test_recoil_with_bond_remodeling
     global recoil_duration_without_remodeling, recoil_duration_with_remodeling
     global stopping_condition_phi, unbalanced_stopping_condition_phi
     
@@ -408,6 +412,7 @@ def set_state(d: dict) -> None:
     leading_edge_recruitment_limit = model["leading_edge_recruitment_limit"]
     
     control: dict = d["config_values"]["model control"]
+    weight_force_by_dist_from_veg_pole = control["weight_force_by_dist_from_veg_pole"]
     run_balanced_force_control = control["run_balanced_force_control"]
     test_recoil_without_bond_remodeling = control["test_recoil_without_bond_remodeling"]
     test_recoil_with_bond_remodeling = control["test_recoil_with_bond_remodeling"]
