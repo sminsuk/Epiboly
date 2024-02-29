@@ -168,7 +168,7 @@ target_neighbor_angle: float = math.pi / 3
 target_edge_angle: float = math.pi      # Currently not used; experimenting with dynamic
 
 # For controlling which internal cells can become edge (must be within this distance)
-leading_edge_recruitment_limit: float = 2.0     # in number of cell radii (not particle radii)
+leading_edge_recruitment_limit: float = 1.5     # in number of cell radii (not particle radii)
 
 # -------------------- Controlling the model --------------------
 

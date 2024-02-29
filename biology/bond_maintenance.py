@@ -820,7 +820,7 @@ def _make_break_or_become() -> None:
         # full circumference of circle (i.e. 2*pi*r) / radians in a full circle (i.e. 2*pi), which = r;
         # hence if we know the distance, then the radians = distance / r
         leading_edge_recruitment_limit_radians: float = leading_edge_recruitment_limit_distance / epu.embryo_radius()
-        if epu.embryo_phi(recruit) < leading_edge_baseline_phi + leading_edge_recruitment_limit_radians:
+        if epu.embryo_phi(recruit) < leading_edge_baseline_phi - leading_edge_recruitment_limit_radians:
             return 0, 0
 
         # In case recruit is bonded to any additional *other* LeadingEdge particles, disallow this
