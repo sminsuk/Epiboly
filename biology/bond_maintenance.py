@@ -740,7 +740,8 @@ def _make_break_or_become() -> None:
         bonded_neighbors: list[tf.ParticleHandle] = [phandle for phandle in nbrs.getBondedNeighbors(p)
                                                      if phandle.type_id == g.LeadingEdge.id]
         assert len(bonded_neighbors) == 2, f"Leading edge particle {p.id} has {len(bonded_neighbors)}" \
-                                           f" leading edge neighbors??? Should always be exactly 2!"
+                                           f" leading edge neighbors??? Should always be exactly 2!" \
+                                           f" There are {len(g.LeadingEdge.items())} margin cells"
         
         if len(g.LeadingEdge.items()) < 4:
             # If down to 3 cells, can't remove any more because it would try to make a new bond between the other
@@ -788,7 +789,8 @@ def _make_break_or_become() -> None:
         leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in nbrs.getBondedNeighbors(p)
                                                            if phandle.type_id == g.LeadingEdge.id]
         assert len(leading_edge_neighbors) == 2, f"Leading edge particle {p.id} has {len(leading_edge_neighbors)}" \
-                                                 f" leading edge neighbors??? Should always be exactly 2!"
+                                                 f" leading edge neighbors??? Should always be exactly 2!" \
+                                                 f" There are {len(g.LeadingEdge.items())} margin cells"
         
         # Select one neighbor at random; if it doesn't work with that one, try the other one. First, randomize the
         # order of the list (of 2 particles), so I can simply try them in list order without introducing a bias.
