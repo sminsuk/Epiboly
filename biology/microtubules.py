@@ -73,7 +73,7 @@ def apply_even_tangent_forces() -> None:
         previous_p_relative_cell_width: float = particle_data.theta - before_previous_theta
         previous_p_relative_distance_to_pole: float = math.pi - previous_particle_data.phi
         cell_relative_weight: float = previous_p_relative_cell_width
-        if cfg.weight_force_by_dist_from_veg_pole:
+        if cfg.force_is_weighted_by_distance_from_pole:
             cell_relative_weight *= previous_p_relative_distance_to_pole
         previous_particle_data.weight = cell_relative_weight
         weight_total += cell_relative_weight
