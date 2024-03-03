@@ -743,9 +743,18 @@ def _make_break_or_become() -> None:
                                            f" leading edge neighbors??? Should always be exactly 2!" \
                                            f" There are {len(g.LeadingEdge.items())} margin cells"
         
-        if len(g.LeadingEdge.items()) < 4:
-            # If down to 3 cells, can't remove any more because it would try to make a new bond between the other
-            # two, which would violate the connectivity rules and hit an assert. So reject the illegal operation.
+        if len(g.LeadingEdge.items()) <= 4:
+            # Don't go down from 3 to 2 cells, because it would try to make a new bond between the remaining
+            # two, which would violate the connectivity rules and hit an assert (adding a bond to two particles
+            # that are already bonded). So reject the illegal operation.
+            #
+            # But furthermore, don't even go down from 4 to 3 cells. This is really only an issue during the
+            # recoil test, which is a simmulation run extended beyond the usual cutoff, with no vegetalward
+            # pulling force; not in the main sim, because even at the threshold for ending the simulation,
+            # there's generally more particles than that. With 3 cells, it frequently hits a different
+            # assert where for some reason the edge topology appears broken, with an edge particle somehow
+            # having only one bonded edge neighbor. (Right here in this function, or the equivalent in
+            # attempt_recruit_from_internal.) It appears to be safe to go down to 4 cells.
             return 0
         
         neighbor1, neighbor2 = bonded_neighbors
