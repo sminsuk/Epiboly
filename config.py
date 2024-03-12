@@ -119,6 +119,7 @@ harmonic_angle_tolerance: float = 0.008 * math.pi
 #   run_balanced_force_control == True (see below, under "Controlling the model")
 yolk_cortical_tension: float = 8  # just balances interior bonds at initialization
 external_force: float = 5  # +additional to produce full epiboly
+force_is_weighted_by_distance_from_pole: bool = True
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
@@ -171,8 +172,6 @@ target_edge_angle: float = math.pi      # Currently not used; experimenting with
 leading_edge_recruitment_limit: float = 1.5     # in number of cell radii (not particle radii)
 
 # -------------------- Controlling the model --------------------
-
-force_is_weighted_by_distance_from_pole: bool = True
 
 # If true, use 0 external force. (For a turnkey entry point, other things will
 #   be changed along with it, like how simulation end is decided, and the interval for plotting.)
@@ -276,6 +275,7 @@ def get_state() -> dict:
                         "harmonic_angle_tolerance": harmonic_angle_tolerance,
                         "yolk_cortical_tension": yolk_cortical_tension,
                         "external_force": external_force,
+                        "force_is_weighted_by_distance_from_pole": force_is_weighted_by_distance_from_pole,
                         "max_potential_cutoff": max_potential_cutoff,
                         "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
                         "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
@@ -292,7 +292,6 @@ def get_state() -> dict:
                         "leading_edge_recruitment_limit": leading_edge_recruitment_limit,
                         },
                 "model control": {
-                        "force_is_weighted_by_distance_from_pole": force_is_weighted_by_distance_from_pole,
                         "run_balanced_force_control": run_balanced_force_control,
                         "test_recoil_without_bond_remodeling": test_recoil_without_bond_remodeling,
                         "test_recoil_with_bond_remodeling": test_recoil_with_bond_remodeling,
@@ -346,14 +345,14 @@ def set_state(d: dict) -> None:
     global harmonic_repulsion_spring_constant, harmonic_spring_constant, harmonic_edge_spring_constant
     global spring_constant_cell_size_factor
     global harmonic_yolk_evl_spring_constant, harmonic_angle_spring_constant, harmonic_angle_tolerance
-    global yolk_cortical_tension, external_force, max_potential_cutoff
+    global yolk_cortical_tension, external_force, force_is_weighted_by_distance_from_pole, max_potential_cutoff
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
     global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle
     global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
     
     # model control
-    global force_is_weighted_by_distance_from_pole, run_balanced_force_control
+    global run_balanced_force_control
     global test_recoil_without_bond_remodeling, test_recoil_with_bond_remodeling
     global recoil_duration_without_remodeling, recoil_duration_with_remodeling
     global stopping_condition_phi, unbalanced_stopping_condition_phi
@@ -396,6 +395,7 @@ def set_state(d: dict) -> None:
     harmonic_angle_tolerance = model["harmonic_angle_tolerance"]
     yolk_cortical_tension = model["yolk_cortical_tension"]
     external_force = model["external_force"]
+    force_is_weighted_by_distance_from_pole = model["force_is_weighted_by_distance_from_pole"]
     max_potential_cutoff = model["max_potential_cutoff"]
     bondable_neighbor_discovery = BondableNeighborDiscovery[model["bondable_neighbor_discovery"]]
     bondable_neighbors_min_candidates = model["bondable_neighbors_min_candidates"]
@@ -412,7 +412,6 @@ def set_state(d: dict) -> None:
     leading_edge_recruitment_limit = model["leading_edge_recruitment_limit"]
     
     control: dict = d["config_values"]["model control"]
-    force_is_weighted_by_distance_from_pole = control["force_is_weighted_by_distance_from_pole"]
     run_balanced_force_control = control["run_balanced_force_control"]
     test_recoil_without_bond_remodeling = control["test_recoil_without_bond_remodeling"]
     test_recoil_with_bond_remodeling = control["test_recoil_with_bond_remodeling"]
