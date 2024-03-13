@@ -179,6 +179,12 @@ run_balanced_force_control: bool = False
 
 test_recoil_without_bond_remodeling: bool = False
 test_recoil_with_bond_remodeling: bool = False
+# While recoil experiment with bond remodeling is in progress, modify these flags to change the remodeling rules:
+allow_exit_margin: bool = True
+allow_enter_margin: bool = True
+always_accept_enter_margin: bool = False
+allow_internal_remodeling: bool = True
+# How long for each test (in units of Universe.time):
 recoil_duration_without_remodeling: float = 75
 recoil_duration_with_remodeling: float = 75
 
@@ -295,6 +301,10 @@ def get_state() -> dict:
                         "run_balanced_force_control": run_balanced_force_control,
                         "test_recoil_without_bond_remodeling": test_recoil_without_bond_remodeling,
                         "test_recoil_with_bond_remodeling": test_recoil_with_bond_remodeling,
+                        "allow_exit_margin": allow_exit_margin,
+                        "allow_enter_margin": allow_enter_margin,
+                        "always_accept_enter_margin": always_accept_enter_margin,
+                        "allow_internal_remodeling": allow_internal_remodeling,
                         "recoil_duration_without_remodeling": recoil_duration_without_remodeling,
                         "recoil_duration_with_remodeling": recoil_duration_with_remodeling,
                         "stopping_condition_phi": stopping_condition_phi,
@@ -354,6 +364,7 @@ def set_state(d: dict) -> None:
     # model control
     global run_balanced_force_control
     global test_recoil_without_bond_remodeling, test_recoil_with_bond_remodeling
+    global allow_exit_margin, allow_enter_margin, always_accept_enter_margin, allow_internal_remodeling
     global recoil_duration_without_remodeling, recoil_duration_with_remodeling
     global stopping_condition_phi, unbalanced_stopping_condition_phi
     
@@ -415,6 +426,10 @@ def set_state(d: dict) -> None:
     run_balanced_force_control = control["run_balanced_force_control"]
     test_recoil_without_bond_remodeling = control["test_recoil_without_bond_remodeling"]
     test_recoil_with_bond_remodeling = control["test_recoil_with_bond_remodeling"]
+    allow_exit_margin = control["allow_exit_margin"]
+    allow_enter_margin = control["allow_enter_margin"]
+    always_accept_enter_margin = control["always_accept_enter_margin"]
+    allow_internal_remodeling = control["allow_internal_remodeling"]
     recoil_duration_without_remodeling = control["recoil_duration_without_remodeling"]
     recoil_duration_with_remodeling = control["recoil_duration_with_remodeling"]
     stopping_condition_phi = control["stopping_condition_phi"]

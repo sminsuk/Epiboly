@@ -845,7 +845,10 @@ def _make_break_or_become() -> None:
         if num_bonds_to_leading_edge > 2:
             return 0, 0
 
-        if accept(p, breaking_particle=other_leading_edge_p, becoming=True):
+        # During recoil experiment only, if configured to always accept this event, skip the energetic
+        # acceptance criterion calculation and just go ahead and do it.
+        if ((epu.recoil_experiment_in_progress and cfg.always_accept_enter_margin) or
+                accept(p, breaking_particle=other_leading_edge_p, becoming=True)):
             # In case recruit is bonded to an *internal* particle that already has the maximum edge bonds,
             # break the bond with that particle. Recruit will become LeadingEdge, which means bonded neighbors
             # will get an additional bond to the edge. So, if internal neighbor is already bonded to the maximum,
@@ -894,10 +897,26 @@ def _make_break_or_become() -> None:
     all_particles.extend(g.LeadingEdge.items())
     random.shuffle(all_particles)
     
+    # We will handle things differently if we are doing the recoil experiment, than if we are in the main sim.
+    # These three flags will all be FALSE for the main sim (because epu.recoil_experiment_in_progress is False);
+    # they only apply to the recoil experiment. Note the first two are mutually exclusive but not exhaustive;
+    # the third possibility for edge remodeling in the recoil experiment is that we are allowing BOTH types:
+    no_edge_transformations_allowed: bool = (epu.recoil_experiment_in_progress and
+                                             not cfg.allow_exit_margin and
+                                             not cfg.allow_enter_margin)
+    edge_transformations_restricted: bool = (epu.recoil_experiment_in_progress and
+                                             cfg.allow_enter_margin != cfg.allow_exit_margin)
+    no_internal_remodeling_allowed: bool = (epu.recoil_experiment_in_progress and
+                                            not cfg.allow_internal_remodeling)
+    
     for p in all_particles:
         ran = random.random()
         if p.type() == g.Little:
-            if ran < uncoupled_bond_remodeling_freq / 2:
+            # Internal particles can always make or break bonds (except in the special case where we've
+            # disabled it during the recoil experiment); the probabilities of making and breaking sum to 1.
+            if no_internal_remodeling_allowed:
+                pass
+            elif ran < uncoupled_bond_remodeling_freq / 2:
                 total_bonded += attempt_make_bond(p)
             elif ran < uncoupled_bond_remodeling_freq:
                 total_broken += attempt_break_bond(p)
@@ -907,24 +926,40 @@ def _make_break_or_become() -> None:
                 total_bonded += result
                 total_coupled += result
         else:
-            # LeadingEdge
-            if ran < uncoupled_bond_remodeling_freq / 4:
-                total_bonded += attempt_make_bond(p)
-            elif ran < uncoupled_bond_remodeling_freq / 2:
-                total_broken += attempt_break_bond(p)
-            elif ran < 0.5:
-                result = attempt_coupled_make_break_bond(p)
-                total_broken += result
-                total_bonded += result
-                total_coupled += result
-            elif ran < 0.75:
-                result = attempt_become_internal(p)
-                total_bonded += result
-                total_to_internal += result
+            # LeadingEdge particle. Half the time they'll behave like internal particles. And in the recoil
+            # experiment, if no edge transformations allowed, then ALWAYS behave like internal particles:
+            if ran < 0.5 or no_edge_transformations_allowed:
+                if no_internal_remodeling_allowed:
+                    pass
+                elif ran < uncoupled_bond_remodeling_freq / 4:
+                    total_bonded += attempt_make_bond(p)
+                elif ran < uncoupled_bond_remodeling_freq / 2:
+                    total_broken += attempt_break_bond(p)
+                else:
+                    result = attempt_coupled_make_break_bond(p)
+                    total_broken += result
+                    total_bonded += result
+                    total_coupled += result
             else:
-                became_edge, got_broken = attempt_recruit_from_internal(p)
-                total_broken += got_broken
-                total_to_edge += became_edge
+                # The other half the time, they'll attempt one of the two edge transformations.
+                # In main sim, always select one or the other with equal probability.
+                # In the recoil experiment, if edge_transformations_restricted (if we're allowing only
+                # ONE of the two) then just do ONLY that one, with 100% probability; otherwise (if we're
+                # allowing both) then behave the same as in the main sim, select equally.
+                try_become_internal: bool
+                if edge_transformations_restricted:
+                    try_become_internal = cfg.allow_exit_margin
+                else:
+                    try_become_internal = (ran < 0.75)
+                    
+                if try_become_internal:
+                    result = attempt_become_internal(p)
+                    total_bonded += result
+                    total_to_internal += result
+                else:
+                    became_edge, got_broken = attempt_recruit_from_internal(p)
+                    total_broken += got_broken
+                    total_to_edge += became_edge
     end = time.perf_counter()
 
     print(f"Created {total_bonded} bonds and broke {total_broken} bonds, in {round(end - start, 2)} sec.; "

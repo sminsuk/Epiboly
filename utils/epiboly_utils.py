@@ -11,11 +11,15 @@ import config as cfg
 import utils.global_catalogs as gc
 import utils.tf_utils as tfu
 
-# parking place for some cumulative measures that other modules can write to, and read from:
-# Keep track of movement of EVL cells into and out of the leading edge:
+# parking place for some values that other modules can write to, and read from:
+
+# Keep track of cumulative movement of EVL cells into and out of the leading edge:
 cumulative_to_edge: int = 0
 cumulative_from_edge: int = 0
 cumulative_edge_divisions: int = 0
+
+# Are we in the main sim or in the recoil experiment?
+recoil_experiment_in_progress: bool = False
 
 # Cell radius is distinct from PARTICLE radius. It represents the extent of the cell, an average distance
 # from the center of mass, to the edge of the cell. Particles only represent the point center of mass, and their
@@ -236,17 +240,20 @@ def phi_for_epiboly(epiboly_percentage: float):
     return phi_rads
 
 def get_state() -> dict:
-    """In composite runs, save state of accumulated cell migration statistics"""
+    """In composite runs, save state of sim"""
     return {"cumulative_from_edge": cumulative_from_edge,
             "cumulative_to_edge": cumulative_to_edge,
             "cumulative_edge_divisions": cumulative_edge_divisions,
+            "recoil_experiment_in_progress": recoil_experiment_in_progress,
             "initial_cell_radius": initial_cell_radius,
             }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global cumulative_from_edge, cumulative_to_edge, cumulative_edge_divisions, initial_cell_radius
+    global cumulative_from_edge, cumulative_to_edge, cumulative_edge_divisions
+    global recoil_experiment_in_progress, initial_cell_radius
     cumulative_from_edge = d["cumulative_from_edge"]
     cumulative_to_edge = d["cumulative_to_edge"]
     cumulative_edge_divisions = d["cumulative_edge_divisions"]
+    recoil_experiment_in_progress = d["recoil_experiment_in_progress"]
     initial_cell_radius = d["initial_cell_radius"]

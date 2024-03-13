@@ -173,6 +173,8 @@ else:
         # to capture. Of those, Aggregate Tension plot doesn't have time averaging, and it might be nice to capture
         # just that one.)
         
+        epu.recoil_experiment_in_progress = True
+        
         # Turn off the external force
         mt.remove_tangent_forces()
         
