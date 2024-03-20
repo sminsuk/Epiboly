@@ -877,6 +877,9 @@ def _make_break_or_become() -> None:
             return 1, 1 + len(saturated_internal_neighbors)
         return 0, 0
 
+    if not cfg.bond_remodeling_enabled:
+        return
+    
     total_bonded: int = 0
     total_broken: int = 0
     total_coupled: int = 0

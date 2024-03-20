@@ -124,6 +124,7 @@ force_is_weighted_by_distance_from_pole: bool = True
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
 
+# ToDo: Get rid of this cruft:
 # Bond-making. Method for when cell division disabled. (When cell division enabled, just gets nearest non-bonded
 # neighbor, which is equivalent to BOUNDED with min = max = 1, or UNIFORM with min = 1, max = 2.)
 class BondableNeighborDiscovery(Enum):
@@ -139,6 +140,8 @@ class BondableNeighborDiscovery(Enum):
 bondable_neighbor_discovery: BondableNeighborDiscovery = BondableNeighborDiscovery.NEAREST
 bondable_neighbors_min_candidates: int = 1  # (_min_ and _max_ ignored for NEAREST and OPEN_ENDED)
 bondable_neighbors_max_candidates: int = 7
+
+bond_remodeling_enabled: bool = True
 
 # For other than the special edge-transformations, what fraction of the bond-making and -breaking should
 # be coupled (break an existing bond and make a new one to a different particle at the same time)? The
@@ -286,6 +289,7 @@ def get_state() -> dict:
                         "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
                         "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
                         "bondable_neighbors_max_candidates": bondable_neighbors_max_candidates,
+                        "bond_remodeling_enabled": bond_remodeling_enabled,
                         "coupled_bond_remodeling_freq": coupled_bond_remodeling_freq,
                         "min_neighbor_count": min_neighbor_count,
                         "max_edge_neighbor_count": max_edge_neighbor_count,
@@ -357,6 +361,7 @@ def set_state(d: dict) -> None:
     global harmonic_yolk_evl_spring_constant, harmonic_angle_spring_constant, harmonic_angle_tolerance
     global yolk_cortical_tension, external_force, force_is_weighted_by_distance_from_pole, max_potential_cutoff
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
+    global bond_remodeling_enabled
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
     global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle
     global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
@@ -411,6 +416,7 @@ def set_state(d: dict) -> None:
     bondable_neighbor_discovery = BondableNeighborDiscovery[model["bondable_neighbor_discovery"]]
     bondable_neighbors_min_candidates = model["bondable_neighbors_min_candidates"]
     bondable_neighbors_max_candidates = model["bondable_neighbors_max_candidates"]
+    bond_remodeling_enabled = model["bond_remodeling_enabled"]
     coupled_bond_remodeling_freq = model["coupled_bond_remodeling_freq"]
     min_neighbor_count = model["min_neighbor_count"]
     max_edge_neighbor_count = model["max_edge_neighbor_count"]
