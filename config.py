@@ -191,8 +191,8 @@ allow_internal_remodeling: bool = True
 recoil_duration_without_remodeling: float = 75
 recoil_duration_with_remodeling: float = 75
 
-stopping_condition_phi: float = math.pi * 0.95
-unbalanced_stopping_condition_phi: float = math.pi * 0.98
+stopping_condition_phi: float = math.pi * 0.95              # MEAN margin particle phi is compared to this
+unbalanced_stopping_condition_phi: float = math.pi * 0.98   # MAX margin particle phi is compared to this
 
 # -------------------- Tissue Forge --------------------
 
