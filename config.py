@@ -219,6 +219,11 @@ screenshots_simtime_per_export: float = 1.6
 screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 0 else
                                          max(1, round(screenshots_simtime_per_export / dt)))
 
+# If False, exported screenshots are deleted after being compiled into a movie at the end of the run.
+# Setting True was helpful for browsing still images for publication.
+# Warning: Thousands of images, gigabytes, are produced over the course of a typical run. Set True at your own risk.
+retain_screenshots_after_movie: bool = False
+
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
 plotting_interval_simtime: float = 160
@@ -318,6 +323,7 @@ def get_state() -> dict:
                         "show_equilibration": show_equilibration,
                         "color_code_daughter_cells": color_code_daughter_cells,
                         "screenshots_simtime_per_export": screenshots_simtime_per_export,
+                        "retain_screenshots_after_movie": retain_screenshots_after_movie,
                         "plotting_interval_simtime": plotting_interval_simtime,
                         "plot_time_averages": plot_time_averages,
                         "config_time_avg_accumulation_steps": config_time_avg_accumulation_steps,
@@ -374,8 +380,8 @@ def set_state(d: dict) -> None:
     global stopping_condition_phi, unbalanced_stopping_condition_phi
     
     # visualization
-    global show_equilibration, color_code_daughter_cells, screenshots_simtime_per_export, plotting_interval_simtime
-    global plot_time_averages, config_time_avg_accumulation_steps, plot_t0_as_single_timestep
+    global show_equilibration, color_code_daughter_cells, screenshots_simtime_per_export, retain_screenshots_after_movie
+    global plotting_interval_simtime, plot_time_averages, config_time_avg_accumulation_steps, plot_t0_as_single_timestep
     
     # data export
     global sim_state_simtime_per_export, sim_state_minutes_per_export, sim_state_export_keep
@@ -445,6 +451,7 @@ def set_state(d: dict) -> None:
     show_equilibration = visualization["show_equilibration"]
     color_code_daughter_cells = visualization["color_code_daughter_cells"]
     screenshots_simtime_per_export = visualization["screenshots_simtime_per_export"]
+    retain_screenshots_after_movie = visualization["retain_screenshots_after_movie"]
     plotting_interval_simtime = visualization["plotting_interval_simtime"]
     plot_time_averages = visualization["plot_time_averages"]
     config_time_avg_accumulation_steps = visualization["config_time_avg_accumulation_steps"]

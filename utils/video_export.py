@@ -226,7 +226,7 @@ _previous_screenshot_timestep: int = 0
 _current_screenshot_timestep: int = 0
 
 # Will only ever be modified if running this module as __main__ from another process; see bottom of file
-_retain_screenshots_after_movie: bool = False
+_retain_screenshots_after_movie: bool = cfg.retain_screenshots_after_movie
 
 # module's copy can be adjusted dynamically
 _screenshot_export_interval: int = cfg.screenshots_timesteps_per_export
