@@ -37,6 +37,7 @@ _leading_edge_phi: list[float] = []
 _bonds_per_particle: list[float] = []
 _forces: list[float] = []
 _straightness: list[float] = []
+_margin_deviation: list[float] = []
 _margin_count: list[int] = []
 _margin_cum_in: list[int] = []
 _margin_cum_out: list[int] = []
@@ -658,6 +659,70 @@ def _show_straightness() -> None:
     straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
     plt.close(straightness_fig)
     
+def _show_margin_deviation() -> None:
+    """Plot alternative measure of leading edge straightness
+    
+    As for the straightness index, project all the points onto a circle of constant phi: in this case the mean phi
+    position of all the points. But then let deviation D = sum of squares of angular difference between each point
+    and its projection. Then divide by total circumference to normalize, otherwise we could not compare between
+    different measurements (at different timepoints or different simulation instances). (Note, it's important to
+    divide by circumference, not by particle count.) Value will be 0 for perfectly straight; positive otherwise.
+    
+    This measure will not distinguish between a set of points that varies from the average because it meanders back
+    and forth across the average line; from a set of points that varies from the average because it is tilted.
+    But, we can use it to compare different paths known NOT to be tilted. (So only use it to compare straightness
+    of EVL margins when the polar-angle is included in the force algorithm, i.e., when the margin is regulated
+    to advance synchronously.)
+    """
+    deviation_fig: Figure
+    deviation_ax: Axes
+    
+    deviation_fig, deviation_ax = plt.subplots()
+    deviation_ax.set_ylabel("Margin deviation")
+    
+    # Simpler calculation than Straightness Index. We are using the same set of points and the same projections.
+    # But we aren't measuring distances from point to point, and each term being added depends only on one point,
+    # not a pair of points. So we don't need to sort the points or locate them in 3-D space. The only thing
+    # we need to know about the projections is their phi coordinate, which is the same for all of them.
+    mean_phi: float = epu.leading_edge_mean_phi()
+    sum_of_squares: float = 0
+    p: tf.ParticleHandle
+    for p in g.LeadingEdge.items():
+        sum_of_squares += (epu.embryo_phi(p) - mean_phi) ** 2
+        
+    deviation: float = sum_of_squares / epu.leading_edge_circumference()
+    _margin_deviation.append(deviation)
+    
+    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
+    # ToDo: Figure out what limits I want.
+    #  bottom always 0 (deviation always > 0), but top limit not yet known; need more replicates, and with cell div also
+    # Generate three versions of this plot, with different scales tp highlight different aspects.
+    # First with small y-lim, to view a close-up appropriate to synchronous epiboly;
+    # then again with large y-lim, to accommodate non-synchronous epiboly. Do this regardless of which one
+    # we're currently running, so that synchronous and non-synchronous runs can be compared.
+    # Must keep the limits fixed (not expanding in case of visual overflow) to ensure different runs are comparable.
+    # Then finally with a log scale so everything can be seen in one plot. These all leave something to be desired.
+    # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
+    deviation_ax.set_ylim(0.0, 0.015)
+    deviation_ax.plot(_timesteps, _margin_deviation, ".-b")
+    
+    # save
+    deviation_path: str = os.path.join(_plot_path, "Deviation of EVL margin zoomed IN.png")
+    deviation_fig.savefig(deviation_path, transparent=False, bbox_inches="tight")
+    
+    # Now with large y-lim:
+    deviation_ax.set_ylim(0.0, 0.125)
+    deviation_path = os.path.join(_plot_path, "Deviation of EVL margin zoomed OUT.png")
+    deviation_fig.savefig(deviation_path, transparent=False, bbox_inches="tight")
+    
+    # Now log, so we can see both on one plot. Y-lim values must both be > 0 for it to work:
+    deviation_ax.set_ylim(0.0001, 0.15)
+    deviation_ax.set_yscale("log")
+    deviation_path = os.path.join(_plot_path, "Deviation of EVL margin semilog-y.png")
+    deviation_fig.savefig(deviation_path, transparent=False, bbox_inches="tight")
+
+    plt.close(deviation_fig)
+
 def _show_bond_counts() -> None:
     bond_count_fig: Figure
     bond_count_ax: Axes
@@ -782,6 +847,7 @@ def show_graphs(end: bool = False) -> None:
         _show_bond_counts()
         _show_forces()
         _show_straightness()
+        _show_margin_deviation()
         _show_margin_population()
 
     plot_interval: int = cfg.plotting_interval_timesteps
@@ -832,6 +898,7 @@ def get_state() -> dict:
             "leading_edge_phi": _leading_edge_phi,
             "forces": _forces,
             "straightness": _straightness,
+            "margin_deviation": _margin_deviation,
             "margin_count": _margin_count,
             "margin_cum_in": _margin_cum_in,
             "margin_cum_out": _margin_cum_out,
@@ -869,7 +936,7 @@ def get_state() -> dict:
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _straightness, _timesteps
+    global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _straightness, _margin_deviation, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
@@ -885,6 +952,7 @@ def set_state(d: dict) -> None:
     _leading_edge_phi = d["leading_edge_phi"]
     _forces = d["forces"]
     _straightness = d["straightness"]
+    _margin_deviation = d["margin_deviation"]
     _margin_count = d["margin_count"]
     _margin_cum_in = d["margin_cum_in"]
     _margin_cum_out = d["margin_cum_out"]
