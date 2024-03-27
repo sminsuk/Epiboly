@@ -786,12 +786,15 @@ def _show_margin_population() -> None:
     plt.close(margin_fig)
 
 def _show_forces() -> None:
+    """Plots the TOTAL force on the leading edge globally
+    
+    Force per unit edge is constant, so this just reflects the changing circumference over time.
+    """
     forces_fig: Figure
     forces_ax: Axes
 
     forces_fig, forces_ax = plt.subplots()
     forces_ax.set_ylabel("Forces")
-    forces_ax.axhline(y=cfg.yolk_cortical_tension + cfg.external_force, linestyle=":", color="k", linewidth=0.5)
 
     _forces.append(mt.current_total_force())
     
