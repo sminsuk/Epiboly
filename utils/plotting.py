@@ -36,6 +36,7 @@ import utils.tf_utils as tfu
 _leading_edge_phi: list[float] = []
 _bonds_per_particle: list[float] = []
 _forces: list[float] = []
+_straightness_old: list[float] = []
 _straightness: list[float] = []
 _margin_deviation: list[float] = []
 _margin_count: list[int] = []
@@ -610,7 +611,19 @@ def _show_straightness() -> None:
 
     Straightness index = "D/L, where D is the beeline distance between the first and last points in the trajectory,
     and L is the path length travelled. It is a value between 0 (infinitely tortuous) to 1 (a straight line)."
-    https://search.r-project.org/CRAN/refmans/trajr/html/TrajStraightness.html
+    https://search.r-project.org/CRAN/refmans/trajr/html/TrajStraightness.html. This is an adaptation of that, to
+    make sense on the spherical surface.
+    
+    Two versions of the metric are plotted, in an attempt to improve it. The original version ("old") uses mean phi
+    as the position of the shortest path, which was wrong and led to values going over 1.0, which should be impossible.
+    
+    The new version uses instead, the position of the edge particle farthest away from the equator, as the
+    position of the shortest path. this fixes the >1.0 problem; however, it doesn't seem to work as well, showing
+    very significant decreases in "straightness" near the pole. That was already a problem in the old version
+    (I think the small number of particles makes it prone to that, like a kind of noise), but it's much worse
+    in the new version. I think by moving the beeline closer to the pole, it has somehow exacerbated this problem.
+    
+    The "margin_deviation" function was created as an alternative way to measure straightness.
     """
     straightness_fig: Figure
     straightness_ax: Axes
@@ -630,29 +643,54 @@ def _show_straightness() -> None:
         previous_p = p
     
     # Beeline is not the circumference, it's a polygon. Project each particle along a longitude line
-    # to a circle located at the mean phi position. That's the polygon to measure
+    # to a circle located at the baseline phi position. That's the polygon to measure.
+    # Old formula: use mean phi (keep it around for now, for comparison);
+    # New formula: use the phi farthest from the equator (the one with the smallest circumference).
     r: float = epu.embryo_radius()
-    beeline_phi: float = epu.leading_edge_mean_phi()
-    beeline_positions: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi])
-                                            for p in sorted_particles]
+    min_phi: float
+    mean_phi: float
+    max_phi: float
+    min_phi, mean_phi, max_phi = epu.leading_edge_min_mean_max_phi()
+    beeline_phi_old: float = mean_phi
+    min_phi_is_further_from_equator: bool = abs(min_phi - np.pi / 2) > abs(max_phi - np.pi / 2)
+    beeline_phi_new: float = min_phi if min_phi_is_further_from_equator else max_phi
+    beeline_positions_old: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi_old])
+                                                for p in sorted_particles]
+    beeline_positions_new: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi_new])
+                                                for p in sorted_particles]
     
     # Calculate the path distance from position to position in the beeline
     pos: tf.fVector3
-    previous_pos: tf.fVector3 = beeline_positions[-1]
-    beeline_path_length: float = 0
-    for pos in beeline_positions:
-        vector_diff: tf.fVector3 = pos - previous_pos
-        beeline_path_length += vector_diff.length()
+    vector_diff: tf.fVector3
+    previous_pos: tf.fVector3
+    
+    previous_pos = beeline_positions_old[-1]
+    beeline_path_length_old: float = 0
+    for pos in beeline_positions_old:
+        vector_diff = pos - previous_pos
+        beeline_path_length_old += vector_diff.length()
         previous_pos = pos
     
-    straightness: float = beeline_path_length / path_length
-    _straightness.append(straightness)
+    previous_pos = beeline_positions_new[-1]
+    beeline_path_length_new: float = 0
+    for pos in beeline_positions_new:
+        vector_diff = pos - previous_pos
+        beeline_path_length_new += vector_diff.length()
+        previous_pos = pos
+    
+    straightness_old: float = beeline_path_length_old / path_length
+    _straightness_old.append(straightness_old)
+    straightness_new: float = beeline_path_length_new / path_length
+    _straightness.append(straightness_new)
     
     # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
     # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
-    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.90, 1.001), data=_straightness)
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.90, 1.001), data=_straightness_old)
+    limits = _expand_limits_if_needed(limits=limits, data=_straightness)
     straightness_ax.set_ylim(limits)
-    straightness_ax.plot(_timesteps, _straightness, ".-b")
+    straightness_ax.plot(_timesteps, _straightness_old, ".-r", label="Old formula")
+    straightness_ax.plot(_timesteps, _straightness, ".-b", label="Corrected formula")
+    straightness_ax.legend()
     
     # save
     straightness_path: str = os.path.join(_plot_path, "Straightness Index of EVL margin.png")
@@ -900,6 +938,7 @@ def get_state() -> dict:
             "bond_counts": _bonds_per_particle,
             "leading_edge_phi": _leading_edge_phi,
             "forces": _forces,
+            "straightness_old": _straightness_old,
             "straightness": _straightness,
             "margin_deviation": _margin_deviation,
             "margin_count": _margin_count,
@@ -939,7 +978,8 @@ def get_state() -> dict:
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
-    global _timestep, _bonds_per_particle, _leading_edge_phi, _forces, _straightness, _margin_deviation, _timesteps
+    global _timestep, _bonds_per_particle, _leading_edge_phi, _forces
+    global _straightness_old, _straightness, _margin_deviation, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
@@ -954,6 +994,7 @@ def set_state(d: dict) -> None:
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
     _forces = d["forces"]
+    _straightness_old = d["straightness_old"]
     _straightness = d["straightness"]
     _margin_deviation = d["margin_deviation"]
     _margin_count = d["margin_count"]
