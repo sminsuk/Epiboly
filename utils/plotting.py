@@ -884,8 +884,6 @@ def _show_progress_graph() -> None:
     progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
 
     phi: float = round(epu.leading_edge_mean_phi(), 4)
-    print(f"Appending: {_timestep}, {phi}")
-    _timesteps.append(_timestep)
     _leading_edge_phi.append(phi)
 
     # Plot
@@ -916,6 +914,7 @@ def show_graphs(end: bool = False) -> None:
     simtime_interval: float = 4
     timestep_interval: int = round(simtime_interval / cfg.dt)
     if _timestep % timestep_interval == 0 or end:
+        _timesteps.append(_timestep)    # used by all the following plots
         _show_progress_graph()
         _show_bond_counts()
         _show_forces()
