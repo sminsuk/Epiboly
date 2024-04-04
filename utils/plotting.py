@@ -40,6 +40,7 @@ _straightness_old: list[float] = []
 _straightness: list[float] = []
 _margin_deviation: list[float] = []
 _margin_lag: list[float] = []
+_margin_lopsidedness: list[float] = []
 _margin_count: list[int] = []
 _margin_cum_in: list[int] = []
 _margin_cum_out: list[int] = []
@@ -793,6 +794,49 @@ def _show_margin_lag() -> None:
     
     plt.close(margin_lag_fig)
 
+def _show_margin_lopsidedness() -> None:
+    """Plot the angle of the margin axis - i.e., phi of the centroid of all margin particles
+
+    Attempt to measure lopsided / off-center / non-synchronous epiboly, trying to disentangle
+    it from straightness. This should be pi for the non-lopsided case, getting smaller the more lopsided
+    the arrangement. But, it turns out not to be a very sensitive measure and doesn't seem to give a useful
+    measure of the off-centeredness / asynchrony of epiboly progression. On top of that, it's not valid near
+    the equator. Keeping this around for now.
+    """
+    # Vector points the other direction prior to 50% epiboly, so value would be near 0 instead of pi;
+    # this could easily just be adjusted to a downward-pointing diection by subtracting from pi. However,
+    # very close to 50% epiboly, the vector will point horizontally and the value will be around pi/2.
+    # So just don't start plotting until well after 50%.
+    if epu.leading_edge_mean_phi() < 0.6 * np.pi:
+        return
+    
+    margin_lopsided_fig: Figure
+    margin_lopsided_ax: Axes
+    
+    margin_lopsided_fig, margin_lopsided_ax = plt.subplots()
+    margin_lopsided_ax.set_ylabel("Angle of margin axis")
+    
+    phi: float = epu.embryo_phi(g.LeadingEdge.items().centroid)
+    _margin_lopsidedness.append(phi)
+
+    # Get only the relevant x coordinates, since we didn't add any data for the earlier timesteps
+    timesteps: list[int] = _timesteps[-len(_margin_lopsidedness):]
+
+    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
+    #  (Though in the lopsided case, the margin position is vague; but mean phi should still work?)
+    # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
+    margin_lopsided_ax.set_ylim(0.9 * np.pi, 1.002 * np.pi)
+    margin_lopsided_ax.set_yticks(np.arange(0.90 * np.pi, 1.002 * np.pi, 0.05 * np.pi),
+                                  labels=[r"0.90$\pi$", r"0.95$\pi$", r"$\pi$"])
+    margin_lopsided_ax.set_yticks(np.arange(0.90 * np.pi, 1.002 * np.pi, 0.01 * np.pi), minor=True)
+    margin_lopsided_ax.plot(timesteps, _margin_lopsidedness, ".-b")
+    
+    # save
+    margin_lopsided_path: str = os.path.join(_plot_path, "Margin lopsidedness.png")
+    margin_lopsided_fig.savefig(margin_lopsided_path, transparent=False, bbox_inches="tight")
+    
+    plt.close(margin_lopsided_fig)
+
 def _show_bond_counts() -> None:
     bond_count_fig: Figure
     bond_count_ax: Axes
@@ -921,6 +965,7 @@ def show_graphs(end: bool = False) -> None:
         _show_straightness()
         _show_margin_deviation()
         _show_margin_lag()
+        _show_margin_lopsidedness()
         _show_margin_population()
 
     plot_interval: int = cfg.plotting_interval_timesteps
@@ -974,6 +1019,7 @@ def get_state() -> dict:
             "straightness": _straightness,
             "margin_deviation": _margin_deviation,
             "margin_lag": _margin_lag,
+            "margin_lopsidedness": _margin_lopsidedness,
             "margin_count": _margin_count,
             "margin_cum_in": _margin_cum_in,
             "margin_cum_out": _margin_cum_out,
@@ -1012,7 +1058,8 @@ def get_state() -> dict:
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _forces
-    global _straightness_old, _straightness, _margin_deviation, _margin_lag, _timesteps
+    global _straightness_old, _straightness, _margin_deviation
+    global _margin_lag, _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
@@ -1031,6 +1078,7 @@ def set_state(d: dict) -> None:
     _straightness = d["straightness"]
     _margin_deviation = d["margin_deviation"]
     _margin_lag = d["margin_lag"]
+    _margin_lopsidedness = d["margin_lopsidedness"]
     _margin_count = d["margin_count"]
     _margin_cum_in = d["margin_cum_in"]
     _margin_cum_out = d["margin_cum_out"]
