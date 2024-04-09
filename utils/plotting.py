@@ -38,6 +38,7 @@ _bonds_per_particle: list[float] = []
 _forces: list[float] = []
 _straightness_old: list[float] = []
 _straightness: list[float] = []
+_straightness_cyl: list[float] = []
 _margin_deviation: list[float] = []
 _margin_lag: list[float] = []
 _margin_lopsidedness: list[float] = []
@@ -700,6 +701,73 @@ def _show_straightness() -> None:
     straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
     plt.close(straightness_fig)
     
+def _show_cylindrical_straightness() -> None:
+    """Plot straightness index of the leading edge, based on a cylindrical projection
+
+    Straightness index = "D/L, where D is the beeline distance between the first and last points in the trajectory,
+    and L is the path length travelled. It is a value between 0 (infinitely tortuous) to 1 (a straight line)."
+    https://search.r-project.org/CRAN/refmans/trajr/html/TrajStraightness.html. This is an adaptation of that, to
+    make sense on the spherical surface.
+
+    In this version, the sphere is projected onto a cylinder, and then unrolled to a flat plane: a Cartesion
+    map of simply phi vs. theta. In that configuration, the beeline path is simply a horizontal line across the
+    field, connecting a particle to itself (it is on both edges). The length of the beeline is always simply
+    2 * pi, regardless of which particle is selected as a starting point and regardless of its position on the
+    sphere. This removes any ambiguity about which path is the beeline, and any anomalies that the other version
+    encounters near the pole; and there is no longer any possibility of getting a result greater than 1
+    (actual path length is always 2 * pi or greater). This should solve ALL the problems.
+    
+    Note that the path distance used between two particles is now not the actual distance between those particles,
+    nor the shortest surface-bound path between them. It is the distance on the flattened field:
+    sqrt(delta_phi ** 2 + delta_theta ** 2)
+    """
+    def cylindrical_distance(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+        phi1: float
+        phi2: float
+        theta1: float
+        theta2: float
+        theta1, phi1 = epu.embryo_coords(p1)
+        theta2, phi2 = epu.embryo_coords(p2)
+        d_phi: float = phi2 - phi1
+        d_theta: float = abs(theta2 - theta1)
+        if d_theta > np.pi:
+            # crossing the 0-to-2pi boundary
+            d_theta = 2 * np.pi - d_theta
+        return np.sqrt(d_phi ** 2 + d_theta ** 2)
+        
+    cyl_straightness_fig: Figure
+    cyl_straightness_ax: Axes
+    
+    cyl_straightness_fig, cyl_straightness_ax = plt.subplots()
+    cyl_straightness_ax.set_ylabel("Straightness Index (cylindrical)")
+    
+    # Sort all the edge particles on theta, into a new list (copy, not live)
+    sorted_particles: list[tf.ParticleHandle] = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
+    
+    # Calculate the path distance from particle to particle
+    p: tf.ParticleHandle
+    previous_p: tf.ParticleHandle = sorted_particles[-1]  # last one
+    path_length: float = 0
+    for p in sorted_particles:
+        path_length += cylindrical_distance(p, previous_p)
+        previous_p = p
+    
+    beeline_path_length: float = 2 * np.pi
+    
+    straightness_cyl: float = beeline_path_length / path_length
+    _straightness_cyl.append(straightness_cyl)
+    
+    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
+    # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl)
+    cyl_straightness_ax.set_ylim(limits)
+    cyl_straightness_ax.plot(_timesteps, _straightness_cyl, ".-b")
+    
+    # save
+    straightness_path: str = os.path.join(_plot_path, "Cylindrical Straightness Index.png")
+    cyl_straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
+    plt.close(cyl_straightness_fig)
+
 def _show_margin_deviation() -> None:
     """Plot alternative measure of leading edge straightness
     
@@ -963,6 +1031,7 @@ def show_graphs(end: bool = False) -> None:
         _show_bond_counts()
         _show_forces()
         _show_straightness()
+        _show_cylindrical_straightness()
         _show_margin_deviation()
         _show_margin_lag()
         _show_margin_lopsidedness()
@@ -1017,6 +1086,7 @@ def get_state() -> dict:
             "forces": _forces,
             "straightness_old": _straightness_old,
             "straightness": _straightness,
+            "straightness_cyl": _straightness_cyl,
             "margin_deviation": _margin_deviation,
             "margin_lag": _margin_lag,
             "margin_lopsidedness": _margin_lopsidedness,
@@ -1058,7 +1128,7 @@ def get_state() -> dict:
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _forces
-    global _straightness_old, _straightness, _margin_deviation
+    global _straightness_old, _straightness, _straightness_cyl, _margin_deviation
     global _margin_lag, _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
@@ -1076,6 +1146,7 @@ def set_state(d: dict) -> None:
     _forces = d["forces"]
     _straightness_old = d["straightness_old"]
     _straightness = d["straightness"]
+    _straightness_cyl = d["straightness_cyl"]
     _margin_deviation = d["margin_deviation"]
     _margin_lag = d["margin_lag"]
     _margin_lopsidedness = d["margin_lopsidedness"]
