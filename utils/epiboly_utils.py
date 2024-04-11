@@ -180,6 +180,9 @@ def radius_of_circle_at_relative_z(relative_z: float) -> float:
     """
     return np.sqrt(np.square(embryo_radius()) - np.square(relative_z))
 
+def radius_of_circle_at_particle(p: tf.ParticleHandle) -> float:
+    return np.sqrt(np.square(p.position.x()) + np.square(p.position.y()))
+
 def circumference_of_circle_at_relative_z(relative_z: float) -> float:
     """Circumference of a circle on the surface of the embryo (latitude line) at a given z value relative to the equator
     
@@ -188,11 +191,17 @@ def circumference_of_circle_at_relative_z(relative_z: float) -> float:
     """
     return 2 * np.pi * radius_of_circle_at_relative_z(relative_z)
 
+def circumference_of_circle_at_z(z: float) -> float:
+    yolk: tf.ParticleHandle = g.Big.items()[0]
+    relative_z: float = z - yolk.position.z()
+    return circumference_of_circle_at_relative_z(relative_z)
+
+def circumference_at_particle(p: tf.ParticleHandle) -> float:
+    return circumference_of_circle_at_z(p.position.z())
+
 def leading_edge_circumference() -> float:
     """Circumference of the idealized marginal ring (circumference of a circle at mean z of all the margin particles)"""
-    yolk: tf.ParticleHandle = g.Big.items()[0]
-    leading_edge_height: float = leading_edge_mean_z() - yolk.position.z()
-    return circumference_of_circle_at_relative_z(leading_edge_height)
+    return circumference_of_circle_at_z(leading_edge_mean_z())
 
 def fraction_of_radius_above_equator(epiboly_percentage: float) -> float:
     """Vertical position on the embryo expressed as a fraction of the embryo radius
