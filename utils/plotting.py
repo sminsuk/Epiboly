@@ -634,14 +634,13 @@ def _show_straightness() -> None:
     straightness_fig, straightness_ax = plt.subplots()
     straightness_ax.set_ylabel("Straightness Index")
     
-    # Sort all the edge particles on theta, into a new list (copy, not live)
-    sorted_particles: list[tf.ParticleHandle] = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
+    ordered_particles: list[tf.ParticleHandle] = epu.get_leading_edge_ordered_particles()
     
     # Calculate the path distance from particle to particle
     p: tf.ParticleHandle
-    previous_p: tf.ParticleHandle = sorted_particles[-1]  # last one
+    previous_p: tf.ParticleHandle = ordered_particles[-1]  # last one
     path_length: float = 0
-    for p in sorted_particles:
+    for p in ordered_particles:
         path_length += p.distance(previous_p)
         previous_p = p
     
@@ -658,9 +657,9 @@ def _show_straightness() -> None:
     min_phi_is_further_from_equator: bool = abs(min_phi - np.pi / 2) > abs(max_phi - np.pi / 2)
     beeline_phi_new: float = min_phi if min_phi_is_further_from_equator else max_phi
     beeline_positions_old: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi_old])
-                                                for p in sorted_particles]
+                                                for p in ordered_particles]
     beeline_positions_new: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi_new])
-                                                for p in sorted_particles]
+                                                for p in ordered_particles]
     
     # Calculate the path distance from position to position in the beeline
     pos: tf.fVector3
@@ -741,14 +740,13 @@ def _show_cylindrical_straightness() -> None:
     cyl_straightness_fig, cyl_straightness_ax = plt.subplots()
     cyl_straightness_ax.set_ylabel("Straightness Index (cylindrical)")
     
-    # Sort all the edge particles on theta, into a new list (copy, not live)
-    sorted_particles: list[tf.ParticleHandle] = sorted(g.LeadingEdge.items(), key=epu.embryo_theta)
+    ordered_particles: list[tf.ParticleHandle] = epu.get_leading_edge_ordered_particles()
     
     # Calculate the path distance from particle to particle
     p: tf.ParticleHandle
-    previous_p: tf.ParticleHandle = sorted_particles[-1]  # last one
+    previous_p: tf.ParticleHandle = ordered_particles[-1]  # last one
     path_length: float = 0
-    for p in sorted_particles:
+    for p in ordered_particles:
         path_length += cylindrical_distance(p, previous_p)
         previous_p = p
     

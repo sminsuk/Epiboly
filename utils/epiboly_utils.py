@@ -8,6 +8,7 @@ from statistics import fmean
 import tissue_forge as tf
 import epiboly_globals as g
 import config as cfg
+import neighbors as nbrs            # Caution, circular import; if causes a problem, move the needed function to tfu
 import utils.global_catalogs as gc
 import utils.tf_utils as tfu
 
@@ -220,6 +221,28 @@ def relative_z_from_epiboly_percentage(epiboly_percentage: float) -> float:
     :return: height above the equator (negative if position is below the equator)
     """
     return embryo_radius() * fraction_of_radius_above_equator(epiboly_percentage)
+
+def get_leading_edge_ordered_particles() -> list[tf.ParticleHandle]:
+    """For iterating over leading edge particles, get them in order of the bonded ring
+
+    Rather than the previous shortcut of just sorting on theta and then iterating in that order, follow
+    the bonds to find the exact sequence of particles and iterate over that instead. This improves accuracy
+    by accounting for the rare situation when the edge gets kinked, doubling back on itself locally.
+    """
+    particles: tf.ParticleList = g.LeadingEdge.items()
+    assert len(particles) > 0, "Can't order empty particle list!"
+    current_particle: tf.ParticleHandle = particles[0]
+    ordered_particles: list[tf.ParticleHandle] = [current_particle]
+    neighbors: list[tf.ParticleHandle] = nbrs.bonded_neighbors_of_types(current_particle, [g.LeadingEdge])
+    assert len(neighbors) == 2, "Something messed up in the connected edge ring"
+    while not (neighbors[0] in ordered_particles and neighbors[1] in ordered_particles):
+        next_particle: tf.ParticleHandle = neighbors[0]
+        if next_particle in ordered_particles:
+            next_particle = neighbors[1]
+        ordered_particles.append(next_particle)
+        current_particle = next_particle
+        neighbors = nbrs.bonded_neighbors_of_types(current_particle, [g.LeadingEdge])
+    return ordered_particles
 
 def phi_for_epiboly(epiboly_percentage: float):
     """Convert % epiboly into phi for spherical coordinates (in radians)
