@@ -113,14 +113,27 @@ def embryo_theta(p: tf.fVector3 | tf.ParticleHandle) -> float:
     theta, phi = embryo_coords(p)
     return theta
 
-def embryo_coords(p: tf.fVector3 | tf.ParticleHandle) -> tuple[float, float]:
+def embryo_coords(p: tf.fVector3 | tf.ParticleHandle, rotation_matrix: np.ndarray = None) -> tuple[float, float]:
     """theta, phi relative to the animal/vegetal axis
     
     Overload to get theta, phi based on either a position or an existing particle.
+    
+    To get a particle's position relative to an axis other than animal-vegetal (other than the z-axis),
+    pass a transformation matrix that rotates the desired axis to vertical.
     """
+    if rotation_matrix is None:
+        rotation_matrix = np.identity(3)
+        
     position: tf.fVector3 = p if type(p) is tf.fVector3 else p.position
     yolk_particle: tf.ParticleHandle = g.Big.items()[0]
-    r, theta, phi = tf.metrics.cartesian_to_spherical(postion=position, origin=yolk_particle.position)
+    
+    # For the rotation to work correctly, need to subtract the yolk center manually before rotating;
+    # then convert cartesian to spherical relative to the origin. (As opposed to just making use of the
+    # "origin" parameter of the conversion function to convert relative to the yolk center, because
+    # then the rotation would be around the wrong point.)
+    position -= yolk_particle.position
+    rotated_position: tf.fVector3 = tf.fVector3(np.dot(rotation_matrix, position))
+    r, theta, phi = tf.metrics.cartesian_to_spherical(postion=rotated_position, origin=tf.fVector3(0, 0, 0))
     # (sic, argument name is misspelled in the API)
     
     return theta, phi
@@ -243,6 +256,50 @@ def get_leading_edge_ordered_particles() -> list[tf.ParticleHandle]:
         current_particle = next_particle
         neighbors = nbrs.bonded_neighbors_of_types(current_particle, [g.LeadingEdge])
     return ordered_particles
+
+def leading_edge_best_fit_plane() -> tuple[tf.fVector3, tf.fVector3]:
+    """Return the best-fit plane to the leading-edge particle positions
+
+    This function was written with advice from ChatGPT 3.5.
+
+    :return: a tuple of two vectors. The first vector is the centroid of all the leading edge particle positions,
+             which should lie on the best-fit plane. The second vector is a unit vector normal to the plane
+             and points upward.
+    """
+    covariance_matrix = np.cov(g.LeadingEdge.items().positions, rowvar=False)
+    eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
+    
+    # eigenvector corresponding to the smallest eigenvalue is the normal vector to the plane
+    normal_vec: tf.fVector3 = tf.fVector3(eigenvectors[:, np.argmin(eigenvalues)])
+    
+    # One thing I'm not sure of is, since a normal vector to a plane can point in either of two directions,
+    # will this one always point in one consistent direction, either in terms of the coordinate system (up/down),
+    # or in terms of the center of the sphere (toward/away)? We want to always be pointing up, so to be on the
+    # safe side, just test it and flip it if necessary:
+    if normal_vec.z() < 0:
+        normal_vec *= -1
+    return g.LeadingEdge.items().centroid, normal_vec
+
+def rotation_matrix(axis: tf.fVector3) -> np.ndarray:
+    """Return a transformation matrix to rotate an axis to vertical"""
+    r, theta, phi = tfu.spherical_from_cartesian(axis)
+    angle: float = phi
+    
+    # Courtesy ChatGPT 3.5, after fact-checking:
+    rotation_axis = np.cross(axis, [0, 0, 1])
+    rotation_axis /= np.linalg.norm(rotation_axis)
+    rotation_matrix = np.array(
+            [[np.cos(angle) + rotation_axis[0]**2 * (1 - np.cos(angle)),
+              rotation_axis[0] * rotation_axis[1] * (1 - np.cos(angle)) - rotation_axis[2] * np.sin(angle),
+              rotation_axis[0] * rotation_axis[2] * (1 - np.cos(angle)) + rotation_axis[1] * np.sin(angle)],
+             [rotation_axis[1] * rotation_axis[0] * (1 - np.cos(angle)) + rotation_axis[2] * np.sin(angle),
+              np.cos(angle) + rotation_axis[1]**2 * (1 - np.cos(angle)),
+              rotation_axis[1] * rotation_axis[2] * (1 - np.cos(angle)) - rotation_axis[0] * np.sin(angle)],
+             [rotation_axis[2] * rotation_axis[0] * (1 - np.cos(angle)) - rotation_axis[1] * np.sin(angle),
+              rotation_axis[2] * rotation_axis[1] * (1 - np.cos(angle)) + rotation_axis[0] * np.sin(angle),
+              np.cos(angle) + rotation_axis[2]**2 * (1 - np.cos(angle))]]
+            )
+    return rotation_matrix
 
 def phi_for_epiboly(epiboly_percentage: float):
     """Convert % epiboly into phi for spherical coordinates (in radians)

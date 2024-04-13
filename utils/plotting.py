@@ -38,6 +38,7 @@ _bonds_per_particle: list[float] = []
 _forces: list[float] = []
 _straightness_old: list[float] = []
 _straightness: list[float] = []
+_straightness_cyl_old: list[float] = []
 _straightness_cyl: list[float] = []
 _margin_deviation: list[float] = []
 _margin_lag: list[float] = []
@@ -719,14 +720,23 @@ def _show_cylindrical_straightness() -> None:
     Note that the path distance used between two particles is now not the actual distance between those particles,
     nor the shortest surface-bound path between them. It is the distance on the flattened field:
     sqrt(delta_phi ** 2 + delta_theta ** 2)
+    
+    Moreover, have two versions of this. Calculate a more advanced version to try to correct for lopsidedness.
+    Calculate a new axis based on the best-fit plane to all the edge particles. And then, rather than trying to
+    figure out phi and theta of all the particles relative to that new axis directly, instead rotate the entire
+    coordinate system so that the new axis becomes vertical; then phi and theta can be read from the particles
+    in the usual way.
     """
-    def cylindrical_distance(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> float:
+    def cylindrical_distance(p1: tf.ParticleHandle, p2: tf.ParticleHandle, rotation: np.ndarray = None) -> float:
+        if rotation is None:
+            rotation = np.identity(3)
+            
         phi1: float
         phi2: float
         theta1: float
         theta2: float
-        theta1, phi1 = epu.embryo_coords(p1)
-        theta2, phi2 = epu.embryo_coords(p2)
+        theta1, phi1 = epu.embryo_coords(p1, rotation)
+        theta2, phi2 = epu.embryo_coords(p2, rotation)
         d_phi: float = phi2 - phi1
         d_theta: float = abs(theta2 - theta1)
         if d_theta > np.pi:
@@ -742,24 +752,35 @@ def _show_cylindrical_straightness() -> None:
     
     ordered_particles: list[tf.ParticleHandle] = epu.get_leading_edge_ordered_particles()
     
+    # Find the appropriate axis for the leading edge, in case it's lopsided
+    _, normal_vec = epu.leading_edge_best_fit_plane()
+    rotation_matrix: np.ndarray = epu.rotation_matrix(axis=normal_vec)
+    
     # Calculate the path distance from particle to particle
     p: tf.ParticleHandle
     previous_p: tf.ParticleHandle = ordered_particles[-1]  # last one
+    path_length_old: float = 0
     path_length: float = 0
     for p in ordered_particles:
-        path_length += cylindrical_distance(p, previous_p)
+        path_length_old += cylindrical_distance(p, previous_p)
+        path_length += cylindrical_distance(p, previous_p, rotation_matrix)
         previous_p = p
     
     beeline_path_length: float = 2 * np.pi
     
+    straightness_cyl_old: float = beeline_path_length / path_length_old
+    _straightness_cyl_old.append(straightness_cyl_old)
     straightness_cyl: float = beeline_path_length / path_length
     _straightness_cyl.append(straightness_cyl)
     
     # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
     # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
-    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl)
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl_old)
+    limits = _expand_limits_if_needed(limits=limits, data=_straightness_cyl)
     cyl_straightness_ax.set_ylim(limits)
-    cyl_straightness_ax.plot(_timesteps, _straightness_cyl, ".-b")
+    cyl_straightness_ax.plot(_timesteps, _straightness_cyl_old, ".-r", label="Old formula")
+    cyl_straightness_ax.plot(_timesteps, _straightness_cyl, ".-b", label="Corrected formula")
+    cyl_straightness_ax.legend()
     
     # save
     straightness_path: str = os.path.join(_plot_path, "Cylindrical Straightness Index.png")
@@ -1084,6 +1105,7 @@ def get_state() -> dict:
             "forces": _forces,
             "straightness_old": _straightness_old,
             "straightness": _straightness,
+            "straightness_cyl_old": _straightness_cyl_old,
             "straightness_cyl": _straightness_cyl,
             "margin_deviation": _margin_deviation,
             "margin_lag": _margin_lag,
@@ -1126,7 +1148,7 @@ def get_state() -> dict:
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _forces
-    global _straightness_old, _straightness, _straightness_cyl, _margin_deviation
+    global _straightness_old, _straightness, _straightness_cyl_old, _straightness_cyl, _margin_deviation
     global _margin_lag, _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
@@ -1144,6 +1166,7 @@ def set_state(d: dict) -> None:
     _forces = d["forces"]
     _straightness_old = d["straightness_old"]
     _straightness = d["straightness"]
+    _straightness_cyl_old = d["straightness_cyl_old"]
     _straightness_cyl = d["straightness_cyl"]
     _margin_deviation = d["margin_deviation"]
     _margin_lag = d["margin_lag"]
