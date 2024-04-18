@@ -167,6 +167,7 @@ k_neighbor_count: float = 0
 k_edge_neighbor_count: float = 0
 k_bond_angle: float = 3.75
 k_edge_bond_angle: float = 3.75
+special_constraint_all_edge_bonds: bool = False
 
 # For neighbor angle energy calculations
 target_neighbor_angle: float = math.pi / 3
@@ -303,6 +304,7 @@ def get_state() -> dict:
                         "k_edge_neighbor_count": k_edge_neighbor_count,
                         "k_bond_angle": k_bond_angle,
                         "k_edge_bond_angle": k_edge_bond_angle,
+                        "special_constraint_all_edge_bonds": special_constraint_all_edge_bonds,
                         "target_neighbor_angle": target_neighbor_angle,
                         "target_edge_angle": target_edge_angle,
                         "leading_edge_recruitment_limit": leading_edge_recruitment_limit,
@@ -370,7 +372,7 @@ def set_state(d: dict) -> None:
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
     global bond_remodeling_enabled
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
-    global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle
+    global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle, special_constraint_all_edge_bonds
     global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
     
     # model control
@@ -431,6 +433,7 @@ def set_state(d: dict) -> None:
     k_edge_neighbor_count = model["k_edge_neighbor_count"]
     k_bond_angle = model["k_bond_angle"]
     k_edge_bond_angle = model["k_edge_bond_angle"]
+    special_constraint_all_edge_bonds = model["special_constraint_all_edge_bonds"]
     target_neighbor_angle = model["target_neighbor_angle"]
     target_edge_angle = model["target_edge_angle"]
     leading_edge_recruitment_limit = model["leading_edge_recruitment_limit"]

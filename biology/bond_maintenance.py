@@ -503,6 +503,13 @@ def _make_break_or_become() -> None:
                 return AngleStateChange(before, after)
             
             k_angle_energy: float = cfg.k_edge_bond_angle if becoming else cfg.k_bond_angle
+            if cfg.special_constraint_all_edge_bonds:
+                # Apply k_edge_bond_angle at the edge, but not just for bonds between TWO edge particles;
+                # now also for any bond involving even ONE edge particle:
+                if (main_particle.type() == g.LeadingEdge or
+                        (making_particle and making_particle.type() == g.LeadingEdge) or
+                        (breaking_particle and breaking_particle.type() == g.LeadingEdge)):
+                    k_angle_energy = cfg.k_edge_bond_angle
             if k_angle_energy == 0:
                 return 0
             
