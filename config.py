@@ -118,8 +118,8 @@ harmonic_angle_tolerance: float = 0.008 * math.pi
 # external_force: additional force applied to drive epiboly. Will be overridden and set to 0 if
 #   run_balanced_force_control == True (see below, under "Controlling the model")
 # Both of these values are in units of force-per-unit-length of EVL edge
-yolk_cortical_tension: float = 0.422    # just balances interior bonds at initialization
-external_force: float = 0.264           # +additional to produce full epiboly
+yolk_cortical_tension: float = 0.25    # just balances interior bonds at initialization
+external_force: float = 0.45           # +additional to produce full epiboly
 force_is_weighted_by_distance_from_pole: bool = True
 
 # Potential.max any greater than this, numerical problems ensue
