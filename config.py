@@ -179,6 +179,9 @@ target_edge_angle: float = math.pi      # Currently not used; experimenting with
 # For controlling which internal cells can become edge (must be within this distance)
 leading_edge_recruitment_limit: float = 1.5     # in number of cell radii (not particle radii)
 
+# Chemical species
+species_enabled: bool = True
+
 # -------------------- Controlling the model --------------------
 
 # If true, use 0 external force. (For a turnkey entry point, other things will
@@ -322,6 +325,7 @@ def get_state() -> dict:
                         "target_neighbor_angle": target_neighbor_angle,
                         "target_edge_angle": target_edge_angle,
                         "leading_edge_recruitment_limit": leading_edge_recruitment_limit,
+                        "species_enabled": species_enabled,
                         },
                 "model control": {
                         "run_balanced_force_control": run_balanced_force_control,
@@ -389,7 +393,7 @@ def set_state(d: dict) -> None:
     global bond_remodeling_enabled
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
     global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle, special_constraint_all_edge_bonds
-    global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
+    global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit, species_enabled
     
     # model control
     global run_balanced_force_control
@@ -454,6 +458,7 @@ def set_state(d: dict) -> None:
     target_neighbor_angle = model["target_neighbor_angle"]
     target_edge_angle = model["target_edge_angle"]
     leading_edge_recruitment_limit = model["leading_edge_recruitment_limit"]
+    species_enabled = model["species_enabled"]
     
     control: dict = d["config_values"]["model control"]
     run_balanced_force_control = control["run_balanced_force_control"]

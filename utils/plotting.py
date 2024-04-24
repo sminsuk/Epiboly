@@ -827,6 +827,26 @@ def _show_progress_graph() -> None:
     progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
     plt.close(progress_fig)
 
+_selected_particles: np.ndarray
+def show_species():
+    global _selected_particles
+    if not cfg.species_enabled:
+        return
+    
+    generator: np.random.Generator = np.random.default_rng()
+
+    p: tf.ParticleHandle
+    if _timestep == 0:
+        # Select the particles to add species to
+        _selected_particles = generator.choice(g.Little.items(), size=10, replace=False)
+        
+    if _timestep >= 10:
+        # Amd add to them every time, to make an inexhaustible source
+        for p in _selected_particles:
+            p.species.B = 1.0
+            
+    epu.update_all_particle_colors()
+
 def show_graphs(end: bool = False) -> None:
     global _timestep
     

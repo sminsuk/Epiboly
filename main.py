@@ -80,6 +80,7 @@ if not cfg.initialization_directory_name:
 # toggle_visibility()
 # toggle_visibility()
 events.execute_repeatedly(tasks=[
+        {"invoke": plot.show_species},
         {"invoke": vx.save_screenshot_repeatedly},
         {"invoke": plot.show_graphs},
         {"invoke": mt.apply_even_tangent_forces},

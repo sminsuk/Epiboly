@@ -15,6 +15,7 @@ class LittleType(tf.ParticleTypeSpec):
     mass = 1.0
     radius = cfg.evl_particle_radius
     dynamics = tf.Overdamped
+    species = ["B"]
 
 class BigType(tf.ParticleTypeSpec):
     mass = 70.0
@@ -112,3 +113,5 @@ def init() -> None:
     
     g.Little.style.color = epu.evl_undivided_color
     g.LeadingEdge.style.color = epu.evl_margin_undivided_color
+
+    tf.Fluxes.flux(g.Little, g.Little, "B", 0.5)

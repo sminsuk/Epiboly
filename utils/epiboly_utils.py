@@ -91,9 +91,13 @@ def update_color(p: tf.ParticleHandle) -> None:
         case cfg.PaintPattern.ORIGINAL_TIER | cfg.PaintPattern.VERTICAL_STRIPE:
             # lineage tracing patterns. Depends on the lineage tracer having been set at initialization
             p.style.color = lineage_labeled_color if gc.get_lineage_tracer(p) else lineage_unlabeled_color
+        case cfg.PaintPattern.SPECIES:
+            if cfg.species_enabled:
+                b = p.species.B.value
+                new_color = tf.fVector3([b, b, b])
+                p.style.color = new_color
 
 def update_all_particle_colors():
-    """ (For anticipated future use with .SPECIES) """
     p: tf.ParticleHandle
     for p in g.Little.items():
         update_color(p)
