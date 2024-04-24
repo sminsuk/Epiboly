@@ -970,6 +970,9 @@ def _show_margin_population() -> None:
     
     # plot just the total
     margin_ax.plot(_timesteps, _margin_count, ".b", label="Total margin cell count")
+    maximum: int = max(_margin_count)
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, maximum + 2), data=_margin_count)
+    margin_ax.set_ylim(limits)
 
     # save
     margin_path: str = os.path.join(_plot_path, "Margin cell rearrangement.png")
@@ -978,8 +981,12 @@ def _show_margin_population() -> None:
     # add additional lines to the plot and resave under a different name
     margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
     margin_ax.plot(_timesteps, _margin_cum_out, ":b", label="Cumulative out")
+    maximum = max(maximum, max(_margin_cum_in), max(_margin_cum_out))
     if cfg.cell_division_enabled:
         margin_ax.plot(_timesteps, _margin_cum_divide, "-b", label="Cumulative divisions")
+        maximum = max(maximum, max(_margin_cum_divide))
+    limits = _expand_limits_if_needed(limits=(-2, maximum + 2), data=_margin_count)
+    margin_ax.set_ylim(limits)
     margin_ax.legend(loc="center right")
 
     margin_path = os.path.join(_plot_path, "Margin cell rearrangement, plus cumulative.png")
