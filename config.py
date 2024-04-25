@@ -76,7 +76,10 @@ min_neighbor_initial_distance_factor: float = 1.5
 harmonic_repulsion_spring_constant: float = 0.5
 harmonic_spring_constant: float = 0.5
 harmonic_edge_spring_constant: float = 0.5
-harmonic_yolk_evl_spring_constant: float = 2.7
+# ToDo: with division disabled, 2.7 lets cells sink into the yolk for some reason, so I need to bump it up;
+#  but when division enabled, 5 causes jitter. Need to see if I can get rid of the jitter by reducing dt,
+#  so that I can use the same value for both. This should be a constant!
+harmonic_yolk_evl_spring_constant: float = 2.7 if cell_division_enabled else 5
 
 # Bonds on smaller cells need smaller spring constant. For each bond, divide spring constant
 # by this amount once for each smaller (divided) cell involved with the bond. When it was 1 (i.e. not yet
@@ -98,7 +101,10 @@ harmonic_yolk_evl_spring_constant: float = 2.7
 # tension than smaller ones (larger cells relatively stretched and smaller ones compressed; actual size
 # difference between cells is larger than their target sizes / assigned cell radii would indicate), then
 # the value is too low.
-spring_constant_cell_size_factor: float = 1.1
+#
+# And note: after changing constraints (eliminate neighbor-count, enhance bond-angle to compensate), this seems
+# to be no long necessary. Setting value to 1 means make no adjustment, i.e., 1 = disabled. ToDo: Revisit! (was 1.1)
+spring_constant_cell_size_factor: float = 1
 
 # With k=0.067: dt = 0.1 and 0.05 blew up, and dt = 0.02 was fine.
 # Using k=0.033 allowed me to reduce time granularity a bit more to dt = 0.025, but it did cause
@@ -217,7 +223,7 @@ color_code_daughter_cells: bool = True
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
-screenshots_simtime_per_export: float = 1.6
+screenshots_simtime_per_export: float = 0.5
 screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 0 else
                                          max(1, round(screenshots_simtime_per_export / dt)))
 
@@ -228,7 +234,7 @@ retain_screenshots_after_movie: bool = False
 
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
-plotting_interval_simtime: float = 160
+plotting_interval_simtime: float = 50
 plotting_interval_timesteps: int = int(round(plotting_interval_simtime / dt, -2))
 # Should certain metrics be plotted as time-averages, instead of as single timesteps?
 plot_time_averages: bool = True

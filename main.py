@@ -137,7 +137,7 @@ else:
             # Rather than trying to match the duration of the current config (which has a lot of permutations
             # after recent addition of new options), match the duration of the LONGEST-running
             # version of epiboly, which is the version with no cell division at all.
-            return tf.Universe.time > setup.equilibration_time + 800
+            return tf.Universe.time > setup.equilibration_time + 300
         else:
             # Full epiboly:
             minimum, mid, maximum = epu.leading_edge_min_mean_max_phi()
