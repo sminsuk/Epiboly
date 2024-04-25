@@ -36,12 +36,7 @@ import utils.tf_utils as tfu
 _leading_edge_phi: list[float] = []
 _bonds_per_particle: list[float] = []
 _forces: list[float] = []
-_straightness_old: list[float] = []
-_straightness: list[float] = []
-_straightness_cyl_old: list[float] = []
 _straightness_cyl: list[float] = []
-_margin_deviation: list[float] = []
-_margin_lag: list[float] = []
 _margin_lopsidedness: list[float] = []
 _margin_count: list[int] = []
 _margin_cum_in: list[int] = []
@@ -610,97 +605,6 @@ def _show_strain_rates_v_phi(finished_accumulating: bool, end: bool) -> None:
                            axhline=0,        # stretch/compression boundary
                            end=end)
 
-def _show_straightness() -> None:
-    """Plot straightness index of the leading edge
-
-    Straightness index = "D/L, where D is the beeline distance between the first and last points in the trajectory,
-    and L is the path length travelled. It is a value between 0 (infinitely tortuous) to 1 (a straight line)."
-    https://search.r-project.org/CRAN/refmans/trajr/html/TrajStraightness.html. This is an adaptation of that, to
-    make sense on the spherical surface.
-    
-    Two versions of the metric are plotted, in an attempt to improve it. The original version ("old") uses mean phi
-    as the position of the shortest path, which was wrong and led to values going over 1.0, which should be impossible.
-    
-    The new version uses instead, the position of the edge particle farthest away from the equator, as the
-    position of the shortest path. this fixes the >1.0 problem; however, it doesn't seem to work as well, showing
-    very significant decreases in "straightness" near the pole. That was already a problem in the old version
-    (I think the small number of particles makes it prone to that, like a kind of noise), but it's much worse
-    in the new version. I think by moving the beeline closer to the pole, it has somehow exacerbated this problem.
-    
-    The "margin_deviation" function was created as an alternative way to measure straightness.
-    """
-    straightness_fig: Figure
-    straightness_ax: Axes
-    
-    straightness_fig, straightness_ax = plt.subplots()
-    straightness_ax.set_ylabel("Straightness Index")
-    
-    ordered_particles: list[tf.ParticleHandle] = epu.get_leading_edge_ordered_particles()
-    
-    # Calculate the path distance from particle to particle
-    p: tf.ParticleHandle
-    previous_p: tf.ParticleHandle = ordered_particles[-1]  # last one
-    path_length: float = 0
-    for p in ordered_particles:
-        path_length += p.distance(previous_p)
-        previous_p = p
-    
-    # Beeline is not the circumference, it's a polygon. Project each particle along a longitude line
-    # to a circle located at the baseline phi position. That's the polygon to measure.
-    # Old formula: use mean phi (keep it around for now, for comparison);
-    # New formula: use the phi farthest from the equator (the one with the smallest circumference).
-    r: float = epu.embryo_radius()
-    min_phi: float
-    mean_phi: float
-    max_phi: float
-    min_phi, mean_phi, max_phi = epu.leading_edge_min_mean_max_phi()
-    beeline_phi_old: float = mean_phi
-    min_phi_is_further_from_equator: bool = abs(min_phi - np.pi / 2) > abs(max_phi - np.pi / 2)
-    beeline_phi_new: float = min_phi if min_phi_is_further_from_equator else max_phi
-    beeline_positions_old: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi_old])
-                                                for p in ordered_particles]
-    beeline_positions_new: list[tf.fVector3] = [tfu.cartesian_from_spherical([r, epu.embryo_theta(p), beeline_phi_new])
-                                                for p in ordered_particles]
-    
-    # Calculate the path distance from position to position in the beeline
-    pos: tf.fVector3
-    vector_diff: tf.fVector3
-    previous_pos: tf.fVector3
-    
-    previous_pos = beeline_positions_old[-1]
-    beeline_path_length_old: float = 0
-    for pos in beeline_positions_old:
-        vector_diff = pos - previous_pos
-        beeline_path_length_old += vector_diff.length()
-        previous_pos = pos
-    
-    previous_pos = beeline_positions_new[-1]
-    beeline_path_length_new: float = 0
-    for pos in beeline_positions_new:
-        vector_diff = pos - previous_pos
-        beeline_path_length_new += vector_diff.length()
-        previous_pos = pos
-    
-    straightness_old: float = beeline_path_length_old / path_length
-    _straightness_old.append(straightness_old)
-    straightness_new: float = beeline_path_length_new / path_length
-    _straightness.append(straightness_new)
-    
-    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
-    # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
-    # But for now, use 0 so I can cleanly compare my "regulated" to my "unregulated" algorithm, which drops very low.
-    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.0, 1.001), data=_straightness_old)
-    limits = _expand_limits_if_needed(limits=limits, data=_straightness)
-    straightness_ax.set_ylim(limits)
-    straightness_ax.plot(_timesteps, _straightness_old, ".-r", label="Old formula")
-    straightness_ax.plot(_timesteps, _straightness, ".-b", label="Corrected formula")
-    straightness_ax.legend()
-    
-    # save
-    straightness_path: str = os.path.join(_plot_path, "Straightness Index of EVL margin.png")
-    straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
-    plt.close(straightness_fig)
-    
 def _show_cylindrical_straightness() -> None:
     """Plot straightness index of the leading edge, based on a cylindrical projection
 
@@ -721,7 +625,7 @@ def _show_cylindrical_straightness() -> None:
     nor the shortest surface-bound path between them. It is the distance on the flattened field:
     sqrt(delta_phi ** 2 + delta_theta ** 2)
     
-    Moreover, have two versions of this. Calculate a more advanced version to try to correct for lopsidedness.
+    Moreover, correct for lopsidedness.
     Calculate a new axis based on the best-fit plane to all the edge particles. And then, rather than trying to
     figure out phi and theta of all the particles relative to that new axis directly, instead rotate the entire
     coordinate system so that the new axis becomes vertical; then phi and theta can be read from the particles
@@ -756,167 +660,56 @@ def _show_cylindrical_straightness() -> None:
     _, normal_vec = epu.leading_edge_best_fit_plane()
     rotation_matrix: np.ndarray = epu.rotation_matrix(axis=normal_vec)
     
+    # Separately, plot phi of normal_vec as a measure of lopsidedness
+    _show_margin_lopsidedness(normal_vec)
+    
     # Calculate the path distance from particle to particle
     p: tf.ParticleHandle
     previous_p: tf.ParticleHandle = ordered_particles[-1]  # last one
-    path_length_old: float = 0
     path_length: float = 0
     for p in ordered_particles:
-        path_length_old += cylindrical_distance(p, previous_p)
         path_length += cylindrical_distance(p, previous_p, rotation_matrix)
         previous_p = p
     
     beeline_path_length: float = 2 * np.pi
     
-    straightness_cyl_old: float = beeline_path_length / path_length_old
-    _straightness_cyl_old.append(straightness_cyl_old)
     straightness_cyl: float = beeline_path_length / path_length
     _straightness_cyl.append(straightness_cyl)
     
     # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
     # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
-    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl_old)
-    limits = _expand_limits_if_needed(limits=limits, data=_straightness_cyl)
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl)
     cyl_straightness_ax.set_ylim(limits)
-    cyl_straightness_ax.plot(_timesteps, _straightness_cyl_old, ".-r", label="Old formula")
-    cyl_straightness_ax.plot(_timesteps, _straightness_cyl, ".-b", label="Corrected formula")
-    cyl_straightness_ax.legend()
+    cyl_straightness_ax.plot(_timesteps, _straightness_cyl, ".-b")
     
     # save
     straightness_path: str = os.path.join(_plot_path, "Cylindrical Straightness Index.png")
     cyl_straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
     plt.close(cyl_straightness_fig)
 
-def _show_margin_deviation() -> None:
-    """Plot alternative measure of leading edge straightness
-    
-    As for the straightness index, project all the points onto a circle of constant phi: in this case the mean phi
-    position of all the points. But then let deviation D = sum of squares of angular difference between each point
-    and its projection. Then divide by total circumference to normalize, otherwise we could not compare between
-    different measurements (at different timepoints or different simulation instances). (Note, it's important to
-    divide by circumference, not by particle count.) Value will be 0 for perfectly straight; positive otherwise.
-    
-    This measure will not distinguish between a set of points that varies from the average because it meanders back
-    and forth across the average line; from a set of points that varies from the average because it is tilted.
-    But, we can use it to compare different paths known NOT to be tilted. (So only use it to compare straightness
-    of EVL margins when the polar-angle is included in the force algorithm, i.e., when the margin is regulated
-    to advance synchronously.)
+def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
+    """Plot the angle of the margin axis - i.e., phi of normal_vec generated by the straightness calculation
+
+    Measure lopsided / off-center / non-synchronous epiboly.
+    This should be close to 0 for the non-lopsided case, increasing toward max of pi/2 (but should never get that big).
     """
-    deviation_fig: Figure
-    deviation_ax: Axes
-    
-    deviation_fig, deviation_ax = plt.subplots()
-    deviation_ax.set_ylabel("Margin deviation")
-    
-    # Simpler calculation than Straightness Index. We are using the same set of points and the same projections.
-    # But we aren't measuring distances from point to point, and each term being added depends only on one point,
-    # not a pair of points. So we don't need to sort the points or locate them in 3-D space. The only thing
-    # we need to know about the projections is their phi coordinate, which is the same for all of them.
-    mean_phi: float = epu.leading_edge_mean_phi()
-    sum_of_squares: float = 0
-    p: tf.ParticleHandle
-    for p in g.LeadingEdge.items():
-        sum_of_squares += (epu.embryo_phi(p) - mean_phi) ** 2
-        
-    deviation: float = sum_of_squares / epu.leading_edge_circumference()
-    _margin_deviation.append(deviation)
-    
-    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
-    # ToDo: Figure out what limits I want.
-    #  bottom always 0 (deviation always > 0), but top limit not yet known; need more replicates, and with cell div also
-    # Generate three versions of this plot, with different scales tp highlight different aspects.
-    # First with small y-lim, to view a close-up appropriate to synchronous epiboly;
-    # then again with large y-lim, to accommodate non-synchronous epiboly. Do this regardless of which one
-    # we're currently running, so that synchronous and non-synchronous runs can be compared.
-    # Must keep the limits fixed (not expanding in case of visual overflow) to ensure different runs are comparable.
-    # Then finally with a log scale so everything can be seen in one plot. These all leave something to be desired.
-    # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
-    deviation_ax.set_ylim(0.0, 0.015)
-    deviation_ax.plot(_timesteps, _margin_deviation, ".-b")
-    
-    # save
-    deviation_path: str = os.path.join(_plot_path, "Deviation of EVL margin zoomed IN.png")
-    deviation_fig.savefig(deviation_path, transparent=False, bbox_inches="tight")
-    
-    # Now with large y-lim:
-    deviation_ax.set_ylim(0.0, 0.125)
-    deviation_path = os.path.join(_plot_path, "Deviation of EVL margin zoomed OUT.png")
-    deviation_fig.savefig(deviation_path, transparent=False, bbox_inches="tight")
-    
-    # Now log, so we can see both on one plot. Y-lim values must both be > 0 for it to work:
-    deviation_ax.set_ylim(0.0001, 0.15)
-    deviation_ax.set_yscale("log")
-    deviation_path = os.path.join(_plot_path, "Deviation of EVL margin semilog-y.png")
-    deviation_fig.savefig(deviation_path, transparent=False, bbox_inches="tight")
-
-    plt.close(deviation_fig)
-
-def _show_margin_lag() -> None:
-    """Plot the angular difference between the leading and lagging margin particles - delta phi
-    
-    This was intended to be a measure of lopsided / off-center / non-synchronous epiboly, trying to disentangle
-    it from straightness. However, this plot, based only on two particles, looks surprisingly similar to the
-    margin deviation plot, based on all the edge particles!
-    """
-    margin_lag_fig: Figure
-    margin_lag_ax: Axes
-    
-    margin_lag_fig, margin_lag_ax = plt.subplots()
-    margin_lag_ax.set_ylabel(r"Margin lag: angular difference $\Delta\phi$")
-    
-    min_phi: float
-    max_phi: float
-    min_phi, _, max_phi = epu.leading_edge_min_mean_max_phi()
-    margin_lag: float = max_phi - min_phi
-    _margin_lag.append(margin_lag)
-    
-    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
-    # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
-    margin_lag_ax.set_ylim(0.0, 0.75)
-    margin_lag_ax.plot(_timesteps, _margin_lag, ".-b")
-    
-    # save
-    margin_lag_path: str = os.path.join(_plot_path, "Margin lag (delta phi).png")
-    margin_lag_fig.savefig(margin_lag_path, transparent=False, bbox_inches="tight")
-    
-    plt.close(margin_lag_fig)
-
-def _show_margin_lopsidedness() -> None:
-    """Plot the angle of the margin axis - i.e., phi of the centroid of all margin particles
-
-    Attempt to measure lopsided / off-center / non-synchronous epiboly, trying to disentangle
-    it from straightness. This should be pi for the non-lopsided case, getting smaller the more lopsided
-    the arrangement. But, it turns out not to be a very sensitive measure and doesn't seem to give a useful
-    measure of the off-centeredness / asynchrony of epiboly progression. On top of that, it's not valid near
-    the equator. Keeping this around for now.
-    """
-    # Vector points the other direction prior to 50% epiboly, so value would be near 0 instead of pi;
-    # this could easily just be adjusted to a downward-pointing diection by subtracting from pi. However,
-    # very close to 50% epiboly, the vector will point horizontally and the value will be around pi/2.
-    # So just don't start plotting until well after 50%.
-    if epu.leading_edge_mean_phi() < 0.6 * np.pi:
-        return
-    
     margin_lopsided_fig: Figure
     margin_lopsided_ax: Axes
     
     margin_lopsided_fig, margin_lopsided_ax = plt.subplots()
     margin_lopsided_ax.set_ylabel("Angle of margin axis")
     
-    phi: float = epu.embryo_phi(g.LeadingEdge.items().centroid)
+    _, _, phi = tfu.spherical_from_cartesian(normal_vec)
     _margin_lopsidedness.append(phi)
-
-    # Get only the relevant x coordinates, since we didn't add any data for the earlier timesteps
-    timesteps: list[int] = _timesteps[-len(_margin_lopsidedness):]
 
     # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
     #  (Though in the lopsided case, the margin position is vague; but mean phi should still work?)
     # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
-    margin_lopsided_ax.set_ylim(0.9 * np.pi, 1.002 * np.pi)
-    margin_lopsided_ax.set_yticks(np.arange(0.90 * np.pi, 1.002 * np.pi, 0.05 * np.pi),
-                                  labels=[r"0.90$\pi$", r"0.95$\pi$", r"$\pi$"])
-    margin_lopsided_ax.set_yticks(np.arange(0.90 * np.pi, 1.002 * np.pi, 0.01 * np.pi), minor=True)
-    margin_lopsided_ax.plot(timesteps, _margin_lopsidedness, ".-b")
+    margin_lopsided_ax.set_ylim(-0.002 * np.pi, 0.102 * np.pi)
+    margin_lopsided_ax.set_yticks(np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
+                                  labels=["0", r"0.05$\pi$", r"0.10$\pi$"])
+    margin_lopsided_ax.set_yticks(np.arange(0, 0.102 * np.pi, 0.01 * np.pi), minor=True)
+    margin_lopsided_ax.plot(_timesteps, _margin_lopsidedness, ".-b")
     
     # save
     margin_lopsided_path: str = os.path.join(_plot_path, "Margin lopsidedness.png")
@@ -1056,11 +849,7 @@ def show_graphs(end: bool = False) -> None:
         _show_progress_graph()
         _show_bond_counts()
         _show_forces()
-        _show_straightness()
         _show_cylindrical_straightness()
-        _show_margin_deviation()
-        _show_margin_lag()
-        _show_margin_lopsidedness()
         _show_margin_population()
 
     plot_interval: int = cfg.plotting_interval_timesteps
@@ -1110,12 +899,7 @@ def get_state() -> dict:
             "bond_counts": _bonds_per_particle,
             "leading_edge_phi": _leading_edge_phi,
             "forces": _forces,
-            "straightness_old": _straightness_old,
-            "straightness": _straightness,
-            "straightness_cyl_old": _straightness_cyl_old,
             "straightness_cyl": _straightness_cyl,
-            "margin_deviation": _margin_deviation,
-            "margin_lag": _margin_lag,
             "margin_lopsidedness": _margin_lopsidedness,
             "margin_count": _margin_count,
             "margin_cum_in": _margin_cum_in,
@@ -1155,8 +939,8 @@ def get_state() -> dict:
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global _timestep, _bonds_per_particle, _leading_edge_phi, _forces
-    global _straightness_old, _straightness, _straightness_cyl_old, _straightness_cyl, _margin_deviation
-    global _margin_lag, _margin_lopsidedness, _timesteps
+    global _straightness_cyl
+    global _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
@@ -1171,12 +955,7 @@ def set_state(d: dict) -> None:
     _bonds_per_particle = d["bond_counts"]
     _leading_edge_phi = d["leading_edge_phi"]
     _forces = d["forces"]
-    _straightness_old = d["straightness_old"]
-    _straightness = d["straightness"]
-    _straightness_cyl_old = d["straightness_cyl_old"]
     _straightness_cyl = d["straightness_cyl"]
-    _margin_deviation = d["margin_deviation"]
-    _margin_lag = d["margin_lag"]
     _margin_lopsidedness = d["margin_lopsidedness"]
     _margin_count = d["margin_count"]
     _margin_cum_in = d["margin_cum_in"]
