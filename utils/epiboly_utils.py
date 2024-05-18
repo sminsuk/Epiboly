@@ -72,18 +72,39 @@ def tension(p: tf.ParticleHandle) -> float:
     p_bonds: list[tf.BondHandle] = tfu.bonds(p)
     return 0 if not p_bonds else fmean([bond_tension(bhandle) for bhandle in p_bonds])
 
-def update_color(p: tf.ParticleHandle) -> None:
+def update_color(p: tf.ParticleHandle, init: bool = False) -> None:
     """Paint the particle the correct color for its ParticleType and cell division state
     
     Useful after .become() or after cell division
     Cell must be in the global dictionary, with its correct cell radius assigned, and must have a .style object
     """
-    if p.type() == g.LeadingEdge:
-        p.style.color = (evl_margin_undivided_color if is_undivided(p)
-                         else evl_margin_divided_color)
-    elif p.type() == g.Little:
-        p.style.color = (evl_undivided_color if is_undivided(p)
-                         else evl_divided_color)
+    paint_pattern: cfg.PaintPattern = cfg.paint_pattern
+    # Special behaviors at initialization
+    if init:
+        match cfg.paint_pattern:
+            case cfg.PaintPattern.ORIGINAL_CELL_TYPE:
+                # At initialization, paint according to current cell type
+                paint_pattern = cfg.PaintPattern.CELL_TYPE
+        
+    match paint_pattern:
+        case cfg.PaintPattern.CELL_TYPE:
+            if p.type() == g.LeadingEdge:
+                p.style.color = (evl_margin_undivided_color if is_undivided(p)
+                                 else evl_margin_divided_color)
+            elif p.type() == g.Little:
+                p.style.color = (evl_undivided_color if is_undivided(p)
+                                 else evl_divided_color)
+        case cfg.PaintPattern.ORIGINAL_CELL_TYPE:
+            # After initialization, we don't need to do anything at all, because colors will never change.
+            pass
+
+def update_all_particle_colors():
+    """ (For anticipated future use with .SPECIES) """
+    p: tf.ParticleHandle
+    for p in g.Little.items():
+        update_color(p)
+    for p in g.LeadingEdge.items():
+        update_color(p)
 
 def reset_camera():
     """A good place to park the camera for epiboly

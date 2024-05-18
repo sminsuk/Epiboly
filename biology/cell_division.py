@@ -194,6 +194,7 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
 def _divide(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     daughter: tf.ParticleHandle = _split(parent)
     daughter.style = tf.rendering.Style()       # Not inherited from parent, so create it
+    daughter.style.color = parent.style.color
     epu.update_color(daughter)
     epu.update_color(parent)
 
