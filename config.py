@@ -76,10 +76,7 @@ min_neighbor_initial_distance_factor: float = 1.5
 harmonic_repulsion_spring_constant: float = 0.5
 harmonic_spring_constant: float = 0.5
 harmonic_edge_spring_constant: float = 0.5
-# ToDo: with division disabled, 2.7 lets cells sink into the yolk for some reason, so I need to bump it up;
-#  but when division enabled, 5 causes jitter. Need to see if I can get rid of the jitter by reducing dt,
-#  so that I can use the same value for both. This should be a constant!
-harmonic_yolk_evl_spring_constant: float = 2.7 if cell_division_enabled else 5
+harmonic_yolk_evl_spring_constant: float = 5
 
 # Bonds on smaller cells need smaller spring constant. For each bond, divide spring constant
 # by this amount once for each smaller (divided) cell involved with the bond. When it was 1 (i.e. not yet
