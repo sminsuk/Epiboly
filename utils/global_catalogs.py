@@ -17,9 +17,15 @@ Usage:
     particle. TF objects are not customizable in that way; you cannot give Particles (or ParticleHandles) new
     properties. So, store the value here, and look it up when needed, by ParticleId.
     
+    And, lt = lineage tracer, a flag for cell labeling.
+    
     Similarly, the Bond dictionary has a new use: the spring constant. This is the value k in tf.Potential.harmonic
     objects, but unfortunately it is not readable. I now have bonds having different spring constants, and I
     need to be able to retrieve them, so that means I have to store them in the catalog for every bond I create.
+    
+    The dictionary fields for these values are named in a highly abbreviated fashion (r, lt, k) in order to keep
+    file size reasonable, because thousands of copies of each name (one for each particle) are saved in the
+    serialized output file.
     
     Use the convenience functions below to create Bonds and Angles, and to add newly created Particles to the
     catalog (or to update existing ones); and to destroy any of those. Alternatively:
@@ -28,7 +34,7 @@ Usage:
     Whenever destroying a particle / bond / angle, delete it from those dicts
     
     BondData now contains one key, the spring constant "k".
-    ParticleData now contains one key, the cell radius "r".
+    ParticleData now contains two keys, the cell radius "r", and the lineage tracer flag "lt".
     AngleData never needed any content: the idea is to identify anomalous Angle objects created due to a
         TF bug, by the fact that they are NOT in the dict. All we really need is the keys; using id as placeholder
         value. (We'll never need to look up the value.)
@@ -43,10 +49,11 @@ import tissue_forge as tf
 import utils.tf_utils as tfu
 
 class BondData(TypedDict, total=True):
-    k: float
+    k: float    # spring constant
 
 class ParticleData(TypedDict, total=True):
-    r: float
+    r: float    # cell radius
+    lt: bool    # lineage tracer
 
 bonds_by_id: dict[int, BondData] = {}
 angles_by_id: dict[int, int] = {}
@@ -83,10 +90,20 @@ def destroy_angle(angle_handle: tf.AngleHandle) -> None:
 def add_particle(phandle: tf.ParticleHandle, radius: float) -> None:
     """ 'Add' rather than 'Create' because TF routines handle the creation part
     
-    This can also be used to update the stored data when the cell radius changes.
+    Lineage tracer flag will always be created as False
     """
-    particle_values: ParticleData = {"r": radius}
+    particle_values: ParticleData = {"r": radius,
+                                     "lt": False}
     particles_by_id[phandle.id] = particle_values
+    
+def copy_particle(copy: tf.ParticleHandle, original: tf.ParticleHandle) -> None:
+    """Copy all particle attributes from one particle to another
+    
+    This can be used either to add a new particle to the dictionary, or to modify an existing one,
+    so long as you want to overwrite all attribute values on the copy, from the original
+    """
+    assert original.id in particles_by_id, f"Particle {original.id} not in dictionary!"
+    particles_by_id[copy.id] = particles_by_id[original.id]
 
 def destroy_particle(phandle: tf.ParticleHandle) -> None:
     # If particle has any bonds, destroy them. TF would do that, but would not remove them from the catalog
@@ -104,22 +121,32 @@ def get_cell_radius(phandle: tf.ParticleHandle) -> float:
     Then it would be general for any arbitrary attribute. But I don't want to have to type a string in the function
     call. I would want it to be a token that the IDE recognizes and can code-complete. Would have to think about how
     to get python to do that. If I ever have tons of different attributes to access, maybe then. Right now I
-    only have this one attribute, so this is good enough!
+    only have very few attributes (this one and lt), so this is good enough!
     """
     assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
     return particles_by_id[phandle.id]["r"]
 
+def get_lineage_tracer(phandle: tf.ParticleHandle) -> bool:
+    """Return lineage tracer status for a given particle"""
+    assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
+    return particles_by_id[phandle.id]["lt"]
+
 def set_cell_radius(phandle: tf.ParticleHandle, radius: float) -> None:
-    """Update the stored radius for a particle
+    """Update the stored radius for a particle"""
+    assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
+    attributes: ParticleData = particles_by_id[phandle.id]
+    attributes["r"] = radius
+    particles_by_id[phandle.id] = attributes
     
-    For now, this is actually just an alias for add_particle(), but semantically it makes more sense to use
-    this when updating a particle as opposed to creating a new one.
+def set_cell_lineage_tracer(phandle: tf.ParticleHandle) -> None:
+    """Update the stored lineage tracer flag for a particle, to True
     
-    If ParticleData is later enhanced with additional attributes, the two will no longer be identical.
+    You can never take lineage tracer away, you can only add it. Cells always start as False;
+    this makes it True. The cell is now labeled.
     """
-    # Just a pass-through. When particle does not yet exist in the table, add_particle() adds it. When it
-    # already exists, add_particle() overwrites it.
-    add_particle(phandle, radius)
+    attributes: ParticleData = particles_by_id[phandle.id]
+    attributes["lt"] = True
+    particles_by_id[phandle.id] = attributes
 
 def initialize_state() -> None:
     """Recreates the global catalogs based on imported data from a previous run

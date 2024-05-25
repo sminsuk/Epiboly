@@ -181,7 +181,7 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     parent.radius = g.Little.radius
     daughter.radius = g.Little.radius
     gc.set_cell_radius(parent, radius=new_cell_radius)
-    gc.add_particle(daughter, radius=new_cell_radius)
+    gc.copy_particle(copy=daughter, original=parent)
     
     if not cfg.use_alt_cell_splitting_method:
         # The descendants will now be oriented at an arbitrary angle (usually not in the sheet, but in/out from the
