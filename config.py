@@ -216,12 +216,16 @@ show_equilibration: bool = False
 
 class PaintPattern(Enum):
     CELL_TYPE = 1           # LeadingEdge vs. Little
-    ORIGINAL_CELL_TYPE = 2  # By cell type at initialization, but keep the original color after changing type
-    SPECIES = 3             # Read a concentration from the particle, and use that concentration to determine the color.
+    ORIGINAL_TIER = 2       # By position at initialization, ignoring type entirely
+    VERTICAL_STRIPE = 3     # By position at initialization, ignoring type entirely (just proof of concept)
+    SPECIES = 4             # Read a concentration from the particle, and use that concentration to determine the color.
 
-paint_pattern: PaintPattern = PaintPattern.ORIGINAL_CELL_TYPE
+paint_pattern: PaintPattern = PaintPattern.ORIGINAL_TIER
 
-# Whether to color daughter cells differently from parent cells
+# Which tier to paint, in the ORIGINAL_TIER PaintPattern.
+paint_tier: int = 0
+
+# Whether to color daughter cells differently from parent cells, in the CELL_TYPE PaintPattern
 color_code_daughter_cells: bool = True
 
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
@@ -335,6 +339,7 @@ def get_state() -> dict:
                 "visualization": {
                         "show_equilibration": show_equilibration,
                         "paint_pattern": paint_pattern.name,
+                        "paint_tier": paint_tier,
                         "color_code_daughter_cells": color_code_daughter_cells,
                         "screenshots_simtime_per_export": screenshots_simtime_per_export,
                         "retain_screenshots_after_movie": retain_screenshots_after_movie,
@@ -394,7 +399,7 @@ def set_state(d: dict) -> None:
     global stopping_condition_phi, unbalanced_stopping_condition_phi
     
     # visualization
-    global show_equilibration, paint_pattern, color_code_daughter_cells
+    global show_equilibration, paint_pattern, paint_tier, color_code_daughter_cells
     global screenshots_simtime_per_export, retain_screenshots_after_movie
     global plotting_interval_simtime, plot_time_averages, config_time_avg_accumulation_steps, plot_t0_as_single_timestep
     
@@ -466,6 +471,7 @@ def set_state(d: dict) -> None:
     visualization: dict = d["config_values"]["visualization"]
     show_equilibration = visualization["show_equilibration"]
     paint_pattern = PaintPattern[visualization["paint_pattern"]]
+    paint_tier = visualization["paint_tier"]
     color_code_daughter_cells = visualization["color_code_daughter_cells"]
     screenshots_simtime_per_export = visualization["screenshots_simtime_per_export"]
     retain_screenshots_after_movie = visualization["retain_screenshots_after_movie"]

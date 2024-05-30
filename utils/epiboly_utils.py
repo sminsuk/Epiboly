@@ -48,6 +48,8 @@ evl_margin_divided_color: tf.fVector3 = evl_margin_undivided_color
 if cfg.color_code_daughter_cells:
     evl_divided_color = tfu.lighter_blue
     evl_margin_divided_color = tfu.dk_yellow_brown
+lineage_unlabeled_color: tf.fVector3 = tfu.cornflower_blue
+lineage_labeled_color: tf.fVector3 = tfu.gold
 
 def is_undivided(p: tf.ParticleHandle) -> bool:
     """Determine whether particle is undivided, based on its CELL radius"""
@@ -72,21 +74,13 @@ def tension(p: tf.ParticleHandle) -> float:
     p_bonds: list[tf.BondHandle] = tfu.bonds(p)
     return 0 if not p_bonds else fmean([bond_tension(bhandle) for bhandle in p_bonds])
 
-def update_color(p: tf.ParticleHandle, init: bool = False) -> None:
+def update_color(p: tf.ParticleHandle) -> None:
     """Paint the particle the correct color for its ParticleType and cell division state
     
     Useful after .become() or after cell division
     Cell must be in the global dictionary, with its correct cell radius assigned, and must have a .style object
     """
-    paint_pattern: cfg.PaintPattern = cfg.paint_pattern
-    # Special behaviors at initialization
-    if init:
-        match cfg.paint_pattern:
-            case cfg.PaintPattern.ORIGINAL_CELL_TYPE:
-                # At initialization, paint according to current cell type
-                paint_pattern = cfg.PaintPattern.CELL_TYPE
-        
-    match paint_pattern:
+    match cfg.paint_pattern:
         case cfg.PaintPattern.CELL_TYPE:
             if p.type() == g.LeadingEdge:
                 p.style.color = (evl_margin_undivided_color if is_undivided(p)
@@ -94,9 +88,9 @@ def update_color(p: tf.ParticleHandle, init: bool = False) -> None:
             elif p.type() == g.Little:
                 p.style.color = (evl_undivided_color if is_undivided(p)
                                  else evl_divided_color)
-        case cfg.PaintPattern.ORIGINAL_CELL_TYPE:
-            # After initialization, we don't need to do anything at all, because colors will never change.
-            pass
+        case cfg.PaintPattern.ORIGINAL_TIER | cfg.PaintPattern.VERTICAL_STRIPE:
+            # lineage tracing patterns. Depends on the lineage tracer having been set at initialization
+            p.style.color = lineage_labeled_color if gc.get_lineage_tracer(p) else lineage_unlabeled_color
 
 def update_all_particle_colors():
     """ (For anticipated future use with .SPECIES) """

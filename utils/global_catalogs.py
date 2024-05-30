@@ -18,12 +18,13 @@ Usage:
     properties. So, store the value here, and look it up when needed, by ParticleId.
     
     And, lt = lineage tracer, a flag for cell labeling.
+    t = original tier, an integer identifying cell position, for cell labeling purposes
     
     Similarly, the Bond dictionary has a new use: the spring constant. This is the value k in tf.Potential.harmonic
     objects, but unfortunately it is not readable. I now have bonds having different spring constants, and I
     need to be able to retrieve them, so that means I have to store them in the catalog for every bond I create.
     
-    The dictionary fields for these values are named in a highly abbreviated fashion (r, lt, k) in order to keep
+    The dictionary fields for these values are named in a highly abbreviated fashion (r, lt, t, k) in order to keep
     file size reasonable, because thousands of copies of each name (one for each particle) are saved in the
     serialized output file.
     
@@ -34,7 +35,7 @@ Usage:
     Whenever destroying a particle / bond / angle, delete it from those dicts
     
     BondData now contains one key, the spring constant "k".
-    ParticleData now contains two keys, the cell radius "r", and the lineage tracer flag "lt".
+    ParticleData now contains three keys, the cell radius "r", the lineage tracer flag "lt", and the tier "t".
     AngleData never needed any content: the idea is to identify anomalous Angle objects created due to a
         TF bug, by the fact that they are NOT in the dict. All we really need is the keys; using id as placeholder
         value. (We'll never need to look up the value.)
@@ -52,8 +53,9 @@ class BondData(TypedDict, total=True):
     k: float    # spring constant
 
 class ParticleData(TypedDict, total=True):
-    r: float    # cell radius
-    lt: bool    # lineage tracer
+    r: float        # cell radius
+    lt: bool        # lineage tracer
+    t: int | None   # tier (at initialization)
 
 bonds_by_id: dict[int, BondData] = {}
 angles_by_id: dict[int, int] = {}
@@ -91,9 +93,11 @@ def add_particle(phandle: tf.ParticleHandle, radius: float) -> None:
     """ 'Add' rather than 'Create' because TF routines handle the creation part
     
     Lineage tracer flag will always be created as False
+    Tier always as None. They need to be given proper values during subsequent initialization steps.
     """
     particle_values: ParticleData = {"r": radius,
-                                     "lt": False}
+                                     "lt": False,
+                                     "t": None}
     particles_by_id[phandle.id] = particle_values
     
 def copy_particle(copy: tf.ParticleHandle, original: tf.ParticleHandle) -> None:
@@ -131,12 +135,14 @@ def get_lineage_tracer(phandle: tf.ParticleHandle) -> bool:
     assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
     return particles_by_id[phandle.id]["lt"]
 
+def get_cell_original_tier(phandle: tf.ParticleHandle) -> int | None:
+    assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
+    return particles_by_id[phandle.id]["t"]
+
 def set_cell_radius(phandle: tf.ParticleHandle, radius: float) -> None:
     """Update the stored radius for a particle"""
     assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
-    attributes: ParticleData = particles_by_id[phandle.id]
-    attributes["r"] = radius
-    particles_by_id[phandle.id] = attributes
+    particles_by_id[phandle.id]["r"] = radius
     
 def set_cell_lineage_tracer(phandle: tf.ParticleHandle) -> None:
     """Update the stored lineage tracer flag for a particle, to True
@@ -144,9 +150,18 @@ def set_cell_lineage_tracer(phandle: tf.ParticleHandle) -> None:
     You can never take lineage tracer away, you can only add it. Cells always start as False;
     this makes it True. The cell is now labeled.
     """
-    attributes: ParticleData = particles_by_id[phandle.id]
-    attributes["lt"] = True
-    particles_by_id[phandle.id] = attributes
+    assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
+    particles_by_id[phandle.id]["lt"] = True
+    
+def set_cell_original_tier(phandle: tf.ParticleHandle, tier: int) -> None:
+    """Update the original tier for a particle
+    
+    The value was created as None; you only need to set it once. It should never change.
+    This simply identifies what tier the cell was located in at the beginning, to use
+    for lineage tracing.
+    """
+    assert phandle.id in particles_by_id, f"Particle {phandle.id} not in dictionary!"
+    particles_by_id[phandle.id]["t"] = tier
 
 def initialize_state() -> None:
     """Recreates the global catalogs based on imported data from a previous run

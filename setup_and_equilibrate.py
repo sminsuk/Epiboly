@@ -99,7 +99,6 @@ def initialize_full_sphere_evl_cells() -> None:
     for phandle in g.Little.items():
         phandle.style = tf.rendering.Style()
         gc.add_particle(phandle, radius=_initial_cell_radius)
-        epu.update_color(phandle, init=True)
     
     finished = time.perf_counter()
     # print("generating unit sphere coordinates takes:", random_points_time - start, "seconds")
@@ -204,7 +203,7 @@ def initialize_bonded_edge():
         for phandle in g.LeadingEdge.items():
             phandle.style = tf.rendering.Style()
             gc.add_particle(phandle, radius=_initial_cell_radius)
-            epu.update_color(phandle, init=True)
+            gc.set_cell_original_tier(phandle, tier=0)
     
     create_ring()
     create_edge_bonds()
@@ -386,7 +385,7 @@ def find_boundary() -> None:
         if epu.embryo_phi(p) < leading_edge_phi:
             if any([epu.embryo_phi(neighbor) >= leading_edge_phi for neighbor in p.bonded_neighbors]):
                 p.become(g.LeadingEdge)
-                epu.update_color(p, init=True)
+                gc.set_cell_original_tier(p, tier=0)
                 
     # Delete all the particles below the leading edge
     filter_evl_to_animal_cap_phi(leading_edge_phi)
@@ -437,6 +436,45 @@ def setup_initial_cell_number_and_size() -> None:
 
         # And _num_spherical_positions is also now incorrect for this method, but there isn't a suitable way to
         # correct it here. Instead, we correct for it later with very strict filtering in filter_evl_to_animal_cap().
+        
+def initialize_paint_pattern() -> None:
+    p: tf.ParticleHandle
+    all_particles: list[tf.ParticleHandle] = []
+    all_particles.extend(g.Little.items())
+    all_particles.extend(g.LeadingEdge.items())
+
+    # If we are using one of the lineage-tracing PaintPatterns, then initialize the pattern; i.e.,
+    # determine which cells to add lineage tracer to
+    match cfg.paint_pattern:
+        case cfg.PaintPattern.ORIGINAL_TIER:
+            # Tier 0 particles were labeled during LeadingEdge creation; other cells have tier = None
+            # Now set tier on those other cells
+            finished: bool = False
+            previous_tier: int = 0
+            while not finished:
+                untiered_particles: list[tf.ParticleHandle] = [p for p in all_particles
+                                                               if gc.get_cell_original_tier(p) is None]
+                next_tiered_particles: list[tf.ParticleHandle] = \
+                    [p for p in untiered_particles
+                     if any([gc.get_cell_original_tier(neighbor) == previous_tier
+                             for neighbor in p.bonded_neighbors])]
+                finished = len(next_tiered_particles) == 0
+                next_tier: int = previous_tier + 1
+                for p in next_tiered_particles:
+                    gc.set_cell_original_tier(p, tier=next_tier)
+                previous_tier = next_tier
+                
+            # Add lineage tracer to all particles that are in the tier we're interested in
+            for p in all_particles:
+                if gc.get_cell_original_tier(p) == cfg.paint_tier:
+                    gc.set_cell_lineage_tracer(p)
+        
+        case cfg.PaintPattern.VERTICAL_STRIPE:
+            for p in all_particles:
+                if 0 < epu.embryo_theta(p) < math.pi / 6:
+                    gc.set_cell_lineage_tracer(p)
+            
+    epu.update_all_particle_colors()
 
 def initialize_embryo() -> None:
     """Initialize all particles and bonds
@@ -502,6 +540,7 @@ def initialize_embryo_with_graph_boundary() -> None:
     find_boundary()
     adjust_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
+    initialize_paint_pattern()
     
 def initialize_embryo_with_config() -> None:
     """Older init method of arbitrarily deciding how many edge particles to have, and creating a ring of them
@@ -556,6 +595,7 @@ def initialize_embryo_with_config() -> None:
     add_interior_bonds()
     adjust_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
+    initialize_paint_pattern()
     
     # # ################# Test ##################
     # # Free-runnning equilibration without interior bonds.
@@ -629,6 +669,7 @@ def alt_initialize_embryo_with_config() -> None:
     add_interior_bonds()
     adjust_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
+    initialize_paint_pattern()
     tf.show()   # (If you run this simulator, it will start to shrink, because balancing yolk tension not added yet.)
 
     # # ################# Test ##################
