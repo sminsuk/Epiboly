@@ -223,7 +223,7 @@ class PaintPattern(Enum):
     VERTICAL_STRIPE = 3     # By position at initialization, ignoring type entirely (just proof of concept)
     SPECIES = 4             # Read a concentration from the particle, and use that concentration to determine the color.
 
-paint_pattern: PaintPattern = PaintPattern.ORIGINAL_TIER
+paint_pattern: PaintPattern = PaintPattern.SPECIES
 
 # Which tier to paint, in the ORIGINAL_TIER PaintPattern.
 paint_tier: int = 0
