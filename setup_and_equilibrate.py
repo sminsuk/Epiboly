@@ -524,6 +524,8 @@ def initialize_embryo_with_graph_boundary() -> None:
     
     big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
     big_particle.frozen = True
+    big_particle.style = tf.rendering.Style()
+    big_particle.style.color = g.Big.style.color
     
     initialize_full_sphere_evl_cells()
     screenshot_true_zero()
@@ -561,6 +563,8 @@ def initialize_embryo_with_config() -> None:
     
     big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
     big_particle.frozen = True
+    big_particle.style = tf.rendering.Style()
+    big_particle.style.color = g.Big.style.color
     initialize_bonded_edge()
     freeze_leading_edge_z()
     
@@ -628,6 +632,8 @@ def alt_initialize_embryo_with_config() -> None:
     
     big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
     big_particle.frozen = True
+    big_particle.style = tf.rendering.Style()
+    big_particle.style.color = g.Big.style.color
     initialize_bonded_edge()
     freeze_leading_edge_z()
     screenshot_true_zero()          # Need these? I wasn't sure when I did the big clean-up

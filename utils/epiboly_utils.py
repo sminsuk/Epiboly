@@ -48,8 +48,9 @@ evl_margin_divided_color: tf.fVector3 = evl_margin_undivided_color
 if cfg.color_code_daughter_cells:
     evl_divided_color = tfu.lighter_blue
     evl_margin_divided_color = tfu.dk_yellow_brown
-lineage_unlabeled_color: tf.fVector3 = tfu.cornflower_blue
-lineage_labeled_color: tf.fVector3 = tfu.gold
+lineage_unlabeled_color: tf.fVector3 = tfu.gray
+lineage_labeled_color: tf.fVector3 = tfu.red
+yolk_unlabeled_color: tf.fVector3 = tfu.gray
 
 def is_undivided(p: tf.ParticleHandle) -> bool:
     """Determine whether particle is undivided, based on its CELL radius"""
@@ -90,7 +91,12 @@ def update_color(p: tf.ParticleHandle) -> None:
                                  else evl_divided_color)
         case cfg.PaintPattern.ORIGINAL_TIER | cfg.PaintPattern.VERTICAL_STRIPE:
             # lineage tracing patterns. Depends on the lineage tracer having been set at initialization
-            p.style.color = lineage_labeled_color if gc.get_lineage_tracer(p) else lineage_unlabeled_color
+            if p.type() == g.Big:
+                p.style.color = yolk_unlabeled_color
+            elif gc.get_lineage_tracer(p):
+                p.style.color = lineage_labeled_color
+            else:
+                p.style.color = lineage_unlabeled_color
 
 def update_all_particle_colors():
     """ (For anticipated future use with .SPECIES) """
@@ -99,6 +105,7 @@ def update_all_particle_colors():
         update_color(p)
     for p in g.LeadingEdge.items():
         update_color(p)
+    update_color(g.Big.items()[0])
 
 def reset_camera():
     """A good place to park the camera for epiboly
