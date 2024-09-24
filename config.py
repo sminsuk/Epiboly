@@ -9,10 +9,11 @@ import math
 # ToDo: Finally works, but changes coming in next release. Once that's stabilized, make this the new normal.
 use_alt_cell_splitting_method: bool = True
 
-# If False, ignore export_root_directory_name, and create/find the TissueForge_export directory in the user's
-# home directory. Otherwise, at the provided path. Main intended use is for batch processing, e.g. on
-# IU's HPC facility, where the home directory is not recommended for data storage, and the scratch
-# directory is more performant. But can also be used to specify any alternative storage location.
+# Batch execute: if True, redirect stdout & stderr to a file. (Probably want to override export root, too.)
+batch_execute: bool = False
+
+# Export path: if override False, export to user's home directory; else to the provided path. Mainly
+# intended for batch processing, but can use independently as well.
 override_export_root_directory: bool = False
 export_root_directory_name: str = "/N/scratch/sminsuk"
 
@@ -287,8 +288,11 @@ def get_state() -> dict:
     """
     return {"config_values": {
                 "comment": comment,
-                "override_export_root_directory": override_export_root_directory,
-                "export_root_directory_name": export_root_directory_name,
+                "environment": {
+                        "batch_execute": batch_execute,
+                        "override_export_root_directory": override_export_root_directory,
+                        "export_root_directory_name": export_root_directory_name,
+                        },
                 "model": {
                         "dt": dt,
                         "initialization_algo_graph_based": initialization_algo_graph_based,
@@ -381,7 +385,10 @@ def set_state(d: dict) -> None:
     
     Though, note to self: if I actually add or remove config variables, that still requires more care.
     """
-    global comment, override_export_root_directory, export_root_directory_name
+    global comment
+    
+    # environment
+    global batch_execute, override_export_root_directory, export_root_directory_name
     
     # model
     global dt, initialization_algo_graph_based, cell_division_enabled, total_epiboly_divisions
@@ -420,8 +427,11 @@ def set_state(d: dict) -> None:
     global plotting_interval_timesteps, time_avg_accumulation_steps
     
     comment = d["config_values"]["comment"]
-    override_export_root_directory = d["config_values"]["override_export_root_directory"]
-    export_root_directory_name = d["config_values"]["export_root_directory_name"]
+    
+    environment: dict = d["config_values"]["environment"]
+    batch_execute = environment["batch_execute"]
+    override_export_root_directory = environment["override_export_root_directory"]
+    export_root_directory_name = environment["export_root_directory_name"]
     
     model: dict = d["config_values"]["model"]
     dt = model["dt"]
