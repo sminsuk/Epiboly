@@ -36,7 +36,7 @@ _dim = [10., 10., 10.]
 
 def init_from_import() -> None:
     print(f"Restarting simulation \"{cfg.initialization_directory_name}\" from latest state export...")
-    tfu.init_export(directory_name=cfg.initialization_directory_name)
+    tfu.init_export(sim_directory_name=cfg.initialization_directory_name)
     
     # These two inits only depend on the exported directory being found, by tfu.init_export(), so can do them up here.
     vx.init_screenshots()

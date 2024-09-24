@@ -9,6 +9,13 @@ import math
 # ToDo: Finally works, but changes coming in next release. Once that's stabilized, make this the new normal.
 use_alt_cell_splitting_method: bool = True
 
+# If False, ignore export_root_directory_name, and create/find the TissueForge_export directory in the user's
+# home directory. Otherwise, at the provided path. Main intended use is for batch processing, e.g. on
+# IU's HPC facility, where the home directory is not recommended for data storage, and the scratch
+# directory is more performant. But can also be used to specify any alternative storage location.
+override_export_root_directory: bool = False
+export_root_directory_name: str = "/N/scratch/sminsuk"
+
 # For normal initialization, leave blank. To start from a previously exported state, provide the
 # directory name of the export. This is the parent directory with the datetime in the name. Script
 # will search in the "Sim_state" subdirectory to find the most recent export, and start with that.
@@ -275,11 +282,13 @@ def get_state() -> dict:
     through termination and restart from import. Or, state that's needed for post-processing.
     These are all constants so don't need that. Rather, this is to capture the config state
     in a file stored with all the other simulation output, as a record of what the config WAS
-    when the simulation was run. Because it's starting to be too complex to record simply by
+    when the simulation was run. Because it has become way too complex to record simply by
     adding notes to the path name!
     """
     return {"config_values": {
                 "comment": comment,
+                "override_export_root_directory": override_export_root_directory,
+                "export_root_directory_name": export_root_directory_name,
                 "model": {
                         "dt": dt,
                         "initialization_algo_graph_based": initialization_algo_graph_based,
@@ -372,7 +381,7 @@ def set_state(d: dict) -> None:
     
     Though, note to self: if I actually add or remove config variables, that still requires more care.
     """
-    global comment
+    global comment, override_export_root_directory, export_root_directory_name
     
     # model
     global dt, initialization_algo_graph_based, cell_division_enabled, total_epiboly_divisions
@@ -411,6 +420,8 @@ def set_state(d: dict) -> None:
     global plotting_interval_timesteps, time_avg_accumulation_steps
     
     comment = d["config_values"]["comment"]
+    override_export_root_directory = d["config_values"]["override_export_root_directory"]
+    export_root_directory_name = d["config_values"]["export_root_directory_name"]
     
     model: dict = d["config_values"]["model"]
     dt = model["dt"]

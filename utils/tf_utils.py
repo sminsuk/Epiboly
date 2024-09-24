@@ -13,16 +13,21 @@ import traceback
 
 import tissue_forge as tf
 
+# In general this module is meant to be run with any Tissue Forge simulation I may ever write, and thus
+# should be independent of the simulation config and does not import that module. But these values are an
+# exception and should be provided:
+from config import override_export_root_directory, export_root_directory_name
+
 _tf_export_root: str = "TissueForge_export"
 _current_export_dir: str | None = None
 
-def init_export(directory_name: str = None) -> None:
-    """Set up directories for all exported output: root directory for all output from the current script, ever;
+def init_export(sim_directory_name: str = None) -> None:
+    """Set up directories for all exported output: main directory for all output from the current script, ever;
     and a subdirectory for all output of the CURRENT RUN of the current script.
     
-    To access a previously generated directory (i.e., after the program quits or crashes), provide a directory name
-    to get the path to that directory. This should be the main directory with the datetime in the name, not any
-    subdirectory.
+    To access previously exported data (i.e., after the program quits or crashes), pass the existing directory
+    name to get the full path to that directory. This should be the main directory with the datetime in the name,
+    not any subdirectory.
     """
 
     def timestring() -> str:
@@ -35,7 +40,7 @@ def init_export(directory_name: str = None) -> None:
 
     global _current_export_dir
 
-    if directory_name is None:
+    if sim_directory_name is None:
         # subdirectory with unique name for all output of the current run.
         # Include process id, otherwise timestring() isn't enough for uniqueness if this script is executed
         # in multiple separate processes in the same minute, or, more importantly, anticipating batch runs.
@@ -46,23 +51,27 @@ def init_export(directory_name: str = None) -> None:
         os.makedirs(export_path())
     else:
         # Continuing where we left off, in a directory that already exists from a previous run
-        _current_export_dir = directory_name
+        _current_export_dir = sim_directory_name
 
 def export_directory() -> str:
     """Make just the directory name itself available (read-only). Useful for modules to use in filenames"""
     return _current_export_dir
 
-def export_path(directory_name: str = None) -> str:
-    """Provide the full path to the subdirectory for all types of output exported
+def export_path(sim_directory_name: str = None) -> str:
+    """Return the full path to the directory for all types of output exported
     during the current run (e.g., images, MatPlatLib plots, saved simulation state).
     
-    To access a previously generated directory (i.e., after the program quits or crashes), provide a directory name
-    to get the path to that directory. This should be the main directory with the datetime in the name, not any
-    subdirectory.
+    To access previously exported data (i.e., after the program quits or crashes), pass the existing directory
+    name to get the full path to that directory. This should be the main directory with the datetime in the name,
+    not any subdirectory.
     """
-    if directory_name is None:
-        directory_name = _current_export_dir
-    return os.path.join(os.path.expanduser("~"), _tf_export_root, directory_name)
+    root_directory: str = os.path.expanduser("~")
+    if override_export_root_directory:
+        root_directory = export_root_directory_name
+        
+    if sim_directory_name is None:
+        sim_directory_name = _current_export_dir
+    return os.path.join(root_directory, _tf_export_root, sim_directory_name)
 
 def cartesian_from_spherical(sphere_vec):
     """Given a vector in spherical coords (with angles in radians), return the cartesian equivalent.
