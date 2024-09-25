@@ -51,6 +51,14 @@ if cfg.color_code_daughter_cells:
 lineage_unlabeled_color: tf.fVector3 = tfu.gray
 lineage_labeled_color: tf.fVector3 = tfu.red
 yolk_unlabeled_color: tf.fVector3 = tfu.gray
+lineage_tracing_bond_color: tf.fVector3 = tfu.gray
+
+# Bond color actually set at time of bond creation, but at least for now is fixed at start of sim.
+# So just check the config once at the start. Set only for lineage tracing, else allow to default:
+lineage_tracing_patterns = [cfg.PaintPattern.ORIGINAL_TIER, cfg.PaintPattern.VERTICAL_STRIPE]
+bond_color: None | tf.fVector3 = None
+if cfg.paint_pattern in lineage_tracing_patterns:
+    bond_color = lineage_tracing_bond_color
 
 def is_undivided(p: tf.ParticleHandle) -> bool:
     """Determine whether particle is undivided, based on its CELL radius"""

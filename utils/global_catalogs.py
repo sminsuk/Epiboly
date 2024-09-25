@@ -61,11 +61,17 @@ bonds_by_id: dict[int, BondData] = {}
 angles_by_id: dict[int, int] = {}
 particles_by_id: dict[int, ParticleData] = {}
 
-def create_bond(potential: tf.Potential, k: float, p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> tf.BondHandle:
+def create_bond(potential: tf.Potential,
+                k: float,
+                p1: tf.ParticleHandle,
+                p2: tf.ParticleHandle,
+                color: tf.fVector3 = None) -> tf.BondHandle:
     """Create the bond, and store k for future retrieval, because the value in the potential isn't accessible"""
     handle: tf.BondHandle = tf.Bond.create(potential, p1, p2)
     bond_values: BondData = {"k": k}
     bonds_by_id[handle.id] = bond_values
+    if color:
+        handle.style.color = color
     return handle
 
 def get_spring_constant(bhandle: tf.BondHandle) -> float:
