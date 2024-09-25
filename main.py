@@ -155,6 +155,11 @@ def main():
                     # do any final graphing and movie making and THEN exit. The main thing is to get out of the loop.
                     break
                 tf.step()
+                
+                # Batch jobs buffer until the end of the sim before flushing.
+                # Nice to be able to check in on it during the run.
+                sys.stdout.flush()
+                sys.stderr.flush()
     
         def recoil_test(remodel_bonds: bool, duration: float) -> None:
             """Let the system equilibrate (no external force), with or without bond remodeling
@@ -243,8 +248,10 @@ def main():
 if cfg.batch_execute:
     output_path: str = tfu.export_path()
     print(f"Exporting data to {output_path}")
+    sys.stdout.flush()
     output_filename: str = "stdout.txt"
     with open(os.path.join(output_path, output_filename), "w") as output_file:
+        # Redirect does slow things down a bit. Could disable if need the speed.
         sys.stdout = output_file
         sys.stderr = output_file
         main()
