@@ -22,6 +22,14 @@ cumulative_edge_divisions: int = 0
 # Are we in the main sim or in the recoil experiment?
 recoil_experiment_in_progress: bool = False
 
+# Timestep, and leading edge mean phi, when cell division terminated.
+# Plot module needs to know them in order to mark them on plots.
+# phi value is known in advance and set by cell division module when it is initialized.
+# timestep value isn't known until phi threshold is crossed, and cell division module can't set it because
+# it isn't tracking timesteps; so plot module does that (by testing epiboly progress against phi value).
+cell_division_cessation_timestep: int = 0
+cell_division_cessation_phi: float = 0.0
+
 # Cell radius is distinct from PARTICLE radius. It represents the extent of the cell, an average distance
 # from the center of mass, to the edge of the cell. Particles only represent the point center of mass, and their
 # radii are mainly for visualization (though the TF neighbor search also uses them, to define the search space).

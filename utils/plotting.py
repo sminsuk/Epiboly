@@ -42,6 +42,8 @@ _margin_count: list[int] = []
 _margin_cum_in: list[int] = []
 _margin_cum_out: list[int] = []
 _margin_cum_divide: list[int] = []
+_median_tension_leading_edge: list[float] = []
+_median_tension_all: list[float] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
@@ -402,6 +404,75 @@ def _show_tension_by_cell_size(end: bool) -> None:
                        ylim=(-0.01, 0.10),
                        axhline=0,  # compression/tension boundary
                        end=end)
+
+def _show_avg_tensions_v_microtime() -> None:
+    """Show tension on a much finer timescale; median tension of all cells, and of leading edge cells
+    
+    For now, plot both vs. time and vs. leading edge phi (epiboly progress), to compare how they look.
+    If it works out, switch additional other plots over to plotting v. phi, to avoid the axis distortion
+    as the sim slows down, especially when cell division is turned off.
+    """
+    # Test out how this looks vs. time as opposed to vs. leading edge phi
+    tensions_v_time_fig: Figure
+    tensions_v_time_ax: Axes
+    tensions_v_phi_fig: Figure
+    tensions_v_phi_ax: Axes
+    
+    tensions_v_time_fig, tensions_v_time_ax = plt.subplots()
+    tensions_v_phi_fig, tensions_v_phi_ax = plt.subplots()
+    
+    if epu.cell_division_cessation_phi > 0:
+        # cell division is enabled, and we know when it will cease, even if it hasn't yet
+        tensions_v_phi_ax.axvline(x=epu.cell_division_cessation_phi, linestyle=":", color="k", linewidth=0.5)
+    if epu.cell_division_cessation_timestep > 0:
+        # cell division is enabled and has already ceased
+        tensions_v_time_ax.axvline(x=epu.cell_division_cessation_timestep, linestyle=":", color="k", linewidth=0.5)
+    
+    # Time axis
+    tensions_v_time_ax.set_ylabel("Median particle tension")
+    tensions_v_time_ax.set_ylim(-0.01, 0.2)
+    
+    # Phi axis
+    tensions_v_phi_ax.set_ylabel("Median particle tension")
+    tensions_v_phi_ax.set_ylim(-0.01, 0.2)
+    tensions_v_phi_ax.set_xlabel(r"Leading edge  $\bar{\phi}$  (radians)")
+    tensions_v_phi_ax.set_xlim(np.pi * 7/16, np.pi)
+    tensions_v_phi_ax.set_xticks([np.pi / 2, np.pi * 5/8, np.pi * 3/4, np.pi * 7/8, np.pi],
+                                 labels=["π/2", "", "3π/4", "", "π"])
+
+    # calculate tensions
+    leading_edge_cells: list = []
+    leading_edge_cells.extend(g.LeadingEdge.items())
+    all_cells: list = []
+    all_cells.extend(g.LeadingEdge.items())
+    all_cells.extend(g.Little.items())
+
+    leading_edge_tensions: list[float] = [epu.tension(phandle) for phandle in leading_edge_cells]
+    all_tensions: list[float] = [epu.tension(phandle) for phandle in all_cells]
+    leading_edge_tension: float = np.median(leading_edge_tensions).item()
+    all_tension: float = np.median(all_tensions).item()
+    _median_tension_leading_edge.append(leading_edge_tension)
+    _median_tension_all.append(all_tension)
+
+    # Plot
+    tensions_v_time_ax.plot(_timesteps, _median_tension_leading_edge, ":b", label="Leading edge cells")
+    tensions_v_time_ax.plot(_timesteps, _median_tension_all, "-b", label="All cells")
+    tensions_v_time_ax.legend()
+    tensions_v_phi_ax.plot(_leading_edge_phi, _median_tension_leading_edge, ":b", label="Leading edge cells")
+    tensions_v_phi_ax.plot(_leading_edge_phi, _median_tension_all, "-b", label="All cells")
+    tensions_v_phi_ax.legend()
+    
+    # Save
+    filename: str = "Median tension v. time"
+    filepath: str = os.path.join(_plot_path, filename + ".png")
+    tensions_v_time_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+    plt.close(tensions_v_time_fig)
+    
+    filename = "Median tension v. leading edge progress (phi)"
+    filepath = os.path.join(_plot_path, filename + ".png")
+    tensions_v_phi_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+    plt.close(tensions_v_phi_fig)
+
 
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
@@ -819,7 +890,7 @@ def _show_progress_graph() -> None:
 
     # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
     # monitor the plot as it updates.
-    filename: str = f"Leading edge phi"
+    filename: str = "Leading edge phi"
     filepath: str = os.path.join(_plot_path, filename + ".png")
     progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
     plt.close(progress_fig)
@@ -837,6 +908,13 @@ def show_graphs(end: bool = False) -> None:
     if not _plot_path:
         # if init hasn't been run yet, run it
         _init_graphs()
+        
+    if cfg.cell_division_enabled and epu.cell_division_cessation_timestep == 0:
+        # We haven't yet detected threshold crossing, so check it.
+        if epu.leading_edge_mean_phi() > epu.cell_division_cessation_phi:
+            # We've detected that phi has crossed the threshold and cell division has ceased,
+            # so record when that happened.
+            epu.cell_division_cessation_timestep = _timestep
 
     # Don't need to add to the graphs every timestep.
     simtime_interval: float = 4
@@ -849,6 +927,7 @@ def show_graphs(end: bool = False) -> None:
         _show_forces()
         _show_cylindrical_straightness()
         _show_margin_population()
+        _show_avg_tensions_v_microtime()
 
     plot_interval: int = cfg.plotting_interval_timesteps
     
@@ -903,6 +982,8 @@ def get_state() -> dict:
             "margin_cum_in": _margin_cum_in,
             "margin_cum_out": _margin_cum_out,
             "margin_cum_divide": _margin_cum_divide,
+            "median_tension_leading_edge": _median_tension_leading_edge,
+            "median_tension_all": _median_tension_all,
             "timesteps": _timesteps,
             
             "tension_bin_axis_history": _tension_bin_axis_history,
@@ -940,6 +1021,7 @@ def set_state(d: dict) -> None:
     global _straightness_cyl
     global _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
+    global _median_tension_leading_edge, _median_tension_all
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
     global _divided_tensions_bin_axis_history, _divided_tensions_history, _divided_tensions_timestep_history
@@ -959,6 +1041,8 @@ def set_state(d: dict) -> None:
     _margin_cum_in = d["margin_cum_in"]
     _margin_cum_out = d["margin_cum_out"]
     _margin_cum_divide = d["margin_cum_divide"]
+    _median_tension_leading_edge = d["median_tension_leading_edge"]
+    _median_tension_all = d["median_tension_all"]
     _timesteps = d["timesteps"]
     
     _tension_bin_axis_history = d["tension_bin_axis_history"]

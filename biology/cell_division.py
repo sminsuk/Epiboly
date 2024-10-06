@@ -52,6 +52,7 @@ def initialize_division_rate_tracking_by_evl_area() -> None:
     evl_total_height_increase: float = cell_division_cessation_height - evl_initial_height
 
     _cell_division_cessation_phi = epu.phi_for_epiboly(epiboly_percentage=cfg.cell_division_cessation_percentage)
+    epu.cell_division_cessation_phi = _cell_division_cessation_phi
 
     print(f"Requested {cfg.total_epiboly_divisions} divisions,"
           f" by {cfg.cell_division_cessation_percentage}% epiboly, then stop")
