@@ -474,6 +474,21 @@ def initialize_paint_pattern() -> None:
                 if 0 < epu.embryo_theta(p) < math.pi / 6:
                     gc.set_cell_lineage_tracer(p)
             
+        case cfg.PaintPattern.PATCH:
+            front_theta: float = -math.pi / 2
+            edge_phi: float = epu.leading_edge_max_phi()
+            patch_width: float = math.radians(cfg.patch_width)
+            patch_height: float = math.radians(cfg.patch_height)
+            min_phi_dist: float = math.radians(cfg.patch_margin_gap)
+            max_phi_dist: float = min_phi_dist + patch_height
+            max_theta_dist: float = patch_width / 2
+            for p in all_particles:
+                theta, phi = epu.embryo_coords(p)
+                phi_distance: float = edge_phi - phi
+                theta_distance: float = abs(front_theta - theta)
+                if theta_distance < max_theta_dist and min_phi_dist <= phi_distance < max_phi_dist:
+                    gc.set_cell_lineage_tracer(p)
+
     epu.update_all_particle_colors()
 
 def initialize_embryo() -> None:

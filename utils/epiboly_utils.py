@@ -63,7 +63,9 @@ lineage_tracing_bond_color: tf.fVector3 = tfu.gray
 
 # Bond color actually set at time of bond creation, but at least for now is fixed at start of sim.
 # So just check the config once at the start. Set only for lineage tracing, else allow to default:
-lineage_tracing_patterns = [cfg.PaintPattern.ORIGINAL_TIER, cfg.PaintPattern.VERTICAL_STRIPE]
+lineage_tracing_patterns = [cfg.PaintPattern.ORIGINAL_TIER,
+                            cfg.PaintPattern.VERTICAL_STRIPE,
+                            cfg.PaintPattern.PATCH]
 bond_color: None | tf.fVector3 = None
 if cfg.paint_pattern in lineage_tracing_patterns:
     bond_color = lineage_tracing_bond_color
@@ -105,7 +107,7 @@ def update_color(p: tf.ParticleHandle) -> None:
             elif p.type() == g.Little:
                 p.style.color = (evl_undivided_color if is_undivided(p)
                                  else evl_divided_color)
-        case cfg.PaintPattern.ORIGINAL_TIER | cfg.PaintPattern.VERTICAL_STRIPE:
+        case cfg.PaintPattern.ORIGINAL_TIER | cfg.PaintPattern.VERTICAL_STRIPE | cfg.PaintPattern.PATCH:
             # lineage tracing patterns. Depends on the lineage tracer having been set at initialization
             if p.type() == g.Big:
                 p.style.color = yolk_unlabeled_color
