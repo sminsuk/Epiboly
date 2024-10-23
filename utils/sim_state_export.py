@@ -92,6 +92,30 @@ def import_additional_state(import_path: str) -> None:
     cfg.set_state(import_dict["config"])
     gc.set_state(import_dict["catalogs"])
     
+def find_exported_state_files() -> tuple[os.DirEntry | None, os.DirEntry]:
+    """Return latest TF state file, and latest extra_state file
+    
+    If the path is to exported data from a sim that already finished, there will no longer be a TF state
+    file (so return None for that), but there should still be an extra_state file, so return that.
+    """
+    saved_state_path: str = os.path.join(tfu.export_path(), sim_state_subdirectory())
+    
+    # Find the latest saved state: two files
+    state_entries: list[os.DirEntry] = []
+    extra_state_entries: list[os.DirEntry] = []
+    state_entry: os.DirEntry
+    with os.scandir(saved_state_path) as state_entries_it:
+        for state_entry in state_entries_it:
+            if state_entry.name.endswith("_state.json"):
+                state_entries.append(state_entry)
+            elif state_entry.name.endswith("_extra.json"):
+                extra_state_entries.append(state_entry)
+
+    latest_state_entry: os.DirEntry = max(state_entries, key=lambda entry: entry.stat().st_mtime_ns, default=None)
+    latest_extra_state_entry: os.DirEntry = max(extra_state_entries, key=lambda entry: entry.stat().st_mtime_ns)
+    
+    return latest_state_entry, latest_extra_state_entry
+    
 def _export_state(filename: str) -> None:
     path: str = os.path.join(_state_export_path, filename)
     print(f"Saving complete simulation state to '{path}'")

@@ -42,22 +42,9 @@ def init_from_import() -> None:
     vx.init_screenshots()
     state.init_export()
     
-    saved_state_path: str = os.path.join(tfu.export_path(), state.sim_state_subdirectory())
-    screenshots_path: str = os.path.join(tfu.export_path(), vx.screenshots_subdirectory())
-    
-    # Find the latest saved state: two files
-    state_entries: list[os.DirEntry] = []
-    extra_state_entries: list[os.DirEntry] = []
-    state_entry: os.DirEntry
-    with os.scandir(saved_state_path) as state_entries_it:
-        for state_entry in state_entries_it:
-            if state_entry.name.endswith("_state.json"):
-                state_entries.append(state_entry)
-            elif state_entry.name.endswith("_extra.json"):
-                extra_state_entries.append(state_entry)
-
-    latest_state_entry: os.DirEntry = max(state_entries, key=lambda entry: entry.stat().st_mtime_ns)
-    latest_extra_state_entry: os.DirEntry = max(extra_state_entries, key=lambda entry: entry.stat().st_mtime_ns)
+    latest_state_entry: os.DirEntry
+    latest_extra_state_entry: os.DirEntry
+    latest_state_entry, latest_extra_state_entry = state.find_exported_state_files()
     
     tf.init(load_file=latest_state_entry.path,
             dim=_dim,
@@ -78,6 +65,7 @@ def init_from_import() -> None:
     # can't be done until down here, after state.import_additional_state()
     logging.init_logging()
     
+    screenshots_path: str = os.path.join(tfu.export_path(), vx.screenshots_subdirectory())
     if vx.screenshot_export_enabled():
         # Delete screenshots that were created *after* that last state was saved, since we'll be regenerating
         # them and we don't want the old ones to end up in the movie.
