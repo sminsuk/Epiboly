@@ -93,6 +93,28 @@ def _init_graphs() -> None:
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
+def _add_time_axis(axes: Axes) -> None:
+    """Use leading edge mean phi (i.e. embryonic stage) as a proxy for time (when possible)
+    
+    Add standard x-axis labeling for epiboly progress (leading edge mean phi) as a proxy for time
+    (in other words, essentially plotting vs. embryonic stage). Will be used in multiple plots.
+    """
+    if cfg.run_balanced_force_control:
+        # We cannot plot vs. epiboly progress in this case, because EVL will not advance. So will
+        # plot vs. time. Time axis needs no special labeling
+        axes.set_xlabel("Timesteps")
+        return
+    
+    axes.set_xlabel(r"Leading edge  $\bar{\phi}$  (radians)")
+    axes.set_xlim(np.pi * 7 / 16, np.pi)
+    axes.set_xticks([np.pi / 2, np.pi * 5/8, np.pi * 3/4, np.pi * 7/8, np.pi],
+                    labels=["π/2", "", "3π/4", "", "π"])
+    
+def _plot_data_v_time(axes: Axes, y: list, format_str: str, label: str = None) -> None:
+    """Plot the given y data vs phi (when possible), else vs time"""
+    x: list = _timesteps if cfg.run_balanced_force_control else _leading_edge_phi
+    axes.plot(x, y, format_str, label=label)
+
 def _expand_limits_if_needed(limits: tuple[float, float], data: list) -> tuple[float, float]:
     """Test whether data exceeds the plotting limits, and expand the limits to accommodate. But never shrink them.
     
@@ -406,39 +428,28 @@ def _show_tension_by_cell_size(end: bool) -> None:
                        end=end)
 
 def _show_avg_tensions_v_microtime() -> None:
-    """Show tension on a much finer timescale; median tension of all cells, and of leading edge cells
+    """Show tension on a much finer timescale; median tension of all cells, and of leading edge cells"""
+    tensions_fig: Figure
+    tensions_ax: Axes
+    tensions_fig, tensions_ax = plt.subplots()
     
-    For now, plot both vs. time and vs. leading edge phi (epiboly progress), to compare how they look.
-    If it works out, switch additional other plots over to plotting v. phi, to avoid the axis distortion
-    as the sim slows down, especially when cell division is turned off.
-    """
-    # Test out how this looks vs. time as opposed to vs. leading edge phi
-    tensions_v_time_fig: Figure
-    tensions_v_time_ax: Axes
-    tensions_v_phi_fig: Figure
-    tensions_v_phi_ax: Axes
+    if cfg.run_balanced_force_control:
+        # Plotting vs. time; display axvline for cessation time once we know it.
+        # (However, note that it should never happen, if force parameters are correct, since
+        # EVL should not expand, and should never reach the cessation position. And of course,
+        # there should be little if any cell division, either.)
+        if epu.cell_division_cessation_timestep > 0:
+            # cell division is enabled and has already ceased, at that time
+            tensions_ax.axvline(x=epu.cell_division_cessation_timestep, linestyle=":", color="k", linewidth=0.5)
+    else:
+        # Plotting vs. epiboly progress (phi); we know by definition, at what phi that will happen
+        if epu.cell_division_cessation_phi > 0:
+            # cell division is enabled, and that is where it will or did cease
+            tensions_ax.axvline(x=epu.cell_division_cessation_phi, linestyle=":", color="k", linewidth=0.5)
     
-    tensions_v_time_fig, tensions_v_time_ax = plt.subplots()
-    tensions_v_phi_fig, tensions_v_phi_ax = plt.subplots()
-    
-    if epu.cell_division_cessation_phi > 0:
-        # cell division is enabled, and we know when it will cease, even if it hasn't yet
-        tensions_v_phi_ax.axvline(x=epu.cell_division_cessation_phi, linestyle=":", color="k", linewidth=0.5)
-    if epu.cell_division_cessation_timestep > 0:
-        # cell division is enabled and has already ceased
-        tensions_v_time_ax.axvline(x=epu.cell_division_cessation_timestep, linestyle=":", color="k", linewidth=0.5)
-    
-    # Time axis
-    tensions_v_time_ax.set_ylabel("Median particle tension")
-    tensions_v_time_ax.set_ylim(-0.01, 0.2)
-    
-    # Phi axis
-    tensions_v_phi_ax.set_ylabel("Median particle tension")
-    tensions_v_phi_ax.set_ylim(-0.01, 0.2)
-    tensions_v_phi_ax.set_xlabel(r"Leading edge  $\bar{\phi}$  (radians)")
-    tensions_v_phi_ax.set_xlim(np.pi * 7/16, np.pi)
-    tensions_v_phi_ax.set_xticks([np.pi / 2, np.pi * 5/8, np.pi * 3/4, np.pi * 7/8, np.pi],
-                                 labels=["π/2", "", "3π/4", "", "π"])
+    tensions_ax.set_ylabel("Median particle tension")
+    tensions_ax.set_ylim(-0.01, 0.2)
+    _add_time_axis(tensions_ax)
 
     # calculate tensions
     leading_edge_cells: list = []
@@ -455,23 +466,16 @@ def _show_avg_tensions_v_microtime() -> None:
     _median_tension_all.append(all_tension)
 
     # Plot
-    tensions_v_time_ax.plot(_timesteps, _median_tension_leading_edge, ":b", label="Leading edge cells")
-    tensions_v_time_ax.plot(_timesteps, _median_tension_all, "-b", label="All cells")
-    tensions_v_time_ax.legend()
-    tensions_v_phi_ax.plot(_leading_edge_phi, _median_tension_leading_edge, ":b", label="Leading edge cells")
-    tensions_v_phi_ax.plot(_leading_edge_phi, _median_tension_all, "-b", label="All cells")
-    tensions_v_phi_ax.legend()
+    _plot_data_v_time(tensions_ax, _median_tension_leading_edge, ":b", label="Leading edge cells")
+    _plot_data_v_time(tensions_ax, _median_tension_all, "-b", label="All cells")
+    tensions_ax.legend()
     
     # Save
-    filename: str = "Median tension v. time"
+    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    filename: str = f"Median tension v. {time_axis}"
     filepath: str = os.path.join(_plot_path, filename + ".png")
-    tensions_v_time_fig.savefig(filepath, transparent=False, bbox_inches="tight")
-    plt.close(tensions_v_time_fig)
-    
-    filename = "Median tension v. leading edge progress (phi)"
-    filepath = os.path.join(_plot_path, filename + ".png")
-    tensions_v_phi_fig.savefig(filepath, transparent=False, bbox_inches="tight")
-    plt.close(tensions_v_phi_fig)
+    tensions_fig.savefig(filepath, transparent=False, bbox_inches="tight")
+    plt.close(tensions_fig)
 
 
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
@@ -724,6 +728,7 @@ def _show_cylindrical_straightness() -> None:
     
     cyl_straightness_fig, cyl_straightness_ax = plt.subplots()
     cyl_straightness_ax.set_ylabel("Straightness Index (cylindrical)")
+    _add_time_axis(cyl_straightness_ax)
     
     ordered_particles: list[tf.ParticleHandle] = epu.get_leading_edge_ordered_particles()
     
@@ -747,11 +752,10 @@ def _show_cylindrical_straightness() -> None:
     straightness_cyl: float = beeline_path_length / path_length
     _straightness_cyl.append(straightness_cyl)
     
-    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
     # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl)
     cyl_straightness_ax.set_ylim(limits)
-    cyl_straightness_ax.plot(_timesteps, _straightness_cyl, ".-b")
+    _plot_data_v_time(cyl_straightness_ax, _straightness_cyl, ".-b")
     
     # save
     straightness_path: str = os.path.join(_plot_path, "Cylindrical Straightness Index.png")
@@ -769,18 +773,17 @@ def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
     
     margin_lopsided_fig, margin_lopsided_ax = plt.subplots()
     margin_lopsided_ax.set_ylabel("Angle of margin axis")
+    _add_time_axis(margin_lopsided_ax)
     
     _, _, phi = tfu.spherical_from_cartesian(normal_vec)
     _margin_lopsidedness.append(phi)
 
-    # ToDo: do this vs phi (or better, %ep) so that it's easier to see "when" it gets straight. Epiboly position = time!
-    #  (Though in the lopsided case, the margin position is vague; but mean phi should still work?)
     # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
     margin_lopsided_ax.set_ylim(-0.002 * np.pi, 0.102 * np.pi)
     margin_lopsided_ax.set_yticks(np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
                                   labels=["0", r"0.05$\pi$", r"0.10$\pi$"])
     margin_lopsided_ax.set_yticks(np.arange(0, 0.102 * np.pi, 0.01 * np.pi), minor=True)
-    margin_lopsided_ax.plot(_timesteps, _margin_lopsidedness, ".-b")
+    _plot_data_v_time(margin_lopsided_ax, _margin_lopsidedness, ".-b")
     
     # save
     margin_lopsided_path: str = os.path.join(_plot_path, "Margin lopsidedness.png")
@@ -794,6 +797,7 @@ def _show_bond_counts() -> None:
     
     bond_count_fig, bond_count_ax = plt.subplots()
     bond_count_ax.set_ylabel("Mean bonded neighbors per particle")
+    _add_time_axis(bond_count_ax)
 
     phandle: tf.ParticleHandle
     
@@ -810,7 +814,7 @@ def _show_bond_counts() -> None:
     _bonds_per_particle.append(mean_bonds_per_particle)
     
     # plot
-    bond_count_ax.plot(_timesteps, _bonds_per_particle, "b.")
+    _plot_data_v_time(bond_count_ax, _bonds_per_particle, "b.")
     
     # save
     bond_count_path: str = os.path.join(_plot_path, "Mean bond count per particle.png")
@@ -818,13 +822,12 @@ def _show_bond_counts() -> None:
     plt.close(bond_count_fig)
 
 def _show_margin_population() -> None:
-    # ToDo: this needs to be with respect to phi, not time, because especially for non-cell-division,
-    #  the simulation slows down which distorts the curve.
     margin_fig: Figure
     margin_ax: Axes
     
     margin_fig, margin_ax = plt.subplots()
     margin_ax.set_ylabel("Number of margin cells")
+    _add_time_axis(margin_ax)
     
     _margin_count.append(len(g.LeadingEdge.items()))
     _margin_cum_in.append(epu.cumulative_to_edge)
@@ -833,7 +836,7 @@ def _show_margin_population() -> None:
         _margin_cum_divide.append(epu.cumulative_edge_divisions)
     
     # plot just the total
-    margin_ax.plot(_timesteps, _margin_count, ".b", label="Total margin cell count")
+    _plot_data_v_time(margin_ax, _margin_count, ".b", label="Total margin cell count")
     maximum: int = max(_margin_count)
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, maximum + 2), data=_margin_count)
     margin_ax.set_ylim(limits)
@@ -843,11 +846,11 @@ def _show_margin_population() -> None:
     margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")
     
     # add additional lines to the plot and resave under a different name
-    margin_ax.plot(_timesteps, _margin_cum_in, "--b", label="Cumulative in")
-    margin_ax.plot(_timesteps, _margin_cum_out, ":b", label="Cumulative out")
+    _plot_data_v_time(margin_ax, _margin_cum_in, "--b", label="Cumulative in")
+    _plot_data_v_time(margin_ax, _margin_cum_out, ":b", label="Cumulative out")
     maximum = max(maximum, max(_margin_cum_in), max(_margin_cum_out))
     if cfg.cell_division_enabled:
-        margin_ax.plot(_timesteps, _margin_cum_divide, "-b", label="Cumulative divisions")
+        _plot_data_v_time(margin_ax, _margin_cum_divide, "-b", label="Cumulative divisions")
         maximum = max(maximum, max(_margin_cum_divide))
     limits = _expand_limits_if_needed(limits=(-2, maximum + 2), data=_margin_count)
     margin_ax.set_ylim(limits)
@@ -867,11 +870,12 @@ def _show_forces() -> None:
 
     forces_fig, forces_ax = plt.subplots()
     forces_ax.set_ylabel("Forces")
+    _add_time_axis(forces_ax)
 
     _forces.append(mt.current_total_force())
     
     # plot
-    forces_ax.plot(_timesteps, _forces, "b.")
+    _plot_data_v_time(forces_ax, _forces, "b.")
     
     # save
     forces_path: str = os.path.join(_plot_path, "Forces on leading edge.png")
@@ -884,6 +888,7 @@ def _show_progress_graph() -> None:
     
     progress_fig, progress_ax = plt.subplots()
     progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
+    progress_ax.set_xlabel("Timesteps")
 
     # Plot
     progress_ax.plot(_timesteps, _leading_edge_phi, "b.")
@@ -920,8 +925,10 @@ def show_graphs(end: bool = False) -> None:
     simtime_interval: float = 4
     timestep_interval: int = round(simtime_interval / cfg.dt)
     if _timestep % timestep_interval == 0 or end:
-        _timesteps.append(_timestep)    # used by all the following plots
-        _leading_edge_phi.append(round(epu.leading_edge_mean_phi(), 4))     # Also used by multiple plots
+        # alternative measures of time, available to all plots:
+        _timesteps.append(_timestep)
+        _leading_edge_phi.append(round(epu.leading_edge_mean_phi(), 4))
+        
         _show_progress_graph()
         _show_bond_counts()
         _show_forces()
