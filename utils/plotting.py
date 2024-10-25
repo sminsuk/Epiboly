@@ -854,6 +854,7 @@ def _show_margin_population() -> None:
         maximum = max(maximum, max(_margin_cum_divide))
     limits = _expand_limits_if_needed(limits=(-2, maximum + 2), data=_margin_count)
     margin_ax.set_ylim(limits)
+    margin_ax.set_ylabel("")    # Remove and show legend instead
     margin_ax.legend(loc="center right")
 
     margin_path = os.path.join(_plot_path, "Margin cell rearrangement, plus cumulative.png")
