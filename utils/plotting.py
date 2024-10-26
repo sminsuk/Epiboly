@@ -108,12 +108,41 @@ def _add_time_axis(axes: Axes) -> None:
     axes.set_xlabel(r"Leading edge  $\bar{\phi}$  (radians)")
     axes.set_xlim(np.pi * 7 / 16, np.pi)
     axes.set_xticks([np.pi / 2, np.pi * 5/8, np.pi * 3/4, np.pi * 7/8, np.pi],
-                    labels=["π/2", "", "3π/4", "", "π"])
+                    labels=[r"$\pi$/2", "", r"3$\pi$/4", "", r"$\pi$"])
     
 def _plot_data_v_time(axes: Axes, y: list, format_str: str, label: str = None) -> None:
     """Plot the given y data vs phi (when possible), else vs time"""
     x: list = _timesteps if cfg.run_balanced_force_control else _leading_edge_phi
     axes.plot(x, y, format_str, label=label)
+
+def _plot_datasets_v_time(values: list[float],
+                          limits: tuple[float, float],
+                          ylabel: str,
+                          filename: str,
+                          yticks: dict = None) -> None:
+    """Plot one or more datasets on a single set of Figure/Axes
+
+    :param yticks: Currently using this for a one-off. If I start using this more generally, then...
+        ToDo: define a proper typed dict and do parameter validation
+    """
+    fig: Figure
+    ax: Axes
+    
+    fig, ax = plt.subplots()
+    ax.set_ylabel(ylabel)
+    _add_time_axis(ax)
+    
+    ax.set_ylim(limits)
+    if yticks:
+        # For now, assuming yticks dict has all the correct content and format, since I'm only passing this once.
+        ax.set_yticks(yticks["major_range"], labels=yticks["labels"])
+        ax.set_yticks(yticks["minor_range"], minor=True)
+    _plot_data_v_time(ax, values, ".-b")
+    
+    # save
+    savepath: str = os.path.join(_plot_path, filename + ".png")
+    fig.savefig(savepath, transparent=False, bbox_inches="tight")
+    plt.close(fig)
 
 def _expand_limits_if_needed(limits: tuple[float, float], data: list) -> tuple[float, float]:
     """Test whether data exceeds the plotting limits, and expand the limits to accommodate. But never shrink them.
@@ -212,7 +241,7 @@ def _plot_data_history(values_history: list[list[float]],
     if axvline is not None:
         binned_values_ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
     binned_values_ax.set_xlim(0, np.pi)
-    binned_values_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", "π/2", "π"])
+    binned_values_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", r"$\pi$/2", r"$\pi$"])
     if ylabel is not None:
         binned_values_ax.set_ylabel(ylabel)
     if axhline is not None:
@@ -692,9 +721,9 @@ def _show_cylindrical_straightness() -> None:
     map of simply phi vs. theta. In that configuration, the beeline path is simply a horizontal line across the
     field, connecting a particle to itself (it is on both edges). The length of the beeline is always simply
     2 * pi, regardless of which particle is selected as a starting point and regardless of its position on the
-    sphere. This removes any ambiguity about which path is the beeline, and any anomalies that the other version
-    encounters near the pole; and there is no longer any possibility of getting a result greater than 1
-    (actual path length is always 2 * pi or greater). This should solve ALL the problems.
+    sphere. This removes any ambiguity about which path is the beeline, and any anomalies that a simple spherical
+    approach encounters near the pole; and there is no longer any possibility of getting a result greater than 1
+    (actual path length is always 2 * pi or greater). This solved ALL the problems I was having.
     
     Note that the path distance used between two particles is now not the actual distance between those particles,
     nor the shortest surface-bound path between them. It is the distance on the flattened field:
@@ -723,13 +752,6 @@ def _show_cylindrical_straightness() -> None:
             d_theta = 2 * np.pi - d_theta
         return np.sqrt(d_phi ** 2 + d_theta ** 2)
         
-    cyl_straightness_fig: Figure
-    cyl_straightness_ax: Axes
-    
-    cyl_straightness_fig, cyl_straightness_ax = plt.subplots()
-    cyl_straightness_ax.set_ylabel("Straightness Index (cylindrical)")
-    _add_time_axis(cyl_straightness_ax)
-    
     ordered_particles: list[tf.ParticleHandle] = epu.get_leading_edge_ordered_particles()
     
     # Find the appropriate axis for the leading edge, in case it's lopsided
@@ -754,13 +776,10 @@ def _show_cylindrical_straightness() -> None:
     
     # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl)
-    cyl_straightness_ax.set_ylim(limits)
-    _plot_data_v_time(cyl_straightness_ax, _straightness_cyl, ".-b")
-    
-    # save
-    straightness_path: str = os.path.join(_plot_path, "Cylindrical Straightness Index.png")
-    cyl_straightness_fig.savefig(straightness_path, transparent=False, bbox_inches="tight")
-    plt.close(cyl_straightness_fig)
+    _plot_datasets_v_time(_straightness_cyl,
+                          limits,
+                          ylabel="Straightness Index",
+                          filename="Straightness Index")
 
 def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
     """Plot the angle of the margin axis - i.e., phi of normal_vec generated by the straightness calculation
@@ -768,28 +787,19 @@ def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
     Measure lopsided / off-center / non-synchronous epiboly.
     This should be close to 0 for the non-lopsided case, increasing toward max of pi/2 (but should never get that big).
     """
-    margin_lopsided_fig: Figure
-    margin_lopsided_ax: Axes
-    
-    margin_lopsided_fig, margin_lopsided_ax = plt.subplots()
-    margin_lopsided_ax.set_ylabel("Angle of margin axis")
-    _add_time_axis(margin_lopsided_ax)
-    
     _, _, phi = tfu.spherical_from_cartesian(normal_vec)
     _margin_lopsidedness.append(phi)
 
     # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
-    margin_lopsided_ax.set_ylim(-0.002 * np.pi, 0.102 * np.pi)
-    margin_lopsided_ax.set_yticks(np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
-                                  labels=["0", r"0.05$\pi$", r"0.10$\pi$"])
-    margin_lopsided_ax.set_yticks(np.arange(0, 0.102 * np.pi, 0.01 * np.pi), minor=True)
-    _plot_data_v_time(margin_lopsided_ax, _margin_lopsidedness, ".-b")
+    yticks = {"major_range": np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
+              "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
+              "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
     
-    # save
-    margin_lopsided_path: str = os.path.join(_plot_path, "Margin lopsidedness.png")
-    margin_lopsided_fig.savefig(margin_lopsided_path, transparent=False, bbox_inches="tight")
-    
-    plt.close(margin_lopsided_fig)
+    _plot_datasets_v_time(_margin_lopsidedness,
+                          limits=(-0.002 * np.pi, 0.102 * np.pi),
+                          ylabel="Angle of margin axis",
+                          filename="Margin lopsidedness",
+                          yticks=yticks)
 
 def _show_bond_counts() -> None:
     bond_count_fig: Figure
