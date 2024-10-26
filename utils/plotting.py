@@ -115,13 +115,17 @@ def _plot_data_v_time(axes: Axes, y: list, format_str: str, label: str = None) -
     x: list = _timesteps if cfg.run_balanced_force_control else _leading_edge_phi
     axes.plot(x, y, format_str, label=label)
 
-def _plot_datasets_v_time(values: list[float],
+def _plot_datasets_v_time(datasets: list[list[float]],
                           limits: tuple[float, float],
                           ylabel: str,
                           filename: str,
+                          plot_formats: str = ".-b",
                           yticks: dict = None) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
 
+    :param plot_formats: the format str for plotting. If a normal format string is passed, use it for all the plots
+        (they'll all be the same). If None is passed, then just use "-" and let matplotlib select the colors
+        (all different).
     :param yticks: Currently using this for a one-off. If I start using this more generally, then...
         ToDo: define a proper typed dict and do parameter validation
     """
@@ -137,7 +141,13 @@ def _plot_datasets_v_time(values: list[float],
         # For now, assuming yticks dict has all the correct content and format, since I'm only passing this once.
         ax.set_yticks(yticks["major_range"], labels=yticks["labels"])
         ax.set_yticks(yticks["minor_range"], minor=True)
-    _plot_data_v_time(ax, values, ".-b")
+        
+    dataset: list[float]
+    for dataset in datasets:
+        if plot_formats:
+            _plot_data_v_time(ax, dataset, plot_formats)
+        else:
+            _plot_data_v_time(ax, dataset, "-")
     
     # save
     savepath: str = os.path.join(_plot_path, filename + ".png")
@@ -776,7 +786,7 @@ def _show_cylindrical_straightness() -> None:
     
     # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl)
-    _plot_datasets_v_time(_straightness_cyl,
+    _plot_datasets_v_time([_straightness_cyl],
                           limits,
                           ylabel="Straightness Index",
                           filename="Straightness Index")
@@ -795,7 +805,7 @@ def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
               "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
               "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
     
-    _plot_datasets_v_time(_margin_lopsidedness,
+    _plot_datasets_v_time([_margin_lopsidedness],
                           limits=(-0.002 * np.pi, 0.102 * np.pi),
                           ylabel="Angle of margin axis",
                           filename="Margin lopsidedness",
