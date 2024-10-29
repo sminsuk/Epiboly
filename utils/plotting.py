@@ -20,6 +20,7 @@ from itertools import chain
 import numpy as np
 import os
 from statistics import fmean
+from typing import TypedDict
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -83,6 +84,11 @@ _timesteps: list[int] = []
 _timestep: int = 0
 _plot_path: str = ""
 
+class PlotData(TypedDict, total=False):
+    data: list[float]   # required
+    fmt: str            # not required
+    label: str          # not required
+
 def _init_graphs() -> None:
     """Initialize matplotlib and also a subdirectory in which to put the saved plots
     
@@ -115,17 +121,28 @@ def _plot_data_v_time(axes: Axes, y: list, format_str: str, label: str = None) -
     x: list = _timesteps if cfg.run_balanced_force_control else _leading_edge_phi
     axes.plot(x, y, format_str, label=label)
 
-def _plot_datasets_v_time(datasets: list[list[float]],
+def _plot_datasets_v_time(datadicts: list[PlotData],
                           limits: tuple[float, float],
                           ylabel: str,
                           filename: str,
                           plot_formats: str = ".-b",
+                          axvline: float = None,
                           yticks: dict = None) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
 
+    :param datadicts: one or more PlotData, each containing a dataset to plot, plus optional legend label and format
+        string. If format string is present, use it and ignore plot_formats parameter; if absent, use plot_formats.
+    :param limits: y-axis limits
+    :param ylabel: y-axis label
+    :param filename: for the saved image of the plot
     :param plot_formats: the format str for plotting. If a normal format string is passed, use it for all the plots
         (they'll all be the same). If None is passed, then just use "-" and let matplotlib select the colors
         (all different).
+    :param axvline: position of vertical line if one is needed. Note that, if done post-process, it should work
+        fine on a plot vs. phi as long as the mark is always in the same place (e.g., for cell division cessation,
+        phi just reflects initial edge position); but it won't work on a plot v. timesteps, because the position
+        will vary among the datasets. If necessary to display that, it would have to by a different means, like
+        a special marker on each line in the plot.
     :param yticks: Currently using this for a one-off. If I start using this more generally, then...
         ToDo: define a proper typed dict and do parameter validation
     """
@@ -135,6 +152,8 @@ def _plot_datasets_v_time(datasets: list[list[float]],
     fig, ax = plt.subplots()
     ax.set_ylabel(ylabel)
     _add_time_axis(ax)
+    if axvline is not None:
+        ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
     
     ax.set_ylim(limits)
     if yticks:
@@ -142,12 +161,17 @@ def _plot_datasets_v_time(datasets: list[list[float]],
         ax.set_yticks(yticks["major_range"], labels=yticks["labels"])
         ax.set_yticks(yticks["minor_range"], minor=True)
         
-    dataset: list[float]
-    for dataset in datasets:
-        if plot_formats:
-            _plot_data_v_time(ax, dataset, plot_formats)
-        else:
-            _plot_data_v_time(ax, dataset, "-")
+    data: list[float]
+    legend_needed: bool = False
+    for datadict in datadicts:
+        data: list[float] = datadict["data"]
+        plot_format: str = datadict["fmt"] if "fmt" in datadict else plot_formats if plot_formats else "-"
+        label: str = None if "label" not in datadict else datadict["label"]
+        if label:
+            legend_needed = True
+        _plot_data_v_time(ax, data, plot_format, label)
+    if legend_needed:
+        ax.legend()
     
     # save
     savepath: str = os.path.join(_plot_path, filename + ".png")
@@ -468,10 +492,7 @@ def _show_tension_by_cell_size(end: bool) -> None:
 
 def _show_avg_tensions_v_microtime() -> None:
     """Show tension on a much finer timescale; median tension of all cells, and of leading edge cells"""
-    tensions_fig: Figure
-    tensions_ax: Axes
-    tensions_fig, tensions_ax = plt.subplots()
-    
+    axvline: float | None = None
     if cfg.run_balanced_force_control:
         # Plotting vs. time; display axvline for cessation time once we know it.
         # (However, note that it should never happen, if force parameters are correct, since
@@ -479,16 +500,12 @@ def _show_avg_tensions_v_microtime() -> None:
         # there should be little if any cell division, either.)
         if epu.cell_division_cessation_timestep > 0:
             # cell division is enabled and has already ceased, at that time
-            tensions_ax.axvline(x=epu.cell_division_cessation_timestep, linestyle=":", color="k", linewidth=0.5)
+            axvline = epu.cell_division_cessation_timestep
     else:
         # Plotting vs. epiboly progress (phi); we know by definition, at what phi that will happen
         if epu.cell_division_cessation_phi > 0:
             # cell division is enabled, and that is where it will or did cease
-            tensions_ax.axvline(x=epu.cell_division_cessation_phi, linestyle=":", color="k", linewidth=0.5)
-    
-    tensions_ax.set_ylabel("Median particle tension")
-    tensions_ax.set_ylim(-0.01, 0.2)
-    _add_time_axis(tensions_ax)
+            axvline = epu.cell_division_cessation_phi
 
     # calculate tensions
     leading_edge_cells: list = []
@@ -505,17 +522,18 @@ def _show_avg_tensions_v_microtime() -> None:
     _median_tension_all.append(all_tension)
 
     # Plot
-    _plot_data_v_time(tensions_ax, _median_tension_leading_edge, ":b", label="Leading edge cells")
-    _plot_data_v_time(tensions_ax, _median_tension_all, "-b", label="All cells")
-    tensions_ax.legend()
-    
-    # Save
+    leading_edge_data: PlotData = {"data": _median_tension_leading_edge,
+                                   "fmt": ":b",
+                                   "label": "Leading edge cells"}
+    all_cells_data: PlotData = {"data": _median_tension_all,
+                                "fmt": "-b",
+                                "label": "All cells"}
     time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
-    filename: str = f"Median tension v. {time_axis}"
-    filepath: str = os.path.join(_plot_path, filename + ".png")
-    tensions_fig.savefig(filepath, transparent=False, bbox_inches="tight")
-    plt.close(tensions_fig)
-
+    _plot_datasets_v_time([leading_edge_data, all_cells_data],
+                          limits=(-0.01, 0.2),
+                          ylabel="Median particle tension",
+                          filename=f"Median tension v. {time_axis}",
+                          axvline=axvline)
 
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
@@ -786,7 +804,8 @@ def _show_cylindrical_straightness() -> None:
     
     # 0.90 is usually good enough for bottom, but if it dips below that, get the whole plot in frame
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=_straightness_cyl)
-    _plot_datasets_v_time([_straightness_cyl],
+    straightness_data: PlotData = {"data": _straightness_cyl}
+    _plot_datasets_v_time([straightness_data],
                           limits,
                           ylabel="Straightness Index",
                           filename="Straightness Index")
@@ -805,7 +824,8 @@ def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
               "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
               "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
     
-    _plot_datasets_v_time([_margin_lopsidedness],
+    lopsidedness_data: PlotData = {"data": _margin_lopsidedness}
+    _plot_datasets_v_time([lopsidedness_data],
                           limits=(-0.002 * np.pi, 0.102 * np.pi),
                           ylabel="Angle of margin axis",
                           filename="Margin lopsidedness",
