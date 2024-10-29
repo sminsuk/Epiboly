@@ -85,9 +85,9 @@ _timestep: int = 0
 _plot_path: str = ""
 
 class PlotData(TypedDict, total=False):
-    data: list[float]   # required
-    fmt: str            # not required
-    label: str          # not required
+    data: list[float] | list[int]   # required
+    fmt: str                        # not required
+    label: str                      # not required
 
 def _init_graphs() -> None:
     """Initialize matplotlib and also a subdirectory in which to put the saved plots
@@ -127,6 +127,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                           ylabel: str = None,
                           plot_formats: str = None,
                           axvline: float = None,
+                          legend_loc: str = None,
                           yticks: dict = None) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
 
@@ -143,6 +144,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         phi just reflects initial edge position); but it won't work on a plot v. timesteps, because the position
         will vary among the datasets. If necessary to display that, it would have to by a different means, like
         a special marker on each line in the plot.
+    :param legend_loc: optional, specify where legend will go if there is one.
     :param yticks: Currently using this for a one-off. If I start using this more generally, then...
         ToDo: define a proper typed dict and do parameter validation
     """
@@ -173,7 +175,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
             legend_needed = True
         _plot_data_v_time(ax, data, plot_format, label)
     if legend_needed:
-        ax.legend()
+        ax.legend(loc=legend_loc)
     
     # save
     savepath: str = os.path.join(_plot_path, filename + ".png")
@@ -857,44 +859,36 @@ def _show_bond_counts() -> None:
                           plot_formats="b.")
 
 def _show_margin_population() -> None:
-    margin_fig: Figure
-    margin_ax: Axes
-    
-    margin_fig, margin_ax = plt.subplots()
-    margin_ax.set_ylabel("Number of margin cells")
-    _add_time_axis(margin_ax)
-    
     _margin_count.append(len(g.LeadingEdge.items()))
     _margin_cum_in.append(epu.cumulative_to_edge)
     _margin_cum_out.append(epu.cumulative_from_edge)
     if cfg.cell_division_enabled:
         _margin_cum_divide.append(epu.cumulative_edge_divisions)
     
-    # plot just the total
-    _plot_data_v_time(margin_ax, _margin_count, ".b", label="Total margin cell count")
+    # plot just the total (and with no legend)
+    margin_count_data: PlotData = {"data": _margin_count, "fmt": ".b"}
     maximum: int = max(_margin_count)
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, maximum + 2), data=_margin_count)
-    margin_ax.set_ylim(limits)
+    _plot_datasets_v_time([margin_count_data],
+                          filename="Margin cell rearrangement",
+                          limits=limits,
+                          ylabel="Number of margin cells")
 
-    # save
-    margin_path: str = os.path.join(_plot_path, "Margin cell rearrangement.png")
-    margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")
-    
-    # add additional lines to the plot and resave under a different name
-    _plot_data_v_time(margin_ax, _margin_cum_in, "--b", label="Cumulative in")
-    _plot_data_v_time(margin_ax, _margin_cum_out, ":b", label="Cumulative out")
+    # Plot all four (now with legend, and no ylabel), and save under a different name
+    margin_count_data["label"] = "Total margin cell count"
+    margin_cum_in_data: PlotData = {"data": _margin_cum_in, "fmt": "--b", "label": "Cumulative in"}
+    margin_cum_out_data: PlotData = {"data": _margin_cum_out, "fmt": ":b", "label": "Cumulative out"}
+    margin_cum_divide_data: PlotData = {"data": _margin_cum_divide, "fmt": "-b", "label": "Cumulative divisions"}
+    datasets: list[PlotData] = [margin_count_data, margin_cum_in_data, margin_cum_out_data]
     maximum = max(maximum, max(_margin_cum_in), max(_margin_cum_out))
     if cfg.cell_division_enabled:
-        _plot_data_v_time(margin_ax, _margin_cum_divide, "-b", label="Cumulative divisions")
+        datasets.append(margin_cum_divide_data)
         maximum = max(maximum, max(_margin_cum_divide))
     limits = _expand_limits_if_needed(limits=(-2, maximum + 2), data=_margin_count)
-    margin_ax.set_ylim(limits)
-    margin_ax.set_ylabel("")    # Remove and show legend instead
-    margin_ax.legend(loc="center right")
-
-    margin_path = os.path.join(_plot_path, "Margin cell rearrangement, plus cumulative.png")
-    margin_fig.savefig(margin_path, transparent=False, bbox_inches="tight")
-    plt.close(margin_fig)
+    _plot_datasets_v_time(datasets,
+                          filename="Margin cell rearrangement, plus cumulative",
+                          limits=limits,
+                          legend_loc="center right" )
 
 def _show_forces() -> None:
     """Plots the TOTAL force on the leading edge globally
