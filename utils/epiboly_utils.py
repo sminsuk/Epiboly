@@ -375,14 +375,19 @@ def get_state() -> dict:
             "cumulative_edge_divisions": cumulative_edge_divisions,
             "recoil_experiment_in_progress": recoil_experiment_in_progress,
             "initial_cell_radius": initial_cell_radius,
+            "cell_division_cessation_timestep": cell_division_cessation_timestep,
+            "cell_division_cessation_phi": cell_division_cessation_phi,
             }
 
 def set_state(d: dict) -> None:
     """Reconstitute state of module from what was saved."""
     global cumulative_from_edge, cumulative_to_edge, cumulative_edge_divisions
     global recoil_experiment_in_progress, initial_cell_radius
+    global cell_division_cessation_timestep, cell_division_cessation_phi
     cumulative_from_edge = d["cumulative_from_edge"]
     cumulative_to_edge = d["cumulative_to_edge"]
     cumulative_edge_divisions = d["cumulative_edge_divisions"]
     recoil_experiment_in_progress = d["recoil_experiment_in_progress"]
     initial_cell_radius = d["initial_cell_radius"]
+    cell_division_cessation_timestep = d["cell_division_cessation_timestep"]
+    cell_division_cessation_phi = d["cell_division_cessation_phi"]
