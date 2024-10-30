@@ -831,7 +831,7 @@ def _show_cylindrical_straightness() -> None:
     _plot_datasets_v_time([straightness_data],
                           filename="Straightness Index",
                           limits=limits,
-                          ylabel="Straightness Index",
+                          ylabel="Straightness Index (SI)",
                           plot_formats=".-b")
 
 def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
