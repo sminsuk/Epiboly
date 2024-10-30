@@ -86,6 +86,7 @@ _plot_path: str = ""
 
 class PlotData(TypedDict, total=False):
     data: list[float] | list[int]   # required
+    x: list[float] | list[int]      # required in post-process; ignored in real-time plotting
     fmt: str                        # not required
     label: str                      # not required
 
@@ -99,15 +100,14 @@ def _init_graphs() -> None:
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
-def _add_time_axis(axes: Axes) -> None:
+def _add_time_axis(axes: Axes, plot_v_time: bool = False) -> None:
     """Use leading edge mean phi (i.e. embryonic stage) as a proxy for time (when possible)
     
     Add standard x-axis labeling for epiboly progress (leading edge mean phi) as a proxy for time
     (in other words, essentially plotting vs. embryonic stage). Will be used in multiple plots.
     """
-    if cfg.run_balanced_force_control:
-        # We cannot plot vs. epiboly progress in this case, because EVL will not advance. So will
-        # plot vs. time. Time axis needs no special labeling
+    if plot_v_time:
+        # Time axis needs no special labeling
         axes.set_xlabel("Timesteps")
         return
     
@@ -115,11 +115,6 @@ def _add_time_axis(axes: Axes) -> None:
     axes.set_xlim(np.pi * 7 / 16, np.pi)
     axes.set_xticks([np.pi / 2, np.pi * 5/8, np.pi * 3/4, np.pi * 7/8, np.pi],
                     labels=[r"$\pi$/2", "", r"3$\pi$/4", "", r"$\pi$"])
-    
-def _plot_data_v_time(axes: Axes, y: list, format_str: str, label: str = None) -> None:
-    """Plot the given y data vs phi (when possible), else vs time"""
-    x: list = _timesteps if cfg.run_balanced_force_control else _leading_edge_phi
-    axes.plot(x, y, format_str, label=label)
 
 def _plot_datasets_v_time(datadicts: list[PlotData],
                           filename: str,
@@ -128,8 +123,18 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                           plot_formats: str = None,
                           axvline: float = None,
                           legend_loc: str = None,
-                          yticks: dict = None) -> None:
+                          yticks: dict = None,
+                          plot_v_time: bool = None,
+                          post_process: bool = False) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
+    
+    When plotting in real time during simulation run, plot_v_time will typically be None, and we'll (at least for now)
+    use the balanced-force-control config to decide what x is. (In the control, cannot plot vs. epiboly progress for
+    most plots, because EVL will not advance, so we plot vs. time.) But this can be overridden by passing a bool
+    value for plot_v_time, and then we'll ignore the config (e.g., for plotting the epiboly progress plot, which is
+    always vs. time). When plotting multiple datasets in post-process, basically the same, but we won't want to check
+    the flag for each dataset separately, as they all need the same x-axis; so interpret None as False, i.e. caller
+    must decide, and pass the x data with each dataset.
 
     :param datadicts: one or more PlotData, each containing a dataset to plot, plus optional legend label and format
         string. If format string is present, use it and ignore plot_formats parameter; if absent, use plot_formats.
@@ -145,35 +150,49 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         will vary among the datasets. If necessary to display that, it would have to by a different means, like
         a special marker on each line in the plot.
     :param legend_loc: optional, specify where legend will go if there is one.
-    :param yticks: Currently using this for a one-off. If I start using this more generally, then...
-        ToDo: define a proper typed dict and do parameter validation
+    :param yticks: Currently using this in only 2 spots, ad hoc, not anticipating more. But if I start using this
+        more generally, then... ToDo: define a proper typed dict and do parameter validation
+    :param plot_v_time: whether to plot vs. time instead of vs. phi. In real-time plotting only, a value of None
+        means to decide based on cfg.run_balanced_force_control. In post-process plotting, None is treated as False.
+    :param post_process: plotting post-process (presumably with multiple datasets per plot) as opposed to during
+        the real-time simulation (which may have one or more datasets per plot).
     """
+    if plot_v_time is None:
+        plot_v_time = False if post_process else cfg.run_balanced_force_control
+        
     fig: Figure
     ax: Axes
     
     fig, ax = plt.subplots()
     if ylabel:
         ax.set_ylabel(ylabel)
-    _add_time_axis(ax)
+    _add_time_axis(ax, plot_v_time)
     if axvline is not None:
         ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
     
     if limits:
         ax.set_ylim(limits)
     if yticks:
-        # For now, assuming yticks dict has all the correct content and format, since I'm only passing this once.
+        # For now, assuming yticks dict has all the correct content and format, since I'm only passing this ad hoc.
         ax.set_yticks(yticks["major_range"], labels=yticks["labels"])
         ax.set_yticks(yticks["minor_range"], minor=True)
         
     data: list[float]
     legend_needed: bool = False
+
+    x: list[float] | list[int] = []
+    if not post_process:
+        x = _timesteps if plot_v_time else _leading_edge_phi
+    
     for datadict in datadicts:
+        if post_process:
+            x = datadict["x"]
         data: list[float] = datadict["data"]
         plot_format: str = datadict["fmt"] if "fmt" in datadict else plot_formats if plot_formats else "-"
         label: str = None if "label" not in datadict else datadict["label"]
         if label:
             legend_needed = True
-        _plot_data_v_time(ax, data, plot_format, label)
+        ax.plot(x, data, plot_format, label=label)
     if legend_needed:
         ax.legend(loc=legend_loc)
     
@@ -903,22 +922,19 @@ def _show_forces() -> None:
                           plot_formats="b.")
 
 def _show_progress_graph() -> None:
-    progress_fig: Figure
-    progress_ax: Axes
+    progress_data: PlotData = {"data": _leading_edge_phi}
     
-    progress_fig, progress_ax = plt.subplots()
-    progress_ax.set_ylabel(r"Leading edge  $\bar{\phi}$  (radians)")
-    progress_ax.set_xlabel("Timesteps")
+    yticks = {"major_range": [np.pi / 2, np.pi * 3/4, np.pi],
+              "minor_range": [np.pi * 5/8, np.pi * 7/8],
+              "labels": [r"$\pi$/2", r"3$\pi$/4", r"$\pi$"]}
 
-    # Plot
-    progress_ax.plot(_timesteps, _leading_edge_phi, "b.")
-
-    # Go ahead and save every time we add to the plot. That way even in windowless mode, we can
-    # monitor the plot as it updates.
-    filename: str = "Leading edge phi"
-    filepath: str = os.path.join(_plot_path, filename + ".png")
-    progress_fig.savefig(filepath, transparent=False, bbox_inches="tight")
-    plt.close(progress_fig)
+    _plot_datasets_v_time([progress_data],
+                          filename="Leading edge phi",
+                          limits=(np.pi * 7 / 16, np.pi),
+                          ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
+                          plot_formats="b.",
+                          yticks=yticks,
+                          plot_v_time=True)
 
 def show_graphs(end: bool = False) -> None:
     global _timestep
