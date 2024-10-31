@@ -546,7 +546,7 @@ def _show_avg_tensions_v_microtime() -> None:
 
     # Plot
     leading_edge_data: PlotData = {"data": _median_tension_leading_edge,
-                                   "fmt": ":b",
+                                   "fmt": "-m",
                                    "label": "Leading edge cells"}
     all_cells_data: PlotData = {"data": _median_tension_all,
                                 "fmt": "-b",
@@ -1115,3 +1115,37 @@ def set_state(d: dict) -> None:
     _polar_strain_rates = d["polar_strain_rates"]
     _circumf_strain_rates = d["circumf_strain_rates"]
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
+    
+def post_process_graphs(simulation_data: list[dict]) -> None:
+    def show_composite_tension() -> None:
+        # Get axvline position, which should be the same in all the sims, as long as they all started
+        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
+        # So just grab it from the first one:
+        axvline = simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+        
+        # From eeach simulation, get two datasets: tension fo leading edge cells, and for all cells
+        datadicts: list[PlotData] = []
+        simulation: dict
+        for index, simulation in enumerate(simulation_data):
+            leading_edge_data: PlotData = {"data": simulation["plot"]["median_tension_leading_edge"],
+                                           "x": simulation["plot"]["leading_edge_phi"],
+                                           "fmt": "-m"}
+            all_cells_data: PlotData = {"data": simulation["plot"]["median_tension_all"],
+                                        "x": simulation["plot"]["leading_edge_phi"],
+                                        "fmt": "-b"}
+            if index == 0:
+                # Only need to add legend labels once
+                leading_edge_data["label"] = "Leading edge cells"
+                all_cells_data["label"] = "All cells"
+            datadicts.extend([leading_edge_data, all_cells_data])
+            
+        _plot_datasets_v_time(datadicts,
+                              filename=f"Median tension v. leading edge progress (phi)",
+                              limits=(-0.01, 0.2),
+                              ylabel="Median particle tension",
+                              axvline=axvline,
+                              post_process=True)
+
+    _init_graphs()
+    # print(simulation_data)
+    show_composite_tension()

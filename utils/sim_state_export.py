@@ -77,10 +77,14 @@ def _export_additional_state(filename: str) -> None:
     with open(path, mode="w") as fp:
         json.dump(export_dict, fp, indent=2)
 
-def import_additional_state(import_path: str) -> None:
+def load_additional_state(import_path: str) -> dict:
     import_dict: dict
     with open(import_path) as fp:
         import_dict = json.load(fp)
+    return import_dict
+
+def import_additional_state(import_path: str) -> None:
+    import_dict: dict = load_additional_state(import_path)
     
     set_state(import_dict["self"])
     epu.set_state(import_dict["epiboly"])
@@ -223,3 +227,45 @@ def set_state(d: dict) -> None:
     global _previous_export_timestep, _current_export_timestep
     _previous_export_timestep = d["previous_step"]
     _current_export_timestep = d["current_step"] + 1
+
+if __name__ == "__main__":
+    """Post-processing of multiple simulation runs"""
+    # Be sure to supply the list of directory names to post-process before running this.
+    # These are the parent directories with the datetime in the name.
+    # If enclosing_directory_full_path is blank, look for the simulation directories at the top level of
+    # TissueForge_export; if it's not blank, it should be the full path relative to TissueForge_export.
+    # As this implies, all the simulation directories must be in one common enclosing directory.
+    # ToDo: Implement just getting EVERYTHING in the enclosing directory??? What's the best workflow?
+    enclosing_directory_full_path: str = ""
+    directory_names: list[str] = ["Simulation directory names go here",
+                                  "and here",
+                                  ]
+    
+    simulation_data: list[dict] = []
+    for directory_name in directory_names:
+        # At first, we init "export" for the existing directory, which really means finding it,
+        # so we can use it to import from
+        tfu.init_export(os.path.join(enclosing_directory_full_path, directory_name))
+        init_export()
+        
+        latest_extra_state_entry: os.DirEntry
+        _, latest_extra_state_entry = find_exported_state_files()
+        import_dict: dict = load_additional_state(latest_extra_state_entry.path)
+        
+        # Capture the only components of it that we'll need
+        useful_dict: dict = {"config": import_dict["config"],
+                             "epiboly": import_dict["epiboly"],
+                             "plot": import_dict["plot"]}
+        simulation_data.append(useful_dict)
+    
+    # Now set up export for where the new plots will go
+    tfu.init_export(post_process=True)
+    
+    # Capture the list of simulations that are being plotted
+    with open(os.path.join(tfu.export_path(), "Input simulations.txt"), mode="w") as output_file:
+        print(f"Enclosing directory = {enclosing_directory_full_path}\n", file=output_file)
+        print(f"Simulation directories:", file=output_file)
+        for directory_name in directory_names:
+            print(directory_name, file=output_file)
+    
+    plot.post_process_graphs(simulation_data)

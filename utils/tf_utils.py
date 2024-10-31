@@ -21,7 +21,7 @@ from config import override_export_root_directory, export_root_directory_name
 _tf_export_root: str = "TissueForge_export"
 _current_export_dir: str | None = None
 
-def init_export(sim_directory_name: str = None) -> None:
+def init_export(sim_directory_name: str = None, post_process: bool = False) -> None:
     """Set up directories for all exported output: main directory for all output from the current script, ever;
     and a subdirectory for all output of the CURRENT RUN of the current script.
     
@@ -44,7 +44,8 @@ def init_export(sim_directory_name: str = None) -> None:
         # subdirectory with unique name for all output of the current run.
         # Include process id, otherwise timestring() isn't enough for uniqueness if this script is executed
         # in multiple separate processes in the same minute, or, more importantly, anticipating batch runs.
-        _current_export_dir = f"{timestring()}_{os.getpid()}"
+        suffix: str = " - Post-processed data" if post_process else f"_{os.getpid()}"
+        _current_export_dir = timestring() + suffix
     
         # Creates the user's unique TF export directory if it doesn't yet exist;
         # and the subdirectory for the current run if it doesn't yet exist (it shouldn't):
