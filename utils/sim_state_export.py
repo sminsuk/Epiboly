@@ -233,13 +233,19 @@ if __name__ == "__main__":
     # Be sure to supply the list of directory names to post-process before running this.
     # These are the parent directories with the datetime in the name.
     # If enclosing_directory_full_path is blank, look for the simulation directories at the top level of
-    # TissueForge_export; if it's not blank, it should be the full path relative to TissueForge_export.
+    # ~/TissueForge_export ; if it's not blank, it should be the full path relative to ~/TissueForge_export .
+    # If directory_names is empty, then just get EVERYTHING found inside the enclosing directory.
     # As this implies, all the simulation directories must be in one common enclosing directory.
-    # ToDo: Implement just getting EVERYTHING in the enclosing directory??? What's the best workflow?
-    enclosing_directory_full_path: str = ""
-    directory_names: list[str] = ["Simulation directory names go here",
-                                  "and here",
-                                  ]
+    enclosing_directory_full_path: str = "Enclosing directory name, or blank"
+    directory_names: list[str] = ["Zero or more simulation directory names go here"]
+    assert enclosing_directory_full_path or directory_names, "Should not both be blank/empty!"
+
+    if not directory_names:
+        input_path: str = tfu.export_path(enclosing_directory_full_path)
+        with os.scandir(input_path) as dir_entries_it:
+            entry: os.DirEntry
+            directory_names = [entry.name for entry in dir_entries_it
+                               if not entry.name.startswith(".")]
     
     simulation_data: list[dict] = []
     for directory_name in directory_names:
