@@ -88,7 +88,7 @@ class PlotData(TypedDict, total=False):
     data: list[float] | list[int]   # required
     x: list[float] | list[int]      # required in post-process; ignored in real-time plotting
     fmt: str                        # not required
-    label: str                      # not required
+    label: object                   # not required; can be str or anything that can be turned into str (float, int...)
 
 def _init_graphs() -> None:
     """Initialize matplotlib and also a subdirectory in which to put the saved plots
@@ -100,7 +100,7 @@ def _init_graphs() -> None:
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
 
-def _add_time_axis(axes: Axes, plot_v_time: bool = False) -> None:
+def _add_time_axis(axes: Axes, plot_v_time: bool = False, normalize_time: bool = False) -> None:
     """Use leading edge mean phi (i.e. embryonic stage) as a proxy for time (when possible)
     
     Add standard x-axis labeling for epiboly progress (leading edge mean phi) as a proxy for time
@@ -108,7 +108,7 @@ def _add_time_axis(axes: Axes, plot_v_time: bool = False) -> None:
     """
     if plot_v_time:
         # Time axis needs no special labeling
-        axes.set_xlabel("Timesteps")
+        axes.set_xlabel("Normalized time" if normalize_time else "Timesteps")
         return
     
     axes.set_xlabel(r"Leading edge  $\bar{\phi}$  (radians)")
@@ -125,6 +125,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                           legend_loc: str = None,
                           yticks: dict = None,
                           plot_v_time: bool = None,
+                          normalize_time: bool = False,
                           post_process: bool = False) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
     
@@ -154,6 +155,8 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         more generally, then... ToDo: define a proper typed dict and do parameter validation
     :param plot_v_time: whether to plot vs. time instead of vs. phi. In real-time plotting only, a value of None
         means to decide based on cfg.run_balanced_force_control. In post-process plotting, None is treated as False.
+    :param normalize_time: In real-time plotting, ignored. In post-process plotting vs. phi, ignored. In post-process
+        plotting vs. time, whether to normalize (time axis goes from 0 to 1).
     :param post_process: plotting post-process (presumably with multiple datasets per plot) as opposed to during
         the real-time simulation (which may have one or more datasets per plot).
     """
@@ -166,7 +169,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     fig, ax = plt.subplots()
     if ylabel:
         ax.set_ylabel(ylabel)
-    _add_time_axis(ax, plot_v_time)
+    _add_time_axis(ax, plot_v_time, post_process and normalize_time)
     if axvline is not None:
         ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
     
@@ -187,10 +190,12 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     for datadict in datadicts:
         if post_process:
             x = datadict["x"]
+            if plot_v_time and normalize_time:
+                x = list(np.array(x) / x[-1])
         data: list[float] = datadict["data"]
         plot_format: str = datadict["fmt"] if "fmt" in datadict else plot_formats if plot_formats else "-"
-        label: str = None if "label" not in datadict else datadict["label"]
-        if label:
+        label: object = None if "label" not in datadict else datadict["label"]
+        if label is not None:
             legend_needed = True
         ax.plot(x, data, plot_format, label=label)
     if legend_needed:
@@ -1117,13 +1122,124 @@ def set_state(d: dict) -> None:
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
     
 def post_process_graphs(simulation_data: list[dict]) -> None:
+    def show_composite_progress() -> None:
+        datadicts: list[PlotData] = [{"data": simulation["plot"]["leading_edge_phi"],
+                                      "x": simulation["plot"]["timesteps"],
+                                      "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
+                                      } for simulation in simulation_data]
+        datadicts = sorted(datadicts, key=lambda plot_data: plot_data["label"])
+        datadict: PlotData
+        for datadict in datadicts:
+            datadict["label"] = fr"$\lambda$ = {datadict['label']}"
+
+        yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
+                  "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
+                  "labels": [r"$\pi$/2", r"3$\pi$/4", r"$\pi$"]}
+
+        _plot_datasets_v_time(datadicts,
+                              filename="Leading edge phi",
+                              limits=(np.pi * 7 / 16, np.pi),
+                              ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
+                              yticks=yticks,
+                              plot_v_time=True,
+                              post_process=True)
+
+    def show_composite_margin_pop() -> None:
+        """ToDO: This did what I told it to do, but it needs to be different, probably two separate plots"""
+        margin_count_dicts: list[PlotData] = []
+        margin_cum_dicts: list[PlotData] = []
+        simulation: dict
+        for index, simulation in enumerate(simulation_data):
+            leading_edge_phi: list[float] = simulation["plot"]["leading_edge_phi"]
+            
+            margin_count: PlotData = {"data": simulation["plot"]["margin_count"],
+                                      "x": leading_edge_phi,
+                                      "fmt": "-k"}
+            margin_count_dicts.append(margin_count)
+            
+            # Margin count: all plotted in same color, so no need to sort; only one needs legend label:
+            if index == 0:
+                margin_count["label"] = "Total margin cell count"
+                
+            margin_cum_in: list[int] = simulation["plot"]["margin_cum_in"]
+            margin_cum_out: list[int] = simulation["plot"]["margin_cum_out"]
+            margin_cum_total: list[int] = list(np.add(margin_cum_in, margin_cum_out))
+            margin_cum: PlotData = {"data": margin_cum_total,
+                                    "x": leading_edge_phi,
+                                    "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]}
+            margin_cum_dicts.append(margin_cum)
+            
+        # Margin cum: all in different color, so need to sort them by label (k), then wrap those vals in strings:
+        margin_cum_dicts = sorted(margin_cum_dicts, key=lambda plot_data: plot_data["label"])
+        datadict: PlotData
+        for datadict in margin_cum_dicts:
+            datadict["label"] = fr"Cumulative, $\lambda$ = {datadict['label']}"
+            
+        datadicts: list[PlotData] = []
+        datadicts.extend(margin_count_dicts)
+        datadicts.extend(margin_cum_dicts)
+        all_data: list[list[int]] = [datadict["data"] for datadict in datadicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 10), data=all_data)
+        _plot_datasets_v_time(datadicts,
+                              filename="Margin cell rearrangement, plus cumulative",
+                              limits=limits,
+                              legend_loc="upper left",
+                              post_process=True)
+
+    def show_composite_straightness() -> None:
+        full_datasets: list[dict] = [{"data": simulation["plot"]["straightness_cyl"],
+                                      "phi": simulation["plot"]["leading_edge_phi"],
+                                      "time": simulation["plot"]["timesteps"],
+                                      "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
+                                      } for simulation in simulation_data]
+        full_datasets = sorted(full_datasets, key=lambda dataset: dataset["label"])
+        for dataset in full_datasets:
+            dataset["label"] = fr"$\lambda$ = {dataset['label']}"
+            
+        all_data: list[list[float]] = [data["data"] for data in full_datasets]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=all_data)
+
+        si_v_phi_data: list[PlotData] = []
+        si_v_time_data: list[PlotData] = []
+        for dataset in full_datasets:
+            si_v_phi_data.append({"data": dataset["data"],
+                                  "x": dataset["phi"],
+                                  "label": dataset["label"]
+                                  })
+            
+            si_v_time_data.append({"data": dataset["data"],
+                                   "x": dataset["time"],
+                                   "label": dataset["label"]
+                                   })
+        
+        _plot_datasets_v_time(si_v_phi_data,
+                              filename="Straightness Index v. phi",
+                              limits=limits,
+                              ylabel="Straightness Index (SI)",
+                              post_process=True)
+
+        _plot_datasets_v_time(si_v_time_data,
+                              filename="Straightness Index v. time",
+                              limits=limits,
+                              ylabel="Straightness Index (SI)",
+                              plot_v_time=True,
+                              post_process=True)
+
+        _plot_datasets_v_time(si_v_time_data,
+                              filename="Straightness Index v. normalized time",
+                              limits=limits,
+                              ylabel="Straightness Index (SI)",
+                              plot_v_time=True,
+                              normalize_time=True,
+                              post_process=True)
+
     def show_composite_tension() -> None:
         # Get axvline position, which should be the same in all the sims, as long as they all started
         # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
         # So just grab it from the first one:
         axvline = simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
         
-        # From eeach simulation, get two datasets: tension fo leading edge cells, and for all cells
+        # From each simulation, get two datasets: tension for leading edge cells, and for all cells
         datadicts: list[PlotData] = []
         simulation: dict
         for index, simulation in enumerate(simulation_data):
@@ -1149,3 +1265,6 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
     _init_graphs()
     # print(simulation_data)
     show_composite_tension()
+    show_composite_straightness()
+    show_composite_margin_pop()
+    show_composite_progress()
