@@ -137,8 +137,11 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     the flag for each dataset separately, as they all need the same x-axis; so interpret None as False, i.e. caller
     must decide, and pass the x data with each dataset.
 
-    :param datadicts: one or more PlotData, each containing a dataset to plot, plus optional legend label and format
-        string. If format string is present, use it and ignore plot_formats parameter; if absent, use plot_formats.
+    :param datadicts: one or more PlotData, each containing a dataset to plot, plus optional legend label, format
+        string, and x axis data (timesteps, or leading_edge_phi). If format string is present, use it and ignore
+        plot_formats parameter; if absent, use plot_formats. In real-time plotting, ignore x from the PlotData,
+        and get it from the real-time global variables; in post-process plotting, each dataset needs its own
+        independent x axis, which is passed in each PlotData.
     :param limits: y-axis limits
     :param ylabel: y-axis label
     :param filename: for the saved image of the plot
