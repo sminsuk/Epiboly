@@ -1125,68 +1125,95 @@ def set_state(d: dict) -> None:
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
     
 def post_process_graphs(simulation_data: list[dict]) -> None:
+    def color_code_and_clean_up_labels(datadicts: list[PlotData]) -> None:
+        """Color code plot lines according to parameter value; and only label one plot per unique value
+        
+        On entry, each PlotData["label"] is a numerical value. Sort the list according to that value (so that
+        the labels will be in the right order in the legend); then remove all labels except one per set for
+        each distinct value (so that each label only appears once in the legend); and then wrap that numerical
+        value in a string that explains what it is. Then set distinct plot colors for lines of different parameter
+        values, but the SAME plot color for the multiple plot lines of the SAME parameter value.
+        """
+        datadicts.sort(key=lambda plot_data: plot_data["label"])
+        datadict: PlotData
+        previous_label: int | float = -1
+        cycler_index: int = -1
+        
+        # For each distinct label value, provide a different color; and a str label only for one of each color-coded set
+        for datadict in datadicts:
+            current_label: int | float = datadict["label"]  # Note: known to be numerical. Works fine at runtime.
+            if current_label > previous_label:
+                datadict["label"] = fr"$\lambda$ = {current_label}"
+                previous_label = current_label
+                cycler_index += 1
+            else:
+                del datadict["label"]
+            datadict["fmt"] = f"-C{cycler_index}"
+    
     def show_composite_progress() -> None:
         datadicts: list[PlotData] = [{"data": simulation["plot"]["leading_edge_phi"],
                                       "x": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
                                       } for simulation in simulation_data]
-        datadicts = sorted(datadicts, key=lambda plot_data: plot_data["label"])
-        datadict: PlotData
-        for datadict in datadicts:
-            datadict["label"] = fr"$\lambda$ = {datadict['label']}"
+        color_code_and_clean_up_labels(datadicts)
 
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
                   "labels": [r"$\pi$/2", r"3$\pi$/4", r"$\pi$"]}
 
         _plot_datasets_v_time(datadicts,
-                              filename="Leading edge phi",
+                              filename="Leading edge phi v. time",
                               limits=(np.pi * 7 / 16, np.pi),
                               ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
                               yticks=yticks,
                               plot_v_time=True,
                               post_process=True)
 
+        _plot_datasets_v_time(datadicts,
+                              filename="Leading edge phi v. normalized time",
+                              limits=(np.pi * 7 / 16, np.pi),
+                              ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
+                              yticks=yticks,
+                              plot_v_time=True,
+                              normalize_time=True,
+                              post_process=True)
+
     def show_composite_margin_pop() -> None:
-        """ToDO: This did what I told it to do, but it needs to be different, probably two separate plots"""
         margin_count_dicts: list[PlotData] = []
         margin_cum_dicts: list[PlotData] = []
         simulation: dict
-        for index, simulation in enumerate(simulation_data):
+        for simulation in simulation_data:
             leading_edge_phi: list[float] = simulation["plot"]["leading_edge_phi"]
+            label: int = simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
             
             margin_count: PlotData = {"data": simulation["plot"]["margin_count"],
                                       "x": leading_edge_phi,
-                                      "fmt": "-k"}
+                                      "label": label}
             margin_count_dicts.append(margin_count)
             
-            # Margin count: all plotted in same color, so no need to sort; only one needs legend label:
-            if index == 0:
-                margin_count["label"] = "Total margin cell count"
-                
             margin_cum_in: list[int] = simulation["plot"]["margin_cum_in"]
             margin_cum_out: list[int] = simulation["plot"]["margin_cum_out"]
             margin_cum_total: list[int] = list(np.add(margin_cum_in, margin_cum_out))
             margin_cum: PlotData = {"data": margin_cum_total,
                                     "x": leading_edge_phi,
-                                    "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]}
+                                    "label": label}
             margin_cum_dicts.append(margin_cum)
             
-        # Margin cum: all in different color, so need to sort them by label (k), then wrap those vals in strings:
-        margin_cum_dicts = sorted(margin_cum_dicts, key=lambda plot_data: plot_data["label"])
-        datadict: PlotData
-        for datadict in margin_cum_dicts:
-            datadict["label"] = fr"Cumulative, $\lambda$ = {datadict['label']}"
-            
-        datadicts: list[PlotData] = []
-        datadicts.extend(margin_count_dicts)
-        datadicts.extend(margin_cum_dicts)
-        all_data: list[list[int]] = [datadict["data"] for datadict in datadicts]
-        limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 10), data=all_data)
-        _plot_datasets_v_time(datadicts,
-                              filename="Margin cell rearrangement, plus cumulative",
+        color_code_and_clean_up_labels(margin_count_dicts)
+        color_code_and_clean_up_labels(margin_cum_dicts)
+        
+        all_count_data: list[list[int]] = [datadict["data"] for datadict in margin_count_dicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 10), data=all_count_data)
+        _plot_datasets_v_time(margin_count_dicts,
+                              filename="Margin cell count",
                               limits=limits,
-                              legend_loc="upper left",
+                              post_process=True)
+        
+        all_cum_data: list[list[int]] = [datadict["data"] for datadict in margin_cum_dicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 10), data=all_cum_data)
+        _plot_datasets_v_time(margin_cum_dicts,
+                              filename="Margin cell rearrangement, cumulative",
+                              limits=limits,
                               post_process=True)
 
     def show_composite_straightness() -> None:
