@@ -86,7 +86,8 @@ _plot_path: str = ""
 
 class PlotData(TypedDict, total=False):
     data: list[float] | list[int]   # required
-    x: list[float] | list[int]      # required in post-process; ignored in real-time plotting
+    phi: list[float]                # x axis (phi OR timesteps) required in post-process; ignored in real-time plotting
+    timesteps: list[int]
     fmt: str                        # not required
     label: object                   # not required; can be str or anything that can be turned into str (float, int...)
 
@@ -192,7 +193,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     
     for datadict in datadicts:
         if post_process:
-            x = datadict["x"]
+            x = datadict["timesteps"] if plot_v_time else datadict["phi"]
             if plot_v_time and normalize_time:
                 x = list(np.array(x) / x[-1])
         data: list[float] = datadict["data"]
@@ -1152,7 +1153,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
     
     def show_composite_progress() -> None:
         datadicts: list[PlotData] = [{"data": simulation["plot"]["leading_edge_phi"],
-                                      "x": simulation["plot"]["timesteps"],
+                                      "timesteps": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
                                       } for simulation in simulation_data]
         color_code_and_clean_up_labels(datadicts)
@@ -1187,7 +1188,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             label: int = simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
             
             margin_count: PlotData = {"data": simulation["plot"]["margin_count"],
-                                      "x": leading_edge_phi,
+                                      "phi": leading_edge_phi,
                                       "label": label}
             margin_count_dicts.append(margin_count)
             
@@ -1195,7 +1196,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             margin_cum_out: list[int] = simulation["plot"]["margin_cum_out"]
             margin_cum_total: list[int] = list(np.add(margin_cum_in, margin_cum_out))
             margin_cum: PlotData = {"data": margin_cum_total,
-                                    "x": leading_edge_phi,
+                                    "phi": leading_edge_phi,
                                     "label": label}
             margin_cum_dicts.append(margin_cum)
             
@@ -1217,45 +1218,32 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               post_process=True)
 
     def show_composite_straightness() -> None:
-        full_datasets: list[dict] = [{"data": simulation["plot"]["straightness_cyl"],
+        datadicts: list[PlotData] = [{"data": simulation["plot"]["straightness_cyl"],
                                       "phi": simulation["plot"]["leading_edge_phi"],
-                                      "time": simulation["plot"]["timesteps"],
+                                      "timesteps": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
                                       } for simulation in simulation_data]
-        full_datasets = sorted(full_datasets, key=lambda dataset: dataset["label"])
-        for dataset in full_datasets:
-            dataset["label"] = fr"$\lambda$ = {dataset['label']}"
+        datadicts = sorted(datadicts, key=lambda dataset: dataset["label"])
+        for datadict in datadicts:
+            datadict["label"] = fr"$\lambda$ = {datadict['label']}"
             
-        all_data: list[list[float]] = [data["data"] for data in full_datasets]
+        all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=all_data)
 
-        si_v_phi_data: list[PlotData] = []
-        si_v_time_data: list[PlotData] = []
-        for dataset in full_datasets:
-            si_v_phi_data.append({"data": dataset["data"],
-                                  "x": dataset["phi"],
-                                  "label": dataset["label"]
-                                  })
-            
-            si_v_time_data.append({"data": dataset["data"],
-                                   "x": dataset["time"],
-                                   "label": dataset["label"]
-                                   })
-        
-        _plot_datasets_v_time(si_v_phi_data,
+        _plot_datasets_v_time(datadicts,
                               filename="Straightness Index v. phi",
                               limits=limits,
                               ylabel="Straightness Index (SI)",
                               post_process=True)
 
-        _plot_datasets_v_time(si_v_time_data,
+        _plot_datasets_v_time(datadicts,
                               filename="Straightness Index v. time",
                               limits=limits,
                               ylabel="Straightness Index (SI)",
                               plot_v_time=True,
                               post_process=True)
 
-        _plot_datasets_v_time(si_v_time_data,
+        _plot_datasets_v_time(datadicts,
                               filename="Straightness Index v. normalized time",
                               limits=limits,
                               ylabel="Straightness Index (SI)",
@@ -1274,10 +1262,10 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         simulation: dict
         for index, simulation in enumerate(simulation_data):
             leading_edge_data: PlotData = {"data": simulation["plot"]["median_tension_leading_edge"],
-                                           "x": simulation["plot"]["leading_edge_phi"],
+                                           "phi": simulation["plot"]["leading_edge_phi"],
                                            "fmt": "-m"}
             all_cells_data: PlotData = {"data": simulation["plot"]["median_tension_all"],
-                                        "x": simulation["plot"]["leading_edge_phi"],
+                                        "phi": simulation["plot"]["leading_edge_phi"],
                                         "fmt": "-b"}
             if index == 0:
                 # Only need to add legend labels once
