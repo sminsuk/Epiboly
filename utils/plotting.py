@@ -1223,10 +1223,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                                       "timesteps": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
                                       } for simulation in simulation_data]
-        datadicts = sorted(datadicts, key=lambda dataset: dataset["label"])
-        for datadict in datadicts:
-            datadict["label"] = fr"$\lambda$ = {datadict['label']}"
-            
+        color_code_and_clean_up_labels(datadicts)
+        
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=all_data)
 
