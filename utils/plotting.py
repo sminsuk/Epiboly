@@ -1151,7 +1151,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                 del datadict["label"]
             datadict["fmt"] = f"-C{cycler_index}"
     
-    def show_composite_progress() -> None:
+    def show_multi_progress_by_constraint_k() -> None:
+        """Overlay multiple progress plots on one Axes, color-coded by edge bond-angle constraint lambda"""
         datadicts: list[PlotData] = [{"data": simulation["plot"]["leading_edge_phi"],
                                       "timesteps": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
@@ -1179,7 +1180,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               normalize_time=True,
                               post_process=True)
 
-    def show_composite_margin_pop() -> None:
+    def show_multi_margin_pop_by_constraint_k() -> None:
+        """Overlay multiple margin pop plots on one Axes, color-coded by edge bond-angle constraint lambda"""
         margin_count_dicts: list[PlotData] = []
         margin_cum_dicts: list[PlotData] = []
         simulation: dict
@@ -1217,7 +1219,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               limits=limits,
                               post_process=True)
 
-    def show_composite_straightness() -> None:
+    def show_multi_straightness_by_constraint_k() -> None:
+        """Overlay multiple Straightness Index plots on one Axes, color-coded by edge bond-angle constraint lambda"""
         datadicts: list[PlotData] = [{"data": simulation["plot"]["straightness_cyl"],
                                       "phi": simulation["plot"]["leading_edge_phi"],
                                       "timesteps": simulation["plot"]["timesteps"],
@@ -1249,7 +1252,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               normalize_time=True,
                               post_process=True)
 
-    def show_composite_tension() -> None:
+    def show_multi_tension() -> None:
+        """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors"""
         # Get axvline position, which should be the same in all the sims, as long as they all started
         # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
         # So just grab it from the first one:
@@ -1280,7 +1284,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
 
     _init_graphs()
     # print(simulation_data)
-    show_composite_tension()
-    show_composite_straightness()
-    show_composite_margin_pop()
-    show_composite_progress()
+    show_multi_tension()
+    show_multi_straightness_by_constraint_k()
+    show_multi_margin_pop_by_constraint_k()
+    show_multi_progress_by_constraint_k()
