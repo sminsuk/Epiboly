@@ -86,8 +86,9 @@ _plot_path: str = ""
 
 class PlotData(TypedDict, total=False):
     data: list[float] | list[int]   # required
-    phi: list[float]                # x axis (phi OR timesteps) required in post-process; ignored in real-time plotting
+    phi: list[float]                # x axis (any of these 3) required in post-process; ignored in real-time plotting
     timesteps: list[int]
+    norm_times: list[float]
     fmt: str                        # not required
     label: object                   # not required; can be str or anything that can be turned into str (float, int...)
 
@@ -193,9 +194,9 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     
     for datadict in datadicts:
         if post_process:
-            x = datadict["timesteps"] if plot_v_time else datadict["phi"]
-            if plot_v_time and normalize_time:
-                x = list(np.array(x) / x[-1])
+            x = (datadict["phi"] if not plot_v_time else
+                 datadict["norm_times"] if normalize_time else
+                 datadict["timesteps"])
         data: list[float] = datadict["data"]
         plot_format: str = datadict["fmt"] if "fmt" in datadict else plot_formats if plot_formats else "-"
         label: object = None if "label" not in datadict else datadict["label"]
@@ -1126,6 +1127,13 @@ def set_state(d: dict) -> None:
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
     
 def post_process_graphs(simulation_data: list[dict]) -> None:
+    def normalize(datadicts: list[PlotData]) -> None:
+        datadict: PlotData
+        for datadict in datadicts:
+            if "timesteps" in datadict:
+                timesteps: list[int] = datadict["timesteps"]
+                datadict["norm_times"] = list(np.array(timesteps) / timesteps[-1])
+    
     def color_code_and_clean_up_labels(datadicts: list[PlotData]) -> None:
         """Color code plot lines according to parameter value; and only label one plot per unique value
         
@@ -1171,6 +1179,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               plot_v_time=True,
                               post_process=True)
 
+        normalize(datadicts)
         _plot_datasets_v_time(datadicts,
                               filename="Leading edge phi v. normalized time",
                               limits=(np.pi * 7 / 16, np.pi),
@@ -1244,6 +1253,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               plot_v_time=True,
                               post_process=True)
 
+        normalize(datadicts)
         _plot_datasets_v_time(datadicts,
                               filename="Straightness Index v. normalized time",
                               limits=limits,
