@@ -916,7 +916,7 @@ def _show_margin_population() -> None:
     _plot_datasets_v_time(datasets,
                           filename="Margin cell rearrangement, plus cumulative",
                           limits=limits,
-                          legend_loc="center right" )
+                          legend_loc="center right")
 
 def _show_forces() -> None:
     """Plots the TOTAL force on the leading edge globally
