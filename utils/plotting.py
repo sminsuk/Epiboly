@@ -1135,22 +1135,23 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                 datadict["norm_times"] = list(np.array(timesteps) / timesteps[-1])
     
     def color_code_and_clean_up_labels(datadicts: list[PlotData]) -> None:
-        """Color code plot lines according to parameter value; and only label one plot per unique value
+        """Color code plot lines according to treatment (parameter value); and only label one plot per treatment
         
         On entry, each PlotData["label"] is a numerical value. Sort the list according to that value (so that
-        the labels will be in the right order in the legend); then remove all labels except one per set for
-        each distinct value (so that each label only appears once in the legend); and then wrap that numerical
-        value in a string that explains what it is. Then set distinct plot colors for lines of different parameter
-        values, but the SAME plot color for the multiple plot lines of the SAME parameter value.
+        the labels will be in the right order in the legend); then remove all labels except one per treatment
+        (so that each label only appears once in the legend); and then wrap that numerical
+        value in a string that explains what it is. Then set distinct plot colors for each treatment,
+        but the SAME plot color for the multiple plot lines of the SAME treatment.
         """
         datadicts.sort(key=lambda plot_data: plot_data["label"])
         datadict: PlotData
         previous_label: int | float = -1
         cycler_index: int = -1
         
-        # For each distinct label value, provide a different color; and a str label only for one of each color-coded set
+        # For each distinct treatment, provide a different color; and a str label only for one plot of each treatment
         for datadict in datadicts:
-            current_label: int | float = datadict["label"]  # Note: known to be numerical. Works fine at runtime.
+            # datadict["label"] is known to be numerical
+            current_label: int | float = datadict["label"]  # type: ignore
             if current_label > previous_label:
                 datadict["label"] = fr"$\lambda$ = {current_label}"
                 previous_label = current_label
@@ -1160,7 +1161,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             datadict["fmt"] = f"-C{cycler_index}"
     
     def show_multi_progress_by_constraint_k() -> None:
-        """Overlay multiple progress plots on one Axes, color-coded by edge bond-angle constraint lambda"""
+        """Overlay multiple progress plots on one Axes, color-coded by treatment (edge bond-angle constraint lambda)"""
         datadicts: list[PlotData] = [{"data": simulation["plot"]["leading_edge_phi"],
                                       "timesteps": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
@@ -1228,6 +1229,145 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               limits=limits,
                               post_process=True)
 
+    def show_composite_straightness() -> None:
+        """Combine multiple straightness datasets into composite metrics, one per 'treatment'.
+        
+        'Treatment' refers to the different values of a single variable that we are contrasting;
+        in this case, the edge bond-angle constraint lambda, k_edge_bond_angle. But this code will
+        no doubt be generalized in future commits, to do the same for any parameter we may vary.
+        
+        The handling of the labels and legends assumes there is more than one treatment being
+        compared in the plot, but if we ever need to do this for just a single treatment, that can
+        be tweaked as necessary.
+        """
+        rawdicts: list[PlotData] = [{"data": simulation["plot"]["straightness_cyl"],
+                                     "phi": simulation["plot"]["leading_edge_phi"],
+                                     "timesteps": simulation["plot"]["timesteps"],
+                                     "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
+                                     } for simulation in simulation_data]
+        
+        composite_dicts: dict[str: PlotData] = {}
+        composite_key: str
+        # Using str keys for the different treatments, since I'm unsure how safe it is to use floats as keys
+        # composite_dicts will contain one PlotData for each treatment, keyed by the treatment value
+
+        normalize(rawdicts)
+        for rawdict in rawdicts:
+            composite_key = str(rawdict["label"])
+            
+            # Create the appropriate key-value pair in which to store the content of the current rawdict,
+            # if it doesn't yet exist. (I.e., the first time each treatment is encountered.)
+            if composite_key not in composite_dicts:
+                composite_dicts[composite_key] = {"data": [],
+                                                  "phi": [],
+                                                  "timesteps": [],  # Not sure needed; process with the others for now
+                                                  "norm_times": [],
+                                                  "label": rawdict["label"]}
+                
+            # Add each list from the current rawdict into the corresponding list in the composite dict
+            composite_dict: PlotData = composite_dicts[composite_key]
+            plotdata_key: str
+            for plotdata_key in ["data", "phi", "norm_times"]:
+                # (Type checker doesn't like variables as keys; it's fine.)
+                composite_dict[plotdata_key].extend(rawdict[plotdata_key])  # type: ignore
+            
+        # After exiting the above outer loop (for rawdict in rawdicts), we now have a dict (composite_dicts)
+        # containing exactly one sub-dict for each treatment. Their lists are no longer in chronological
+        # order, since we simply concatenated all component lists from the rawdicts. But this won't matter
+        # since we'll now bin them. (In two different ways, once for plotting v. phi, and once for plotting v.
+        # normalized time.)
+        
+        # Binned dicts will be structured just like composite_dicts, i.e., each will contain one sub-dict for
+        # each treatment. But now the lists inside each dict will only contain num_bins elements,
+        # representing the averaged time and data values from multiple original rawdicts (multiple
+        # original simulation runs). Each binned dict will have a "data" member, but they won't contain the
+        # same values, because the binning will shake out differently, depending on whether it's for plotting
+        # v. phi, or v. normalized time.
+        num_bins = 20
+        binned_v_phi_dicts: dict[str: PlotData] = {}
+        binned_v_time_dicts: dict[str: PlotData] = {}
+        
+        # bin the time values over this range:
+        min_time: float = 0.0
+        max_time: float = 1.0
+        
+        # bin the phi values over this range:
+        all_phi: list[list[float]] = [composite_dict["phi"] for composite_dict in composite_dicts.values()]
+        flat_phi_iterator = chain.from_iterable(all_phi)
+        min_phi: float = min(flat_phi_iterator)
+        max_phi: float = np.pi
+        
+        for composite_key, composite_dict in composite_dicts.items():
+            np_data = np.array(composite_dict["data"])
+            np_phi = np.array(composite_dict["phi"])
+            np_times = np.array(composite_dict["norm_times"])
+            
+            time_edges: np.ndarray = np.linspace(min_time, max_time, num_bins + 1)
+            phi_edges: np.ndarray = np.linspace(min_phi, max_phi, num_bins + 1)
+            time_bin_size: float = time_edges[1] - time_edges[0]
+            phi_bin_size: float = phi_edges[1] - phi_edges[0]
+            time_indices: np.ndarray = np.digitize(np_times, time_edges)
+            phi_indices: np.ndarray = np.digitize(np_phi, phi_edges)
+            
+            # Note: numpy ufunc equality and masking!
+            # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
+            time_bins: list[np.ndarray] = [np_data[time_indices == i] for i in range(1, time_edges.size)]
+            phi_bins: list[np.ndarray] = [np_data[phi_indices == i] for i in range(1, phi_edges.size)]
+
+            # Finally, construct the x and y datasets we'll actually plot
+            time_bin: np.ndarray
+            phi_bin: np.ndarray
+            time_median_straightness: list[float] = []
+            phi_median_straightness: list[float] = []
+            time_axis: list[float] = []
+            phi_axis: list[float] = []
+            for i, time_bin in enumerate(time_bins):
+                if time_bin.size > 0:
+                    # should be always.
+                    # np.median() returns ndarray but is really float because time_bin is 1d
+                    time_median_straightness.append(np.median(time_bin).item())
+                    # position each point horizontally halfway between the bin edges
+                    time_axis.append(time_edges[i] + time_bin_size / 2)
+            for i, phi_bin in enumerate(phi_bins):
+                if phi_bin.size > 0:
+                    phi_median_straightness.append(np.median(phi_bin).item())
+                    phi_axis.append(phi_edges[i] + phi_bin_size / 2)
+                    
+            binned_v_time_dicts[composite_key] = {"data": time_median_straightness,
+                                                  "norm_times": time_axis,
+                                                  "label": composite_dict["label"]}
+            binned_v_phi_dicts[composite_key] = {"data": phi_median_straightness,
+                                                 "phi": phi_axis,
+                                                 "label": composite_dict["label"]}
+            
+        # Finally, after exiting the above loop, we have two of dict[str: PlotData], one binned by
+        # normalized times, and one by phi. Now we can plot them.
+        time_dicts_list: list[PlotData] = list(binned_v_time_dicts.values())
+        phi_dicts_list: list[PlotData] = list(binned_v_phi_dicts.values())
+        color_code_and_clean_up_labels(time_dicts_list)
+        color_code_and_clean_up_labels(phi_dicts_list)
+        
+        # Since the data was binned differently in the two dicts, they might have slightly
+        # different ranges. So to make the y-axis scales identical on the two plots we'll
+        # generate, combine ALL the data from both to determine the y limits:
+        all_data: list[list[float]] = [plot_data["data"] for plot_data in time_dicts_list]
+        all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=all_data)
+        
+        _plot_datasets_v_time(time_dicts_list,
+                              filename="Median SI v. normalized time",
+                              limits=limits,
+                              ylabel="Median Straightness Index (SI)",
+                              plot_v_time=True,
+                              normalize_time=True,
+                              post_process=True)
+        
+        _plot_datasets_v_time(phi_dicts_list,
+                              filename="Median SI v. phi",
+                              limits=limits,
+                              ylabel="Median Straightness Index (SI)",
+                              post_process=True)
+        
     def show_multi_straightness_by_constraint_k() -> None:
         """Overlay multiple Straightness Index plots on one Axes, color-coded by edge bond-angle constraint lambda"""
         datadicts: list[PlotData] = [{"data": simulation["plot"]["straightness_cyl"],
@@ -1296,5 +1436,6 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
     # print(simulation_data)
     show_multi_tension()
     show_multi_straightness_by_constraint_k()
+    show_composite_straightness()
     show_multi_margin_pop_by_constraint_k()
     show_multi_progress_by_constraint_k()
