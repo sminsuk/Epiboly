@@ -1223,12 +1223,14 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             
         normalize(margin_count_dicts)
         normalize(margin_cum_dicts)
-        count_name: str = "Margin cell count"
-        cum_name: str = "Margin cell rearrangement"
+        count_filename: str = "Margin cell count"
+        cum_filename: str = "Margin cell rearrangement, cumulative"
+        count_ylabel: str = "Margin cell count"
+        cum_ylabel: str = "Cumulative edge rearrangement events"
         default_limits: tuple[float, float] = (-2, 10)
         legend_format: str = r"$\lambda$ = {}"
-        show_composite_medians(margin_count_dicts, count_name, default_limits, legend_format)
-        show_composite_medians(margin_cum_dicts, cum_name, default_limits, legend_format)
+        show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits, legend_format)
+        show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits, legend_format)
 
         color_code_and_clean_up_labels(margin_count_dicts, legend_format)
         color_code_and_clean_up_labels(margin_cum_dicts, legend_format)
@@ -1236,19 +1238,20 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         all_count_data: list[list[int]] = [datadict["data"] for datadict in margin_count_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_count_data)
         _plot_datasets_v_time(margin_count_dicts,
-                              filename=count_name,
+                              filename=count_filename,
                               limits=limits,
                               post_process=True)
         
         all_cum_data: list[list[int]] = [datadict["data"] for datadict in margin_cum_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_cum_data)
         _plot_datasets_v_time(margin_cum_dicts,
-                              filename=f"{cum_name}, cumulative",
+                              filename=cum_filename,
                               limits=limits,
                               post_process=True)
 
     def show_composite_medians(rawdicts: list[PlotData],
-                               dataname: str,
+                               filename: str,
+                               ylabel: str,
                                default_limits: tuple[float, float],
                                legend_format: str) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
@@ -1262,8 +1265,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         :param rawdicts: one PlotData for each simulation that is to be plotted. It should have already
         been normalized (normalized time data calculated for each simulation). "label" field should
         be numerical, representing the treatment.
-        :param dataname: will be used both as the title of the y-axis, and as part of the filename for
-        the saved plot, so should be suitable for both.
+        :param filename: will be used as part of the filename for the saved plots.
+        :param ylabel: title of the y-axis.
         :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
         the range of the actual data exceeds the default_limits.
         :param legend_format: a string containing a replacement field, into which the treatment value for
@@ -1377,17 +1380,17 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
         _plot_datasets_v_time(time_dicts_list,
-                              filename=f"Median {dataname} v. normalized time",
+                              filename=f"{filename} v. normalized time, Median",
                               limits=limits,
-                              ylabel=f"Median {dataname}",
+                              ylabel=f"{ylabel} (Median)",
                               plot_v_time=True,
                               normalize_time=True,
                               post_process=True)
         
         _plot_datasets_v_time(phi_dicts_list,
-                              filename=f"Median {dataname} v. phi",
+                              filename=f"{filename} v. phi, Median",
                               limits=limits,
-                              ylabel=f"Median {dataname}",
+                              ylabel=f"{ylabel} (Median)",
                               post_process=True)
         
     def show_multi_straightness_by_constraint_k() -> None:
@@ -1399,10 +1402,11 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                                       } for simulation in simulation_data]
         normalize(datadicts)
         
-        dataname: str = "Straightness Index (SI)"
+        filename: str = "Straightness Index"
+        ylabel: str = "Straightness Index (SI)"
         default_limits: tuple[float, float] = (0.9, 1.001)
         legend_format: str = r"$\lambda$ = {}"
-        show_composite_medians(datadicts, dataname, default_limits, legend_format)
+        show_composite_medians(datadicts, filename, ylabel, default_limits, legend_format)
 
         color_code_and_clean_up_labels(datadicts, legend_format)
         
@@ -1410,22 +1414,22 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
         _plot_datasets_v_time(datadicts,
-                              filename=f"{dataname} v. phi",
+                              filename=f"{filename} v. phi",
                               limits=limits,
-                              ylabel=dataname,
+                              ylabel=ylabel,
                               post_process=True)
 
         _plot_datasets_v_time(datadicts,
-                              filename=f"{dataname} v. time",
+                              filename=f"{filename} v. time",
                               limits=limits,
-                              ylabel=dataname,
+                              ylabel=ylabel,
                               plot_v_time=True,
                               post_process=True)
 
         _plot_datasets_v_time(datadicts,
-                              filename=f"{dataname} v. normalized time",
+                              filename=f"{filename} v. normalized time",
                               limits=limits,
-                              ylabel=dataname,
+                              ylabel=ylabel,
                               plot_v_time=True,
                               normalize_time=True,
                               post_process=True)
