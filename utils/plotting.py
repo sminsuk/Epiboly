@@ -1134,7 +1134,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                 timesteps: list[int] = datadict["timesteps"]
                 datadict["norm_times"] = list(np.array(timesteps) / timesteps[-1])
     
-    def color_code_and_clean_up_labels(datadicts: list[PlotData]) -> None:
+    def color_code_and_clean_up_labels(datadicts: list[PlotData], legend_format: str = "{}") -> None:
         """Color code plot lines according to treatment (parameter value); and only label one plot per treatment
         
         On entry, each PlotData["label"] is a numerical value. Sort the list according to that value (so that
@@ -1142,6 +1142,11 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         (so that each label only appears once in the legend); and then wrap that numerical
         value in a string that explains what it is. Then set distinct plot colors for each treatment,
         but the SAME plot color for the multiple plot lines of the SAME treatment.
+        
+        :param datadicts: one PlotData for each line that is to be plotted. "label" field should
+        be numerical, representing the treatment.
+        :param legend_format: a string containing a replacement field, into which the treatment value for
+        each legend will be inserted
         """
         datadicts.sort(key=lambda plot_data: plot_data["label"])
         datadict: PlotData
@@ -1153,7 +1158,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             # datadict["label"] is known to be numerical
             current_label: int | float = datadict["label"]  # type: ignore
             if current_label > previous_label:
-                datadict["label"] = fr"$\lambda$ = {current_label}"
+                datadict["label"] = legend_format.format(current_label)
                 previous_label = current_label
                 cycler_index += 1
             else:
@@ -1168,7 +1173,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                                       } for simulation in simulation_data]
         normalize(datadicts)
         
-        color_code_and_clean_up_labels(datadicts)
+        color_code_and_clean_up_labels(datadicts, legend_format=r"$\lambda$ = {}")
 
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
@@ -1213,8 +1218,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                                     "label": label}
             margin_cum_dicts.append(margin_cum)
             
-        color_code_and_clean_up_labels(margin_count_dicts)
-        color_code_and_clean_up_labels(margin_cum_dicts)
+        color_code_and_clean_up_labels(margin_count_dicts, legend_format=r"$\lambda$ = {}")
+        color_code_and_clean_up_labels(margin_cum_dicts, legend_format=r"$\lambda$ = {}")
         
         all_count_data: list[list[int]] = [datadict["data"] for datadict in margin_count_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 10), data=all_count_data)
@@ -1230,20 +1235,27 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               limits=limits,
                               post_process=True)
 
-    def show_composite_straightness(rawdicts: list[PlotData]) -> None:
-        """Combine multiple straightness datasets into composite metrics, one per 'treatment'.
+    def show_composite_medians(rawdicts: list[PlotData],
+                               dataname: str,
+                               default_limits: tuple[float, float],
+                               legend_format: str) -> None:
+        """Combine multiple datasets into composite metrics, one per 'treatment'.
         
-        'Treatment' refers to the different values of a single variable that we are contrasting;
-        in this case, the edge bond-angle constraint lambda, k_edge_bond_angle. But this code will
-        no doubt be generalized in future commits, to do the same for any parameter we may vary.
+        'Treatment' refers to the different values of a single variable that we are contrasting.
         
         The handling of the labels and legends assumes there is more than one treatment being
         compared in the plot, but if we ever need to do this for just a single treatment, that can
         be tweaked as necessary.
         
-        rawdicts: one PlotData for each simulation that is to be plotted. It should have already
+        :param rawdicts: one PlotData for each simulation that is to be plotted. It should have already
         been normalized (normalized time data calculated for each simulation). "label" field should
         be numerical, representing the treatment.
+        :param dataname: will be used both as the title of the y-axis, and as part of the filename for
+        the saved plot, so should be suitable for both.
+        :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
+        the range of the actual data exceeds the default_limits.
+        :param legend_format: a string containing a replacement field, into which the treatment value for
+        each legend will be inserted
         """
         composite_dicts: dict[str: PlotData] = {}
         composite_key: str
@@ -1315,26 +1327,26 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             # Finally, construct the x and y datasets we'll actually plot
             time_bin: np.ndarray
             phi_bin: np.ndarray
-            time_median_straightness: list[float] = []
-            phi_median_straightness: list[float] = []
+            time_median_data: list[float] = []
+            phi_median_data: list[float] = []
             time_axis: list[float] = []
             phi_axis: list[float] = []
             for i, time_bin in enumerate(time_bins):
                 if time_bin.size > 0:
                     # should be always.
                     # np.median() returns ndarray but is really float because time_bin is 1d
-                    time_median_straightness.append(np.median(time_bin).item())
+                    time_median_data.append(np.median(time_bin).item())
                     # position each point horizontally halfway between the bin edges
                     time_axis.append(time_edges[i] + time_bin_size / 2)
             for i, phi_bin in enumerate(phi_bins):
                 if phi_bin.size > 0:
-                    phi_median_straightness.append(np.median(phi_bin).item())
+                    phi_median_data.append(np.median(phi_bin).item())
                     phi_axis.append(phi_edges[i] + phi_bin_size / 2)
                     
-            binned_v_time_dicts[composite_key] = {"data": time_median_straightness,
+            binned_v_time_dicts[composite_key] = {"data": time_median_data,
                                                   "norm_times": time_axis,
                                                   "label": composite_dict["label"]}
-            binned_v_phi_dicts[composite_key] = {"data": phi_median_straightness,
+            binned_v_phi_dicts[composite_key] = {"data": phi_median_data,
                                                  "phi": phi_axis,
                                                  "label": composite_dict["label"]}
             
@@ -1342,28 +1354,28 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         # normalized times, and one by phi. Now we can plot them.
         time_dicts_list: list[PlotData] = list(binned_v_time_dicts.values())
         phi_dicts_list: list[PlotData] = list(binned_v_phi_dicts.values())
-        color_code_and_clean_up_labels(time_dicts_list)
-        color_code_and_clean_up_labels(phi_dicts_list)
+        color_code_and_clean_up_labels(time_dicts_list, legend_format)
+        color_code_and_clean_up_labels(phi_dicts_list, legend_format)
         
         # Since the data was binned differently in the two dicts, they might have slightly
         # different ranges. So to make the y-axis scales identical on the two plots we'll
         # generate, combine ALL the data from both to determine the y limits:
         all_data: list[list[float]] = [plot_data["data"] for plot_data in time_dicts_list]
         all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
-        limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=all_data)
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
         _plot_datasets_v_time(time_dicts_list,
-                              filename="Median SI v. normalized time",
+                              filename=f"Median {dataname} v. normalized time",
                               limits=limits,
-                              ylabel="Median Straightness Index (SI)",
+                              ylabel=f"Median {dataname}",
                               plot_v_time=True,
                               normalize_time=True,
                               post_process=True)
         
         _plot_datasets_v_time(phi_dicts_list,
-                              filename="Median SI v. phi",
+                              filename=f"Median {dataname} v. phi",
                               limits=limits,
-                              ylabel="Median Straightness Index (SI)",
+                              ylabel=f"Median {dataname}",
                               post_process=True)
         
     def show_multi_straightness_by_constraint_k() -> None:
@@ -1374,30 +1386,34 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
                                       } for simulation in simulation_data]
         normalize(datadicts)
-        show_composite_straightness(datadicts)
         
-        color_code_and_clean_up_labels(datadicts)
+        dataname: str = "Straightness Index (SI)"
+        default_limits: tuple[float, float] = (0.9, 1.001)
+        legend_format: str = r"$\lambda$ = {}"
+        show_composite_medians(datadicts, dataname, default_limits, legend_format)
+
+        color_code_and_clean_up_labels(datadicts, legend_format)
         
         all_data: list[list[float]] = [data["data"] for data in datadicts]
-        limits: tuple[float, float] = _expand_limits_if_needed(limits=(0.9, 1.001), data=all_data)
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
         _plot_datasets_v_time(datadicts,
-                              filename="Straightness Index v. phi",
+                              filename=f"{dataname} v. phi",
                               limits=limits,
-                              ylabel="Straightness Index (SI)",
+                              ylabel=dataname,
                               post_process=True)
 
         _plot_datasets_v_time(datadicts,
-                              filename="Straightness Index v. time",
+                              filename=f"{dataname} v. time",
                               limits=limits,
-                              ylabel="Straightness Index (SI)",
+                              ylabel=dataname,
                               plot_v_time=True,
                               post_process=True)
 
         _plot_datasets_v_time(datadicts,
-                              filename="Straightness Index v. normalized time",
+                              filename=f"{dataname} v. normalized time",
                               limits=limits,
-                              ylabel="Straightness Index (SI)",
+                              ylabel=dataname,
                               plot_v_time=True,
                               normalize_time=True,
                               post_process=True)
