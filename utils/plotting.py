@@ -1166,6 +1166,8 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                                       "timesteps": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
                                       } for simulation in simulation_data]
+        normalize(datadicts)
+        
         color_code_and_clean_up_labels(datadicts)
 
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
@@ -1180,7 +1182,6 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               plot_v_time=True,
                               post_process=True)
 
-        normalize(datadicts)
         _plot_datasets_v_time(datadicts,
                               filename="Leading edge phi v. normalized time",
                               limits=(np.pi * 7 / 16, np.pi),
@@ -1229,7 +1230,7 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               limits=limits,
                               post_process=True)
 
-    def show_composite_straightness() -> None:
+    def show_composite_straightness(rawdicts: list[PlotData]) -> None:
         """Combine multiple straightness datasets into composite metrics, one per 'treatment'.
         
         'Treatment' refers to the different values of a single variable that we are contrasting;
@@ -1239,19 +1240,16 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         The handling of the labels and legends assumes there is more than one treatment being
         compared in the plot, but if we ever need to do this for just a single treatment, that can
         be tweaked as necessary.
-        """
-        rawdicts: list[PlotData] = [{"data": simulation["plot"]["straightness_cyl"],
-                                     "phi": simulation["plot"]["leading_edge_phi"],
-                                     "timesteps": simulation["plot"]["timesteps"],
-                                     "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
-                                     } for simulation in simulation_data]
         
+        rawdicts: one PlotData for each simulation that is to be plotted. It should have already
+        been normalized (normalized time data calculated for each simulation). "label" field should
+        be numerical, representing the treatment.
+        """
         composite_dicts: dict[str: PlotData] = {}
         composite_key: str
         # Using str keys for the different treatments, since I'm unsure how safe it is to use floats as keys
         # composite_dicts will contain one PlotData for each treatment, keyed by the treatment value
 
-        normalize(rawdicts)
         for rawdict in rawdicts:
             composite_key = str(rawdict["label"])
             
@@ -1375,6 +1373,9 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                                       "timesteps": simulation["plot"]["timesteps"],
                                       "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
                                       } for simulation in simulation_data]
+        normalize(datadicts)
+        show_composite_straightness(datadicts)
+        
         color_code_and_clean_up_labels(datadicts)
         
         all_data: list[list[float]] = [data["data"] for data in datadicts]
@@ -1393,7 +1394,6 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               plot_v_time=True,
                               post_process=True)
 
-        normalize(datadicts)
         _plot_datasets_v_time(datadicts,
                               filename="Straightness Index v. normalized time",
                               limits=limits,
@@ -1436,6 +1436,5 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
     # print(simulation_data)
     show_multi_tension()
     show_multi_straightness_by_constraint_k()
-    show_composite_straightness()
     show_multi_margin_pop_by_constraint_k()
     show_multi_progress_by_constraint_k()
