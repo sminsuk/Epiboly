@@ -1203,10 +1203,12 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         simulation: dict
         for simulation in simulation_data:
             leading_edge_phi: list[float] = simulation["plot"]["leading_edge_phi"]
+            timesteps: list[int] = simulation["plot"]["timesteps"]
             label: int = simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
             
             margin_count: PlotData = {"data": simulation["plot"]["margin_count"],
                                       "phi": leading_edge_phi,
+                                      "timesteps": timesteps,
                                       "label": label}
             margin_count_dicts.append(margin_count)
             
@@ -1215,23 +1217,33 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             margin_cum_total: list[int] = list(np.add(margin_cum_in, margin_cum_out))
             margin_cum: PlotData = {"data": margin_cum_total,
                                     "phi": leading_edge_phi,
+                                    "timesteps": timesteps,
                                     "label": label}
             margin_cum_dicts.append(margin_cum)
             
-        color_code_and_clean_up_labels(margin_count_dicts, legend_format=r"$\lambda$ = {}")
-        color_code_and_clean_up_labels(margin_cum_dicts, legend_format=r"$\lambda$ = {}")
+        normalize(margin_count_dicts)
+        normalize(margin_cum_dicts)
+        count_name: str = "Margin cell count"
+        cum_name: str = "Margin cell rearrangement"
+        default_limits: tuple[float, float] = (-2, 10)
+        legend_format: str = r"$\lambda$ = {}"
+        show_composite_medians(margin_count_dicts, count_name, default_limits, legend_format)
+        show_composite_medians(margin_cum_dicts, cum_name, default_limits, legend_format)
+
+        color_code_and_clean_up_labels(margin_count_dicts, legend_format)
+        color_code_and_clean_up_labels(margin_cum_dicts, legend_format)
         
         all_count_data: list[list[int]] = [datadict["data"] for datadict in margin_count_dicts]
-        limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 10), data=all_count_data)
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_count_data)
         _plot_datasets_v_time(margin_count_dicts,
-                              filename="Margin cell count",
+                              filename=count_name,
                               limits=limits,
                               post_process=True)
         
         all_cum_data: list[list[int]] = [datadict["data"] for datadict in margin_cum_dicts]
-        limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 10), data=all_cum_data)
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_cum_data)
         _plot_datasets_v_time(margin_cum_dicts,
-                              filename="Margin cell rearrangement, cumulative",
+                              filename=f"{cum_name}, cumulative",
                               limits=limits,
                               post_process=True)
 
