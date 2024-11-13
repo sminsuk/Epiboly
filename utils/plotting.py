@@ -1262,6 +1262,11 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         compared in the plot, but if we ever need to do this for just a single treatment, that can
         be tweaked as necessary.
         
+        Note that when balanced-force control data is included, the plots v. phi will be garbage because
+        there is no phi progression; and the plots v. normalized time should work but "1.0" no longer means
+        epiboly completion, but just reaching a predetermined timestep. Those control datasets should look
+        the same on the timestep and normalized time plots, just with the x-axes labeled accordingly.
+        
         :param rawdicts: one PlotData for each simulation that is to be plotted. It should have already
         been normalized (normalized time data calculated for each simulation). "label" field should
         be numerical, representing the treatment.
@@ -1285,14 +1290,14 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
             if composite_key not in composite_dicts:
                 composite_dicts[composite_key] = {"data": [],
                                                   "phi": [],
-                                                  "timesteps": [],  # Not sure needed; process with the others for now
+                                                  "timesteps": [],
                                                   "norm_times": [],
                                                   "label": rawdict["label"]}
                 
             # Add each list from the current rawdict into the corresponding list in the composite dict
             composite_dict: PlotData = composite_dicts[composite_key]
             plotdata_key: str
-            for plotdata_key in ["data", "phi", "norm_times"]:
+            for plotdata_key in ["data", "phi", "timesteps", "norm_times"]:
                 # (Type checker doesn't like variables as keys; it's fine.)
                 composite_dict[plotdata_key].extend(rawdict[plotdata_key])  # type: ignore
             
@@ -1310,11 +1315,18 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         # v. phi, or v. normalized time.
         num_bins = 20
         binned_v_phi_dicts: dict[str: PlotData] = {}
-        binned_v_time_dicts: dict[str: PlotData] = {}
+        binned_v_timesteps_dicts: dict[str: PlotData] = {}
+        binned_v_normtime_dicts: dict[str: PlotData] = {}
         
-        # bin the time values over this range:
-        min_time: float = 0.0
-        max_time: float = 1.0
+        # bin the normalized time values over this range:
+        min_normtime: float = 0.0
+        max_normtime: float = 1.0
+        
+        # bin the timestep values over this range:
+        all_timesteps: list[list[int]] = [composite_dict["timesteps"] for composite_dict in composite_dicts.values()]
+        flat_phi_iterator = chain.from_iterable(all_timesteps)
+        min_timestep: int = 0
+        max_timestep: int = max(flat_phi_iterator)
         
         # bin the phi values over this range:
         all_phi: list[list[float]] = [composite_dict["phi"] for composite_dict in composite_dicts.values()]
@@ -1325,61 +1337,89 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         for composite_key, composite_dict in composite_dicts.items():
             np_data = np.array(composite_dict["data"])
             np_phi = np.array(composite_dict["phi"])
-            np_times = np.array(composite_dict["norm_times"])
+            np_timesteps = np.array(composite_dict["timesteps"])
+            np_normtimes = np.array(composite_dict["norm_times"])
             
-            time_edges: np.ndarray = np.linspace(min_time, max_time, num_bins + 1)
+            normtime_edges: np.ndarray = np.linspace(min_normtime, max_normtime, num_bins + 1)
+            timestep_edges: np.ndarray = np.linspace(min_timestep, max_timestep, num_bins + 1)
             phi_edges: np.ndarray = np.linspace(min_phi, max_phi, num_bins + 1)
-            time_bin_size: float = time_edges[1] - time_edges[0]
+            normtime_bin_size: float = normtime_edges[1] - normtime_edges[0]
+            timestep_bin_size: float = timestep_edges[1] - timestep_edges[0]
             phi_bin_size: float = phi_edges[1] - phi_edges[0]
-            time_indices: np.ndarray = np.digitize(np_times, time_edges)
+            normtime_indices: np.ndarray = np.digitize(np_normtimes, normtime_edges)
+            timestep_indices: np.ndarray = np.digitize(np_timesteps, timestep_edges)
             phi_indices: np.ndarray = np.digitize(np_phi, phi_edges)
             
             # Note: numpy ufunc equality and masking!
             # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
-            time_bins: list[np.ndarray] = [np_data[time_indices == i] for i in range(1, time_edges.size)]
+            normtime_bins: list[np.ndarray] = [np_data[normtime_indices == i] for i in range(1, normtime_edges.size)]
+            timestep_bins: list[np.ndarray] = [np_data[timestep_indices == i] for i in range(1, timestep_edges.size)]
             phi_bins: list[np.ndarray] = [np_data[phi_indices == i] for i in range(1, phi_edges.size)]
 
             # Finally, construct the x and y datasets we'll actually plot
-            time_bin: np.ndarray
+            normtime_bin: np.ndarray
+            timestep_bin: np.ndarray
             phi_bin: np.ndarray
-            time_median_data: list[float] = []
+            normtime_median_data: list[float] = []
+            timestep_median_data: list[float] = []
             phi_median_data: list[float] = []
-            time_axis: list[float] = []
+            normtime_axis: list[float] = []
+            timestep_axis: list[int] = []
             phi_axis: list[float] = []
-            for i, time_bin in enumerate(time_bins):
-                if time_bin.size > 0:
+            for i, normtime_bin in enumerate(normtime_bins):
+                if normtime_bin.size > 0:
                     # should be always.
-                    # np.median() returns ndarray but is really float because time_bin is 1d
-                    time_median_data.append(np.median(time_bin).item())
+                    # np.median() returns ndarray but is really float because bins are 1d
+                    normtime_median_data.append(np.median(normtime_bin).item())
                     # position each point horizontally halfway between the bin edges
-                    time_axis.append(time_edges[i] + time_bin_size / 2)
+                    normtime_axis.append(normtime_edges[i] + normtime_bin_size / 2)
+            for i, timestep_bin in enumerate(timestep_bins):
+                if timestep_bin.size > 0:
+                    timestep_median_data.append(np.median(timestep_bin).item())
+                    timestep_axis.append(timestep_edges[i] + timestep_bin_size / 2)
             for i, phi_bin in enumerate(phi_bins):
                 if phi_bin.size > 0:
+                    # There may be many empty bins when balanced-force-control data is included, since they
+                    # never progress, and I'm binning all the way out to pi.
                     phi_median_data.append(np.median(phi_bin).item())
                     phi_axis.append(phi_edges[i] + phi_bin_size / 2)
                     
-            binned_v_time_dicts[composite_key] = {"data": time_median_data,
-                                                  "norm_times": time_axis,
-                                                  "label": composite_dict["label"]}
+            binned_v_normtime_dicts[composite_key] = {"data": normtime_median_data,
+                                                      "norm_times": normtime_axis,
+                                                      "label": composite_dict["label"]}
+            binned_v_timesteps_dicts[composite_key] = {"data": timestep_median_data,
+                                                       "timesteps": timestep_axis,
+                                                       "label": composite_dict["label"]}
             binned_v_phi_dicts[composite_key] = {"data": phi_median_data,
                                                  "phi": phi_axis,
                                                  "label": composite_dict["label"]}
             
-        # Finally, after exiting the above loop, we have two of dict[str: PlotData], one binned by
-        # normalized times, and one by phi. Now we can plot them.
-        time_dicts_list: list[PlotData] = list(binned_v_time_dicts.values())
+        # Finally, after exiting the above loop, we have three of dict[str: PlotData], one binned by
+        # normalized times, one by timesteps, and one by phi. Now we can plot them.
+        normtime_dicts_list: list[PlotData] = list(binned_v_normtime_dicts.values())
+        timestep_dicts_list: list[PlotData] = list(binned_v_timesteps_dicts.values())
         phi_dicts_list: list[PlotData] = list(binned_v_phi_dicts.values())
-        color_code_and_clean_up_labels(time_dicts_list, legend_format)
+        color_code_and_clean_up_labels(normtime_dicts_list, legend_format)
+        color_code_and_clean_up_labels(timestep_dicts_list, legend_format)
         color_code_and_clean_up_labels(phi_dicts_list, legend_format)
         
-        # Since the data was binned differently in the two dicts, they might have slightly
-        # different ranges. So to make the y-axis scales identical on the two plots we'll
-        # generate, combine ALL the data from both to determine the y limits:
-        all_data: list[list[float]] = [plot_data["data"] for plot_data in time_dicts_list]
+        # Since the data was binned differently in the time dicts vs the phi dict, they might have slightly
+        # different ranges. So to make the y-axis scales identical on the three plots we'll generate, combine
+        # ALL the data from all three to determine the y limits. (The two time dicts – timestep and normalized –
+        # might be binned the same? I'm not 100% sure, but it's easy enough to include them both):
+        all_data: list[list[float]] = [plot_data["data"] for plot_data in normtime_dicts_list]
+        all_data.extend([plot_data["data"] for plot_data in timestep_dicts_list])
         all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
-        _plot_datasets_v_time(time_dicts_list,
+        _plot_datasets_v_time(timestep_dicts_list,
+                              filename=f"{filename} v. timesteps, Median",
+                              limits=limits,
+                              ylabel=f"{ylabel} (Median)",
+                              plot_v_time=True,
+                              post_process=True)
+        
+        _plot_datasets_v_time(normtime_dicts_list,
                               filename=f"{filename} v. normalized time, Median",
                               limits=limits,
                               ylabel=f"{ylabel} (Median)",
