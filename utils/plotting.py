@@ -1126,7 +1126,29 @@ def set_state(d: dict) -> None:
     _circumf_strain_rates = d["circumf_strain_rates"]
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
     
-def post_process_graphs(simulation_data: list[dict]) -> None:
+def post_process_graphs(simulation_data: list[dict],
+                        include_legends: bool = True,
+                        config_section_key: str = "model",
+                        config_var_key: str = "",
+                        num_legend_format: str = "{}",
+                        true_legend_format: str = "True",
+                        false_legend_format: str = "False") -> None:
+    """Print various plots with data from multiple simulation runs
+    
+    All the nested functions access these parameters:
+    
+    :param simulation_data: contains the entire plot history and config of each simulation run,
+        from which we will pull the data needed to draw the composite plots.
+    :param include_legends: if False, ignore the remaining parameters, and plot all the simulations
+        ungrouped, all in the same color, and with no legends.
+    :param config_section_key: the key for the config section in which to find the variable that we are varying.
+        See config.py, get_state().
+    :param config_var_key: the key for the particular config variable that we are varying. See config.py, get_state().
+    :param num_legend_format: for numerical variables, a string containing a replacement field,
+        into which the treatment value for each legend will be inserted to create each legend.
+    :param true_legend_format: for boolean variables, a string to use as the legend when the variable is True.
+    :param false_legend_format: for boolean variables, a string to use as the legend when the variable is False.
+    """
     def normalize(datadicts: list[PlotData]) -> None:
         datadict: PlotData
         for datadict in datadicts:
@@ -1134,46 +1156,51 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                 timesteps: list[int] = datadict["timesteps"]
                 datadict["norm_times"] = list(np.array(timesteps) / timesteps[-1])
     
-    def color_code_and_clean_up_labels(datadicts: list[PlotData], legend_format: str = "{}") -> None:
+    def color_code_and_clean_up_labels(datadicts: list[PlotData]) -> None:
         """Color code plot lines according to treatment (parameter value); and only label one plot per treatment
         
-        On entry, each PlotData["label"] is a numerical value. Sort the list according to that value (so that
+        On entry, each PlotData["label"] is a numerical or bool value. Sort the list according to that value (so that
         the labels will be in the right order in the legend); then remove all labels except one per treatment
         (so that each label only appears once in the legend); and then wrap that numerical
         value in a string that explains what it is. Then set distinct plot colors for each treatment,
         but the SAME plot color for the multiple plot lines of the SAME treatment.
         
         :param datadicts: one PlotData for each line that is to be plotted. "label" field should
-        be numerical, representing the treatment.
-        :param legend_format: a string containing a replacement field, into which the treatment value for
-        each legend will be inserted
+        be numerical or bool, representing the treatment.
         """
+        if not include_legends:
+            return
+        
         datadicts.sort(key=lambda plot_data: plot_data["label"])
         datadict: PlotData
-        previous_label: int | float = -1
+        previous_label: int | float | bool = -1
         cycler_index: int = -1
         
         # For each distinct treatment, provide a different color; and a str label only for one plot of each treatment
         for datadict in datadicts:
-            # datadict["label"] is known to be numerical
-            current_label: int | float = datadict["label"]  # type: ignore
+            # datadict["label"] is known to be int, float, or bool
+            current_label: int | float | bool = datadict["label"]  # type: ignore
             if current_label > previous_label:
-                datadict["label"] = legend_format.format(current_label)
+                datadict["label"] = (num_legend_format.format(current_label) if not isinstance(current_label, bool) else
+                                     true_legend_format if current_label else
+                                     false_legend_format)
                 previous_label = current_label
                 cycler_index += 1
             else:
                 del datadict["label"]
             datadict["fmt"] = f"-C{cycler_index}"
     
-    def show_multi_progress_by_constraint_k() -> None:
+    def show_multi_progress() -> None:
         """Overlay multiple progress plots on one Axes, color-coded by treatment (edge bond-angle constraint lambda)"""
-        datadicts: list[PlotData] = [{"data": simulation["plot"]["leading_edge_phi"],
-                                      "timesteps": simulation["plot"]["timesteps"],
-                                      "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
-                                      } for simulation in simulation_data]
+        datadicts: list[PlotData] = [{
+                "data": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                } for simulation in simulation_data]
         normalize(datadicts)
         
-        color_code_and_clean_up_labels(datadicts, legend_format=r"$\lambda$ = {}")
+        color_code_and_clean_up_labels(datadicts)
 
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
@@ -1196,15 +1223,16 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               normalize_time=True,
                               post_process=True)
 
-    def show_multi_margin_pop_by_constraint_k() -> None:
-        """Overlay multiple margin pop plots on one Axes, color-coded by edge bond-angle constraint lambda"""
+    def show_multi_margin_pop() -> None:
+        """Overlay multiple margin pop plots on one Axes, grouped and color-coded by the provided config_var"""
         margin_count_dicts: list[PlotData] = []
         margin_cum_dicts: list[PlotData] = []
         simulation: dict
         for simulation in simulation_data:
             leading_edge_phi: list[float] = simulation["plot"]["leading_edge_phi"]
             timesteps: list[int] = simulation["plot"]["timesteps"]
-            label: int = simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
+            label = (None if not include_legends else
+                     simulation["config"]["config_values"][config_section_key][config_var_key])
             
             margin_count: PlotData = {"data": simulation["plot"]["margin_count"],
                                       "phi": leading_edge_phi,
@@ -1228,32 +1256,30 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         count_ylabel: str = "Margin cell count"
         cum_ylabel: str = "Cumulative edge rearrangement events"
         default_limits: tuple[float, float] = (-2, 10)
-        legend_format: str = r"$\lambda$ = {}"
-        show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits, legend_format)
-        show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits, legend_format)
+        show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits)
+        show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits)
 
-        color_code_and_clean_up_labels(margin_count_dicts, legend_format)
-        color_code_and_clean_up_labels(margin_cum_dicts, legend_format)
+        color_code_and_clean_up_labels(margin_count_dicts)
+        color_code_and_clean_up_labels(margin_cum_dicts)
         
         all_count_data: list[list[int]] = [datadict["data"] for datadict in margin_count_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_count_data)
         _plot_datasets_v_time(margin_count_dicts,
-                              filename=count_filename,
+                              filename=f"{count_filename} v. phi, grouped by {config_var_key}",
                               limits=limits,
                               post_process=True)
         
         all_cum_data: list[list[int]] = [datadict["data"] for datadict in margin_cum_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_cum_data)
         _plot_datasets_v_time(margin_cum_dicts,
-                              filename=cum_filename,
+                              filename=f"{cum_filename} v. phi, grouped by {config_var_key}",
                               limits=limits,
                               post_process=True)
 
     def show_composite_medians(rawdicts: list[PlotData],
                                filename: str,
                                ylabel: str,
-                               default_limits: tuple[float, float],
-                               legend_format: str) -> None:
+                               default_limits: tuple[float, float]) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
         
         'Treatment' refers to the different values of a single variable that we are contrasting.
@@ -1274,8 +1300,6 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         :param ylabel: title of the y-axis.
         :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
         the range of the actual data exceeds the default_limits.
-        :param legend_format: a string containing a replacement field, into which the treatment value for
-        each legend will be inserted
         """
         composite_dicts: dict[str: PlotData] = {}
         composite_key: str
@@ -1399,9 +1423,9 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         normtime_dicts_list: list[PlotData] = list(binned_v_normtime_dicts.values())
         timestep_dicts_list: list[PlotData] = list(binned_v_timesteps_dicts.values())
         phi_dicts_list: list[PlotData] = list(binned_v_phi_dicts.values())
-        color_code_and_clean_up_labels(normtime_dicts_list, legend_format)
-        color_code_and_clean_up_labels(timestep_dicts_list, legend_format)
-        color_code_and_clean_up_labels(phi_dicts_list, legend_format)
+        color_code_and_clean_up_labels(normtime_dicts_list)
+        color_code_and_clean_up_labels(timestep_dicts_list)
+        color_code_and_clean_up_labels(phi_dicts_list)
         
         # Since the data was binned differently in the time dicts vs the phi dict, they might have slightly
         # different ranges. So to make the y-axis scales identical on the three plots we'll generate, combine
@@ -1413,14 +1437,14 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
         _plot_datasets_v_time(timestep_dicts_list,
-                              filename=f"{filename} v. timesteps, Median",
+                              filename=f"{filename} v. timesteps, Median, grouped by {config_var_key}",
                               limits=limits,
                               ylabel=f"{ylabel} (Median)",
                               plot_v_time=True,
                               post_process=True)
         
         _plot_datasets_v_time(normtime_dicts_list,
-                              filename=f"{filename} v. normalized time, Median",
+                              filename=f"{filename} v. normalized time, Median, grouped by {config_var_key}",
                               limits=limits,
                               ylabel=f"{ylabel} (Median)",
                               plot_v_time=True,
@@ -1428,46 +1452,47 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
                               post_process=True)
         
         _plot_datasets_v_time(phi_dicts_list,
-                              filename=f"{filename} v. phi, Median",
+                              filename=f"{filename} v. phi, Median, grouped by {config_var_key}",
                               limits=limits,
                               ylabel=f"{ylabel} (Median)",
                               post_process=True)
         
-    def show_multi_straightness_by_constraint_k() -> None:
-        """Overlay multiple Straightness Index plots on one Axes, color-coded by edge bond-angle constraint lambda"""
-        datadicts: list[PlotData] = [{"data": simulation["plot"]["straightness_cyl"],
-                                      "phi": simulation["plot"]["leading_edge_phi"],
-                                      "timesteps": simulation["plot"]["timesteps"],
-                                      "label": simulation["config"]["config_values"]["model"]["k_edge_bond_angle"]
-                                      } for simulation in simulation_data]
+    def show_multi_straightness() -> None:
+        """Overlay multiple Straightness Index plots on one Axes, grouped and color-coded by the provided config_var"""
+        datadicts: list[PlotData] = [{
+                "data": simulation["plot"]["straightness_cyl"],
+                "phi": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                } for simulation in simulation_data]
         normalize(datadicts)
         
         filename: str = "Straightness Index"
         ylabel: str = "Straightness Index (SI)"
         default_limits: tuple[float, float] = (0.9, 1.001)
-        legend_format: str = r"$\lambda$ = {}"
-        show_composite_medians(datadicts, filename, ylabel, default_limits, legend_format)
+        show_composite_medians(datadicts, filename, ylabel, default_limits)
 
-        color_code_and_clean_up_labels(datadicts, legend_format)
+        color_code_and_clean_up_labels(datadicts)
         
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
         _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. phi",
+                              filename=f"{filename} v. phi, grouped by {config_var_key}",
                               limits=limits,
                               ylabel=ylabel,
                               post_process=True)
 
         _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. time",
+                              filename=f"{filename} v. timesteps, grouped by {config_var_key}",
                               limits=limits,
                               ylabel=ylabel,
                               plot_v_time=True,
                               post_process=True)
 
         _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. normalized time",
+                              filename=f"{filename} v. normalized time, grouped by {config_var_key}",
                               limits=limits,
                               ylabel=ylabel,
                               plot_v_time=True,
@@ -1507,6 +1532,6 @@ def post_process_graphs(simulation_data: list[dict]) -> None:
     _init_graphs()
     # print(simulation_data)
     show_multi_tension()
-    show_multi_straightness_by_constraint_k()
-    show_multi_margin_pop_by_constraint_k()
-    show_multi_progress_by_constraint_k()
+    show_multi_straightness()
+    show_multi_margin_pop()
+    show_multi_progress()

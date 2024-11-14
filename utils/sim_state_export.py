@@ -240,6 +240,29 @@ if __name__ == "__main__":
     directory_names: list[str] = ["Zero or more simulation directory names go here"]
     assert enclosing_directory_full_path or directory_names, "Should not both be blank/empty!"
 
+    # Also specify whether the plots should identify different treatments with a legend, and which config
+    # variable represents those treatments. See config.py, get_state(), for variable keys. If not grouping
+    # by treatments, then the additional variables below will be ignored, and plots will each be a different color
+    # (with duplication, depending on the color cycler). If grouping by treatment, then provide the additional values.
+    include_legends: bool = True
+    config_var_key: str = "config key for variable goes here"
+    
+    # If grouping by treatment, and no presets available below, provide these values (or consider creating a preset).
+    # Where to find the variable in the config, and how to show the legends for each group.
+    config_section_key: str = " 'model' or 'model control' goes here "
+    num_legend_format: str = "legend label with a {} in it, where the numerical value will go"
+    true_legend_format: str = "legend label to use when bool variable is True"
+    false_legend_format: str = "legend label to use when bool variable is False"
+    
+    # Some pre-set configurations:
+    if config_var_key == "run_balanced_force_control":
+        config_section_key = "model control"
+        true_legend_format = "reduced forces"
+        false_legend_format = "normal"
+    if config_var_key == "k_edge_bond_angle":
+        config_section_key = "model"
+        num_legend_format = r"$\lambda$ = {}"
+        
     if not directory_names:
         input_path: str = tfu.export_path(enclosing_directory_full_path)
         with os.scandir(input_path) as dir_entries_it:
@@ -274,4 +297,5 @@ if __name__ == "__main__":
         for directory_name in directory_names:
             print(directory_name, file=output_file)
     
-    plot.post_process_graphs(simulation_data)
+    plot.post_process_graphs(simulation_data, include_legends, config_section_key, config_var_key,
+                             num_legend_format, true_legend_format, false_legend_format)
