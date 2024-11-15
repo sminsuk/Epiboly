@@ -262,6 +262,9 @@ if __name__ == "__main__":
     if config_var_key == "k_edge_bond_angle":
         config_section_key = "model"
         num_legend_format = r"$\lambda$ = {}"
+    if config_var_key == "harmonic_edge_spring_constant":
+        config_section_key = "model"
+        num_legend_format = "k = {}"
         
     if not directory_names:
         input_path: str = tfu.export_path(enclosing_directory_full_path)
