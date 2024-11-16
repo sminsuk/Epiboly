@@ -13,7 +13,20 @@ from utils import tf_utils as tfu,\
 
 import neighbors as nbrs
 
-def is_edge_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> bool:
+def is_edge_bond(handle1: tf.ParticleHandle | tf.BondHandle, p2: tf.ParticleHandle = None) -> bool:
+    """Pass either a single BondHandle, or two ParticleHandles
+    
+    If two ParticleHandles are passed, return whether they are both edge particles. (Does not assume that
+    a bond actually exists between them, but will determine whether such a bond would be an edge bond if it
+    were created.) If a BondHandle is passed, grab its two particles and do the same.
+    """
+    p1: tf.ParticleHandle
+    if type(handle1) is tf.ParticleHandle:
+        p1 = handle1
+    else:
+        bhandle: tf.BondHandle = handle1
+        p1, p2 = bhandle.parts
+        
     return p1.type_id == p2.type_id == g.LeadingEdge.id
 
 def update_bond(bhandle: tf.BondHandle) -> None:

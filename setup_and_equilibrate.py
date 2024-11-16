@@ -145,10 +145,7 @@ def remove_edge_bonds() -> None:
     # they need to be re-made. Plus the connection topology is arbitrary and we need to control that.)
     bhandle: tf.BondHandle
     for bhandle in tf.BondHandle.items():
-        p1: tf.ParticleHandle
-        p2: tf.ParticleHandle
-        p1, p2 = bhandle.parts
-        if bonds.is_edge_bond(p1, p2):
+        if bonds.is_edge_bond(bhandle):
             gc.destroy_bond(bhandle)
 
 def create_edge_bonds() -> None:
