@@ -152,8 +152,8 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         (all different).
     :param axvline: position of vertical line if one is needed. Note that, if done post-process, it should work
         fine on a plot vs. phi as long as the mark is always in the same place (e.g., for cell division cessation,
-        phi just reflects initial edge position); but it won't work on a plot v. timesteps, because the position
-        will vary among the datasets. If necessary to display that, it would have to by a different means, like
+        phi just reflects cessation config); but it won't work on a plot v. timesteps, because the position
+        will vary among the datasets. If necessary to display that, it would have to be by a different means, like
         a special marker on each line in the plot.
     :param legend_loc: optional, specify where legend will go if there is one.
     :param yticks: Currently using this in only 2 spots, ad hoc, not anticipating more. But if I start using this
@@ -1279,7 +1279,8 @@ def post_process_graphs(simulation_data: list[dict],
     def show_composite_medians(rawdicts: list[PlotData],
                                filename: str,
                                ylabel: str,
-                               default_limits: tuple[float, float]) -> None:
+                               default_limits: tuple[float, float],
+                               axvline: float = None) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
         
         'Treatment' refers to the different values of a single variable that we are contrasting.
@@ -1294,12 +1295,14 @@ def post_process_graphs(simulation_data: list[dict],
         the same on the timestep and normalized time plots, just with the x-axes labeled accordingly.
         
         :param rawdicts: one PlotData for each simulation that is to be plotted. It should have already
-        been normalized (normalized time data calculated for each simulation). "label" field should
-        be numerical, representing the treatment.
+            been normalized (normalized time data calculated for each simulation). "label" field should
+            be numerical, representing the treatment.
         :param filename: will be used as part of the filename for the saved plots.
         :param ylabel: title of the y-axis.
         :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
-        the range of the actual data exceeds the default_limits.
+            the range of the actual data exceeds the default_limits.
+        :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
+            plot it), so calculated once by caller and passed in. Not to be used for plots v. phi.
         """
         composite_dicts: dict[str: PlotData] = {}
         composite_key: str
@@ -1455,6 +1458,7 @@ def post_process_graphs(simulation_data: list[dict],
                               filename=f"{filename} v. phi, Median, grouped by {config_var_key}",
                               limits=limits,
                               ylabel=f"{ylabel} (Median)",
+                              axvline=axvline,
                               post_process=True)
         
     def show_multi_straightness() -> None:
@@ -1500,7 +1504,62 @@ def post_process_graphs(simulation_data: list[dict],
                               post_process=True)
 
     def show_multi_tension() -> None:
-        """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors"""
+        """Overlay multiple leading edge tension plots, grouped and color-coded by the provided config_var"""
+        # Get axvline position, which should be the same in all the sims, as long as they all started
+        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
+        # (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each
+        # simulation will have crossed the threshold at a slightly different time, so would make a mess
+        # if displayed.)
+        # So just grab it from the first simulation:
+        axvline = simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+        
+        datadicts: list[PlotData] = [{
+                "data": simulation["plot"]["median_tension_leading_edge"],
+                "phi": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                } for simulation in simulation_data]
+        normalize(datadicts)
+        
+        filename: str = "Leading edge tension"
+        ylabel: str = "Average tension at leading edge"
+        default_limits: tuple[float, float] = (-0.01, 0.2)
+        show_composite_medians(datadicts, filename, ylabel, default_limits)
+        
+        color_code_and_clean_up_labels(datadicts)
+        
+        all_data: list[list[float]] = [data["data"] for data in datadicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
+        
+        _plot_datasets_v_time(datadicts,
+                              filename=f"{filename} v. phi, grouped by {config_var_key}",
+                              limits=limits,
+                              ylabel=ylabel,
+                              axvline=axvline,
+                              post_process=True)
+
+        _plot_datasets_v_time(datadicts,
+                              filename=f"{filename} v. timesteps, grouped by {config_var_key}",
+                              limits=limits,
+                              ylabel=ylabel,
+                              plot_v_time=True,
+                              post_process=True)
+
+        _plot_datasets_v_time(datadicts,
+                              filename=f"{filename} v. normalized time, grouped by {config_var_key}",
+                              limits=limits,
+                              ylabel=ylabel,
+                              plot_v_time=True,
+                              normalize_time=True,
+                              post_process=True)
+
+    def show_multi_tension_hello_world() -> None:
+        """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors
+        
+        This is the first multi-plot I tried. I'm doing things a bit differently now so no longer using this,
+        but keep it around for now, in case I want something like it back again.
+        """
         # Get axvline position, which should be the same in all the sims, as long as they all started
         # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
         # So just grab it from the first one:
