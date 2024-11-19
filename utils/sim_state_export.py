@@ -235,7 +235,7 @@ if __name__ == "__main__":
     # If enclosing_directory_full_path is blank, look for the simulation directories at the top level of
     # ~/TissueForge_export ; if it's not blank, it should be the full path relative to ~/TissueForge_export .
     # If directory_names is empty, then just get EVERYTHING found inside the enclosing directory (except
-    # sim folders marked as "skip", or invisible folders that start with dot, which Mac files tend to have).
+    # sim folders marked as "skip", or invisible files that start with dot, which Mac directories tend to have).
     # As this implies, all the simulation directories must be in one common enclosing directory.
     enclosing_directory_full_path: str = "Enclosing directory name, or blank"
     directory_names: list[str] = ["Zero or more simulation directory names go here"]
