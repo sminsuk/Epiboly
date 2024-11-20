@@ -241,6 +241,10 @@ if __name__ == "__main__":
     directory_names: list[str] = ["Zero or more simulation directory names go here"]
     assert enclosing_directory_full_path or directory_names, "Should not both be blank/empty!"
 
+    # Also specify which axis types to plot for this dataset, because plotting all of them was getting out of hand.
+    # Provide a list of strings including any or all of: ["phi", "timesteps", "normalized time"]
+    x_axis_types: list[str] = ["types of x axis", "to plot", "go here"]
+
     # Also specify whether the plots should identify different treatments with a legend, and which config
     # variable represents those treatments. See config.py, get_state(), for variable keys. If not grouping
     # by treatments, then the additional variables below will be ignored, and plots will each be a different color
@@ -260,12 +264,15 @@ if __name__ == "__main__":
         config_section_key = "model control"
         true_legend_format = "reduced forces"
         false_legend_format = "normal"
+        x_axis_types = ["timesteps"]
     if config_var_key == "k_edge_bond_angle":
         config_section_key = "model"
         num_legend_format = r"$\lambda$ = {}"
+        x_axis_types = ["phi"]
     if config_var_key == "harmonic_edge_spring_constant":
         config_section_key = "model"
         num_legend_format = "k = {}"
+        x_axis_types = ["phi"]
         
     if not directory_names:
         input_path: str = tfu.export_path(enclosing_directory_full_path)
@@ -303,4 +310,4 @@ if __name__ == "__main__":
             print(directory_name, file=output_file)
     
     plot.post_process_graphs(simulation_data, include_legends, config_section_key, config_var_key,
-                             num_legend_format, true_legend_format, false_legend_format)
+                             num_legend_format, true_legend_format, false_legend_format, x_axis_types)

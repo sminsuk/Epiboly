@@ -1173,7 +1173,8 @@ def post_process_graphs(simulation_data: list[dict],
                         config_var_key: str = "",
                         num_legend_format: str = "{}",
                         true_legend_format: str = "True",
-                        false_legend_format: str = "False") -> None:
+                        false_legend_format: str = "False",
+                        x_axis_types: list[str] = None) -> None:
     """Print various plots with data from multiple simulation runs
     
     All the nested functions access these parameters:
@@ -1189,6 +1190,7 @@ def post_process_graphs(simulation_data: list[dict],
         into which the treatment value for each legend will be inserted to create each legend.
     :param true_legend_format: for boolean variables, a string to use as the legend when the variable is True.
     :param false_legend_format: for boolean variables, a string to use as the legend when the variable is False.
+    :param x_axis_types: list of x axis types to plot, including any or all of: ["phi", "timesteps", "normalized time"]
     """
     def normalize(datadicts: list[PlotData]) -> None:
         datadict: PlotData
@@ -1248,7 +1250,7 @@ def post_process_graphs(simulation_data: list[dict],
                   "labels": [r"$\pi$/2", r"3$\pi$/4", r"$\pi$"]}
 
         _plot_datasets_v_time(datadicts,
-                              filename="Leading edge phi v. time",
+                              filename="Leading edge phi v. timesteps",
                               limits=(np.pi * 7 / 16, np.pi),
                               ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
                               yticks=yticks,
@@ -1305,17 +1307,40 @@ def post_process_graphs(simulation_data: list[dict],
         
         all_count_data: list[list[int]] = [datadict["data"] for datadict in margin_count_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_count_data)
-        _plot_datasets_v_time(margin_count_dicts,
-                              filename=f"{count_filename} v. phi, grouped by {config_var_key}",
-                              limits=limits,
-                              post_process=True)
+        plot_datasets_v_selected_time_proxies(margin_count_dicts,
+                                              filename=count_filename,
+                                              limits=limits)
         
         all_cum_data: list[list[int]] = [datadict["data"] for datadict in margin_cum_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_cum_data)
-        _plot_datasets_v_time(margin_cum_dicts,
-                              filename=f"{cum_filename} v. phi, grouped by {config_var_key}",
-                              limits=limits,
-                              post_process=True)
+        plot_datasets_v_selected_time_proxies(margin_cum_dicts,
+                                              filename=cum_filename,
+                                              limits=limits)
+
+    def plot_datasets_v_selected_time_proxies(datadicts: list[PlotData],
+                                              filename: str,
+                                              ylabel: str = None,
+                                              limits: tuple[float, float] = None,
+                                              axvline: float = None) -> None:
+        """Send data to _plot_datasets_v_time() for each selected time axis proxy.
+        
+        :param datadicts: one PlotData for each simulation to be plotted
+        :param filename: will be used as part of the filename for the saved plots.
+        :param ylabel: title of the y-axis.
+        :param limits: y-axis limits
+        :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
+            plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not time.
+        """
+        x_axis_type: str
+        for x_axis_type in x_axis_types:
+            _plot_datasets_v_time(datadicts,
+                                  filename=f"{filename} v. {x_axis_type}, grouped by {config_var_key}",
+                                  limits=limits,
+                                  ylabel=ylabel,
+                                  axvline=axvline if x_axis_type == "phi" else None,
+                                  plot_v_time=(x_axis_type != "phi"),
+                                  normalize_time=(x_axis_type == "normalized time"),
+                                  post_process=True)
 
     def show_composite_medians(rawdicts: list[PlotData],
                                filename: str,
@@ -1343,7 +1368,7 @@ def post_process_graphs(simulation_data: list[dict],
         :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
             the range of the actual data exceeds the default_limits.
         :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
-            plot it), so calculated once by caller and passed in. Not to be used for plots v. phi.
+            plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not plots v. time.
         """
         composite_dicts: dict[str: PlotData] = {}
         composite_key: str
@@ -1480,27 +1505,17 @@ def post_process_graphs(simulation_data: list[dict],
         all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
-        _plot_datasets_v_time(timestep_dicts_list,
-                              filename=f"{filename} v. timesteps, Median, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=f"{ylabel} (Median)",
-                              plot_v_time=True,
-                              post_process=True)
-        
-        _plot_datasets_v_time(normtime_dicts_list,
-                              filename=f"{filename} v. normalized time, Median, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=f"{ylabel} (Median)",
-                              plot_v_time=True,
-                              normalize_time=True,
-                              post_process=True)
-        
-        _plot_datasets_v_time(phi_dicts_list,
-                              filename=f"{filename} v. phi, Median, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=f"{ylabel} (Median)",
-                              axvline=axvline,
-                              post_process=True)
+        for x_axis_type in x_axis_types:
+            _plot_datasets_v_time(datadicts=(timestep_dicts_list if x_axis_type == "timesteps" else
+                                             normtime_dicts_list if x_axis_type == "normalized time" else
+                                             phi_dicts_list),
+                                  filename=f"{filename} v. {x_axis_type}, Median, grouped by {config_var_key}",
+                                  limits=limits,
+                                  ylabel=f"{ylabel} (Median)",
+                                  axvline=axvline if x_axis_type == "phi" else None,
+                                  plot_v_time=(x_axis_type != "phi"),
+                                  normalize_time=(x_axis_type == "normalized time"),
+                                  post_process=True)
         
     def show_multi_straightness() -> None:
         """Overlay multiple Straightness Index plots on one Axes, grouped and color-coded by the provided config_var"""
@@ -1523,26 +1538,7 @@ def post_process_graphs(simulation_data: list[dict],
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. phi, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              post_process=True)
-
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. timesteps, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              plot_v_time=True,
-                              post_process=True)
-
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. normalized time, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              plot_v_time=True,
-                              normalize_time=True,
-                              post_process=True)
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits)
 
     def show_multi_tension() -> None:
         """Overlay multiple leading edge tension plots, grouped and color-coded by the provided config_var"""
@@ -1573,27 +1569,7 @@ def post_process_graphs(simulation_data: list[dict],
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. phi, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              axvline=axvline,
-                              post_process=True)
-
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. timesteps, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              plot_v_time=True,
-                              post_process=True)
-
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. normalized time, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              plot_v_time=True,
-                              normalize_time=True,
-                              post_process=True)
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline)
 
     def show_multi_circumferential_tension() -> None:
         """Overlay multiple **circumferential** tension plots, grouped and color-coded by the provided config_var"""
@@ -1624,27 +1600,7 @@ def post_process_graphs(simulation_data: list[dict],
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
     
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. phi, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              axvline=axvline,
-                              post_process=True)
-    
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. timesteps, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              plot_v_time=True,
-                              post_process=True)
-    
-        _plot_datasets_v_time(datadicts,
-                              filename=f"{filename} v. normalized time, grouped by {config_var_key}",
-                              limits=limits,
-                              ylabel=ylabel,
-                              plot_v_time=True,
-                              normalize_time=True,
-                              post_process=True)
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits)
 
     def show_multi_tension_hello_world() -> None:
         """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors
@@ -1680,6 +1636,8 @@ def post_process_graphs(simulation_data: list[dict],
                               axvline=axvline,
                               post_process=True)
 
+    if x_axis_types is None:
+        x_axis_types = ["phi", "timesteps", "normalized time"]
     _init_graphs()
     # print(simulation_data)
     show_multi_tension()
