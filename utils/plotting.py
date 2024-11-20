@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import tissue_forge as tf
 import epiboly_globals as g
 
+import biology.bond_maintenance as bonds
 import biology.microtubules as mt
 import config as cfg
 import utils.epiboly_utils as epu
@@ -45,6 +46,7 @@ _margin_cum_out: list[int] = []
 _margin_cum_divide: list[int] = []
 _median_tension_leading_edge: list[float] = []
 _median_tension_all: list[float] = []
+_median_tension_circumferential: list[float] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
@@ -568,6 +570,42 @@ def _show_avg_tensions_v_microtime() -> None:
                           ylabel="Median particle tension",
                           axvline=axvline)
 
+def _show_circumferential_edge_tension_v_microtime() -> None:
+    """Like _show_avg_tensions_v_microtime(), but get tension only along edge bonds, not whole cell tension"""
+    axvline: float | None = None
+    if cfg.run_balanced_force_control:
+        # Plotting vs. time; display axvline for cessation time once we know it.
+        # (However, note that it should never happen, if force parameters are correct, since
+        # EVL should not expand, and should never reach the cessation position. And of course,
+        # there should be little if any cell division, either.)
+        if epu.cell_division_cessation_timestep > 0:
+            # cell division is enabled and has already ceased, at that time
+            axvline = epu.cell_division_cessation_timestep
+    else:
+        # Plotting vs. epiboly progress (phi); we know by definition, at what phi that will happen
+        if epu.cell_division_cessation_phi > 0:
+            # cell division is enabled, and that is where it will or did cease
+            axvline = epu.cell_division_cessation_phi
+
+    # calculate circumferential edge tensions - i.e., only the tension of edge bonds
+    leading_edge_bonds: list[tf.BondHandle] = [bhandle for bhandle in tf.BondHandle.items()
+                                               if bonds.is_edge_bond(bhandle)]
+
+    leading_edge_tensions: list[float] = [epu.bond_tension(bhandle) for bhandle in leading_edge_bonds]
+    leading_edge_tension: float = np.median(leading_edge_tensions).item()
+    _median_tension_circumferential.append(leading_edge_tension)
+
+    # Plot
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(-0.01, 0.2), data=_median_tension_circumferential)
+    leading_edge_data: PlotData = {"data": _median_tension_circumferential,
+                                   "fmt": "-b"}
+    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    _plot_datasets_v_time([leading_edge_data],
+                          filename=f"Median circumferential edge tension v. {time_axis}",
+                          limits=limits,
+                          ylabel="Median circumferential tension",
+                          axvline=axvline)
+
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
     
@@ -981,6 +1019,7 @@ def show_graphs(end: bool = False) -> None:
         _show_cylindrical_straightness()
         _show_margin_population()
         _show_avg_tensions_v_microtime()
+        _show_circumferential_edge_tension_v_microtime()
 
     plot_interval: int = cfg.plotting_interval_timesteps
     
@@ -1037,6 +1076,7 @@ def get_state() -> dict:
             "margin_cum_divide": _margin_cum_divide,
             "median_tension_leading_edge": _median_tension_leading_edge,
             "median_tension_all": _median_tension_all,
+            "median_tension_circumferential": _median_tension_circumferential,
             "timesteps": _timesteps,
             
             "tension_bin_axis_history": _tension_bin_axis_history,
@@ -1074,7 +1114,7 @@ def set_state(d: dict) -> None:
     global _straightness_cyl
     global _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
-    global _median_tension_leading_edge, _median_tension_all
+    global _median_tension_leading_edge, _median_tension_all, _median_tension_circumferential
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
     global _divided_tensions_bin_axis_history, _divided_tensions_history, _divided_tensions_timestep_history
@@ -1096,6 +1136,7 @@ def set_state(d: dict) -> None:
     _margin_cum_divide = d["margin_cum_divide"]
     _median_tension_leading_edge = d["median_tension_leading_edge"]
     _median_tension_all = d["median_tension_all"]
+    _median_tension_circumferential = d["median_tension_circumferential"]
     _timesteps = d["timesteps"]
     
     _tension_bin_axis_history = d["tension_bin_axis_history"]
@@ -1554,6 +1595,57 @@ def post_process_graphs(simulation_data: list[dict],
                               normalize_time=True,
                               post_process=True)
 
+    def show_multi_circumferential_tension() -> None:
+        """Overlay multiple **circumferential** tension plots, grouped and color-coded by the provided config_var"""
+        # Get axvline position, which should be the same in all the sims, as long as they all started
+        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
+        # (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each
+        # simulation will have crossed the threshold at a slightly different time, so would make a mess
+        # if displayed.)
+        # So just grab it from the first simulation:
+        axvline = simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+    
+        datadicts: list[PlotData] = [{
+                "data": simulation["plot"]["median_tension_circumferential"],
+                "phi": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                } for simulation in simulation_data]
+        normalize(datadicts)
+    
+        filename: str = "Circumferential tension"
+        ylabel: str = "Average circumferential tension at leading edge"
+        default_limits: tuple[float, float] = (-0.01, 0.2)
+        show_composite_medians(datadicts, filename, ylabel, default_limits)
+    
+        color_code_and_clean_up_labels(datadicts)
+    
+        all_data: list[list[float]] = [data["data"] for data in datadicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
+    
+        _plot_datasets_v_time(datadicts,
+                              filename=f"{filename} v. phi, grouped by {config_var_key}",
+                              limits=limits,
+                              ylabel=ylabel,
+                              axvline=axvline,
+                              post_process=True)
+    
+        _plot_datasets_v_time(datadicts,
+                              filename=f"{filename} v. timesteps, grouped by {config_var_key}",
+                              limits=limits,
+                              ylabel=ylabel,
+                              plot_v_time=True,
+                              post_process=True)
+    
+        _plot_datasets_v_time(datadicts,
+                              filename=f"{filename} v. normalized time, grouped by {config_var_key}",
+                              limits=limits,
+                              ylabel=ylabel,
+                              plot_v_time=True,
+                              normalize_time=True,
+                              post_process=True)
+
     def show_multi_tension_hello_world() -> None:
         """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors
         
@@ -1591,6 +1683,7 @@ def post_process_graphs(simulation_data: list[dict],
     _init_graphs()
     # print(simulation_data)
     show_multi_tension()
+    show_multi_circumferential_tension()
     show_multi_straightness()
     show_multi_margin_pop()
     show_multi_progress()
