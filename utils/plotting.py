@@ -1500,9 +1500,13 @@ def post_process_graphs(simulation_data: list[dict],
         # different ranges. So to make the y-axis scales identical on the three plots we'll generate, combine
         # ALL the data from all three to determine the y limits. (The two time dicts – timestep and normalized –
         # might be binned the same? I'm not 100% sure, but it's easy enough to include them both):
-        all_data: list[list[float]] = [plot_data["data"] for plot_data in normtime_dicts_list]
-        all_data.extend([plot_data["data"] for plot_data in timestep_dicts_list])
-        all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
+        all_data: list[list[float]] = []
+        if "normalized time" in x_axis_types:
+            all_data.extend([plot_data["data"] for plot_data in normtime_dicts_list])
+        if "timesteps" in x_axis_types:
+            all_data.extend([plot_data["data"] for plot_data in timestep_dicts_list])
+        if "phi" in x_axis_types:
+            all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
         for x_axis_type in x_axis_types:
