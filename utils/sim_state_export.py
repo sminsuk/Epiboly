@@ -300,7 +300,7 @@ if __name__ == "__main__":
         simulation_data.append(useful_dict)
     
     # Now set up export for where the new plots will go
-    tfu.init_export(post_process=True)
+    tfu.init_export(post_process=True, n=len(simulation_data))
     
     # Capture the list of simulations that are being plotted
     with open(os.path.join(tfu.export_path(), "Input simulations.txt"), mode="w") as output_file:
