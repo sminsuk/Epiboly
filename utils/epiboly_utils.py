@@ -341,7 +341,7 @@ def rotation_matrix(axis: tf.fVector3) -> np.ndarray:
             )
     return rotation_matrix
 
-def phi_for_epiboly(epiboly_percentage: float):
+def phi_for_epiboly(epiboly_percentage: float) -> float:
     """Convert % epiboly into phi for spherical coordinates (in radians)
 
     epiboly_percentage: % of *vertical* distance from animal to vegetal pole (not % of arc).
@@ -364,8 +364,11 @@ def phi_for_epiboly(epiboly_percentage: float):
     https://zfin.org/zf_info/zfbook/stages/figs/fig8.html - it turns out you can measure the 43% directly!)
     """
     cosine_phi: float = fraction_of_radius_above_equator(epiboly_percentage)
-    phi_rads = np.arccos(cosine_phi)
-    print(f"{epiboly_percentage}% epiboly = {round(phi_rads, 4)} radians or {round(np.rad2deg(phi_rads), 2)} degrees")
+    phi_rads: float = np.arccos(cosine_phi)
+    rounded_phi: float = round(phi_rads, 4)
+    pi_factor: float = round(phi_rads / np.pi, 2)
+    degrees: float = round(np.rad2deg(phi_rads), 2)
+    print(f"{epiboly_percentage}% epiboly = {rounded_phi} ({pi_factor} x pi) radians or {degrees} degrees")
     return phi_rads
 
 def get_state() -> dict:
@@ -391,3 +394,11 @@ def set_state(d: dict) -> None:
     initial_cell_radius = d["initial_cell_radius"]
     cell_division_cessation_timestep = d["cell_division_cessation_timestep"]
     cell_division_cessation_phi = d["cell_division_cessation_phi"]
+
+if __name__ == "__main__":
+    """Print a correspondence between epiboly percentage, and phi"""
+    phi_for_epiboly(cfg.epiboly_initial_percentage)
+    print()
+    for epiboly_percentage in range(30, 101, 5):
+        phi_for_epiboly(epiboly_percentage)
+        
