@@ -1597,7 +1597,7 @@ def post_process_graphs(simulation_data: list[dict],
         filename: str = "Circumferential tension"
         ylabel: str = "Average circumferential tension at leading edge"
         default_limits: tuple[float, float] = (-0.01, 0.2)
-        show_composite_medians(datadicts, filename, ylabel, default_limits)
+        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
     
         color_code_and_clean_up_labels(datadicts)
     
