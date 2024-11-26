@@ -1333,9 +1333,10 @@ def post_process_graphs(simulation_data: list[dict],
             plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not time.
         """
         x_axis_type: str
+        filename_suffix: str = f", grouped by {config_var_key}" if include_legends else ""
         for x_axis_type in x_axis_types:
             _plot_datasets_v_time(datadicts,
-                                  filename=f"{filename} v. {x_axis_type}, grouped by {config_var_key}",
+                                  filename=f"{filename} v. {x_axis_type}{filename_suffix}",
                                   limits=limits,
                                   ylabel=ylabel,
                                   axvline=axvline if x_axis_type == "phi" else None,
@@ -1513,11 +1514,12 @@ def post_process_graphs(simulation_data: list[dict],
             all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
+        filename_suffix: str = f", grouped by {config_var_key}" if include_legends else ""
         for x_axis_type in x_axis_types:
             _plot_datasets_v_time(datadicts=(timestep_dicts_list if x_axis_type == "timesteps" else
                                              normtime_dicts_list if x_axis_type == "normalized time" else
                                              phi_dicts_list),
-                                  filename=f"{filename} v. {x_axis_type}, Median, grouped by {config_var_key}",
+                                  filename=f"{filename} v. {x_axis_type}, Median{filename_suffix}",
                                   limits=limits,
                                   ylabel=f"{ylabel} (Median)",
                                   axvline=axvline if x_axis_type == "phi" else None,
