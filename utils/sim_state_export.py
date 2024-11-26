@@ -243,7 +243,7 @@ if __name__ == "__main__":
 
     # Also specify which axis types to plot for this dataset, because plotting all of them was getting out of hand.
     # Provide a list of strings including any or all of: ["phi", "timesteps", "normalized time"]
-    x_axis_types: list[str] = ["types of x axis", "to plot", "go here"]
+    x_axis_types: list[str] = ["phi"]
 
     # Also specify whether the plots should identify different treatments with a legend, and which config
     # variable represents those treatments. See config.py, get_state(), for variable keys. If not grouping
@@ -268,11 +268,17 @@ if __name__ == "__main__":
     if config_var_key == "k_edge_bond_angle":
         config_section_key = "model"
         num_legend_format = r"$\lambda$ = {}"
-        x_axis_types = ["phi"]
     if config_var_key == "harmonic_edge_spring_constant":
         config_section_key = "model"
         num_legend_format = "k = {}"
-        x_axis_types = ["phi"]
+    if config_var_key == "cell_division_enabled":
+        config_section_key = "model"
+        true_legend_format = "with cell division"
+        false_legend_format = "without cell division"
+    if config_var_key == "force_is_weighted_by_distance_from_pole":
+        config_section_key = "model"
+        true_legend_format = "regulated"
+        false_legend_format = "unregulated"
         
     if not directory_names:
         input_path: str = tfu.export_path(enclosing_directory_full_path)
