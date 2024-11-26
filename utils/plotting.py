@@ -891,7 +891,6 @@ def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
     _, _, phi = tfu.spherical_from_cartesian(normal_vec)
     _margin_lopsidedness.append(phi)
 
-    # ToDo: need to implement code to take data from multiple runs and plot them together on a single Axes.
     yticks = {"major_range": np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
               "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
               "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
@@ -1321,13 +1320,15 @@ def post_process_graphs(simulation_data: list[dict],
                                               filename: str,
                                               ylabel: str = None,
                                               limits: tuple[float, float] = None,
-                                              axvline: float = None) -> None:
+                                              axvline: float = None,
+                                              yticks: dict = None) -> None:
         """Send data to _plot_datasets_v_time() for each selected time axis proxy.
         
         :param datadicts: one PlotData for each simulation to be plotted
         :param filename: will be used as part of the filename for the saved plots.
         :param ylabel: title of the y-axis.
         :param limits: y-axis limits
+        :param yticks: special tick marks for the y-axis.
         :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
             plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not time.
         """
@@ -1338,6 +1339,7 @@ def post_process_graphs(simulation_data: list[dict],
                                   limits=limits,
                                   ylabel=ylabel,
                                   axvline=axvline if x_axis_type == "phi" else None,
+                                  yticks=yticks,
                                   plot_v_time=(x_axis_type != "phi"),
                                   normalize_time=(x_axis_type == "normalized time"),
                                   post_process=True)
@@ -1346,7 +1348,8 @@ def post_process_graphs(simulation_data: list[dict],
                                filename: str,
                                ylabel: str,
                                default_limits: tuple[float, float],
-                               axvline: float = None) -> None:
+                               axvline: float = None,
+                               yticks: dict = None) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
         
         'Treatment' refers to the different values of a single variable that we are contrasting.
@@ -1367,6 +1370,7 @@ def post_process_graphs(simulation_data: list[dict],
         :param ylabel: title of the y-axis.
         :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
             the range of the actual data exceeds the default_limits.
+        :param yticks: special tick marks for the y-axis.
         :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
             plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not plots v. time.
         """
@@ -1517,6 +1521,7 @@ def post_process_graphs(simulation_data: list[dict],
                                   limits=limits,
                                   ylabel=f"{ylabel} (Median)",
                                   axvline=axvline if x_axis_type == "phi" else None,
+                                  yticks=yticks,
                                   plot_v_time=(x_axis_type != "phi"),
                                   normalize_time=(x_axis_type == "normalized time"),
                                   post_process=True)
@@ -1543,6 +1548,32 @@ def post_process_graphs(simulation_data: list[dict],
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
         plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits)
+
+    def show_multi_lopsidedness() -> None:
+        """Overlay multiple Lopsidedness plots on one Axes, grouped and color-coded by the provided config_var"""
+        datadicts: list[PlotData] = [{
+                "data": simulation["plot"]["margin_lopsidedness"],
+                "phi": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                } for simulation in simulation_data]
+        normalize(datadicts)
+    
+        filename: str = "Margin lopsidedness"
+        ylabel: str = "Margin lopsidedness (angle of axis)"
+        default_limits: tuple[float, float] = (-0.002 * np.pi, 0.102 * np.pi)
+        yticks = {"major_range": np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
+                  "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
+                  "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
+        show_composite_medians(datadicts, filename, ylabel, default_limits, yticks=yticks)
+    
+        color_code_and_clean_up_labels(datadicts)
+    
+        all_data: list[list[float]] = [data["data"] for data in datadicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
+    
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, yticks=yticks)
 
     def show_multi_tension() -> None:
         """Overlay multiple leading edge tension plots, grouped and color-coded by the provided config_var"""
@@ -1647,5 +1678,6 @@ def post_process_graphs(simulation_data: list[dict],
     show_multi_tension()
     show_multi_circumferential_tension()
     show_multi_straightness()
+    show_multi_lopsidedness()
     show_multi_margin_pop()
     show_multi_progress()
