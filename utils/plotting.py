@@ -1173,7 +1173,8 @@ def post_process_graphs(simulation_data: list[dict],
                         num_legend_format: str = "{}",
                         true_legend_format: str = "True",
                         false_legend_format: str = "False",
-                        x_axis_types: list[str] = None) -> None:
+                        x_axis_types: list[str] = None,
+                        flip_bool_color: bool = False) -> None:
     """Print various plots with data from multiple simulation runs
     
     All the nested functions access these parameters:
@@ -1190,6 +1191,9 @@ def post_process_graphs(simulation_data: list[dict],
     :param true_legend_format: for boolean variables, a string to use as the legend when the variable is True.
     :param false_legend_format: for boolean variables, a string to use as the legend when the variable is False.
     :param x_axis_types: list of x axis types to plot, including any or all of: ["phi", "timesteps", "normalized time"]
+    :param flip_bool_color: if True, then the config var should be of type bool, and we wish the True value
+        (instead of the False value, which is the default) to appear first in the legend and to be plotted
+        using cycler color C0.
     """
     def normalize(datadicts: list[PlotData]) -> None:
         datadict: PlotData
@@ -1207,14 +1211,29 @@ def post_process_graphs(simulation_data: list[dict],
         value in a string that explains what it is. Then set distinct plot colors for each treatment,
         but the SAME plot color for the multiple plot lines of the SAME treatment.
         
+        When specified for certain bool values, reverse the ordering of the colors & legend.
+        I.e., select whether the True or the False will come first in the legend and use cycler color C0.
+        This is so that these plots seem more consistent with the other types of plots.
+        
         :param datadicts: one PlotData for each line that is to be plotted. "label" field should
         be numerical or bool, representing the treatment.
         """
         if not include_legends:
             return
         
-        datadicts.sort(key=lambda plot_data: plot_data["label"])
         datadict: PlotData
+        true_format: str = true_legend_format
+        false_format: str = false_legend_format
+        if flip_bool_color:
+            # Swap the legend labels
+            true_format = false_legend_format
+            false_format = true_legend_format
+            
+            # To reverse the colors, invert the bools before sorting and assigning the strings
+            for datadict in datadicts:
+                datadict["label"] = not datadict["label"]
+        
+        datadicts.sort(key=lambda plot_data: plot_data["label"])
         previous_label: int | float | bool = -1
         cycler_index: int = -1
         
@@ -1224,8 +1243,8 @@ def post_process_graphs(simulation_data: list[dict],
             current_label: int | float | bool = datadict["label"]  # type: ignore
             if current_label > previous_label:
                 datadict["label"] = (num_legend_format.format(current_label) if not isinstance(current_label, bool) else
-                                     true_legend_format if current_label else
-                                     false_legend_format)
+                                     true_format if current_label else
+                                     false_format)
                 previous_label = current_label
                 cycler_index += 1
             else:

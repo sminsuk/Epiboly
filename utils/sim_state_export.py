@@ -259,12 +259,17 @@ if __name__ == "__main__":
     true_legend_format: str = "legend label to use when bool variable is True"
     false_legend_format: str = "legend label to use when bool variable is False"
     
+    # When grouping by a boolean config var, by default the "False" value will appear first in the legend and
+    # will be plotted using cycler color C0. To flip that usage, set this to True.
+    flip_bool_color: bool = False
+    
     # Some pre-set configurations:
     if config_var_key == "run_balanced_force_control":
         config_section_key = "model control"
         true_legend_format = "reduced forces"
         false_legend_format = "normal"
         x_axis_types = ["timesteps"]
+        flip_bool_color = True
     if config_var_key == "k_edge_bond_angle":
         config_section_key = "model"
         num_legend_format = r"$\lambda$ = {}"
@@ -316,4 +321,4 @@ if __name__ == "__main__":
             print(directory_name, file=output_file)
     
     plot.post_process_graphs(simulation_data, include_legends, config_section_key, config_var_key,
-                             num_legend_format, true_legend_format, false_legend_format, x_axis_types)
+                             num_legend_format, true_legend_format, false_legend_format, x_axis_types, flip_bool_color)
