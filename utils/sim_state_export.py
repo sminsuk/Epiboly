@@ -263,6 +263,10 @@ if __name__ == "__main__":
     # will be plotted using cycler color C0. To flip that usage, set this to True.
     flip_bool_color: bool = False
     
+    # Probably never will need this, but didn't want to get rid of it just yet. Causes the different composite
+    # plots (phi, timesteps, normalized time) to all use the same y-axis limits for consistency.
+    x_axis_types_share_y_limits: bool = False
+    
     # Some pre-set configurations:
     if config_var_key == "run_balanced_force_control":
         config_section_key = "model control"
@@ -321,4 +325,5 @@ if __name__ == "__main__":
             print(directory_name, file=output_file)
     
     plot.post_process_graphs(simulation_data, include_legends, config_section_key, config_var_key,
-                             num_legend_format, true_legend_format, false_legend_format, x_axis_types, flip_bool_color)
+                             num_legend_format, true_legend_format, false_legend_format,
+                             x_axis_types, x_axis_types_share_y_limits, flip_bool_color)

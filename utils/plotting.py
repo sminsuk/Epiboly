@@ -1174,6 +1174,7 @@ def post_process_graphs(simulation_data: list[dict],
                         true_legend_format: str = "True",
                         false_legend_format: str = "False",
                         x_axis_types: list[str] = None,
+                        x_axis_types_share_y_limits: bool = False,
                         flip_bool_color: bool = False) -> None:
     """Print various plots with data from multiple simulation runs
     
@@ -1191,6 +1192,7 @@ def post_process_graphs(simulation_data: list[dict],
     :param true_legend_format: for boolean variables, a string to use as the legend when the variable is True.
     :param false_legend_format: for boolean variables, a string to use as the legend when the variable is False.
     :param x_axis_types: list of x axis types to plot, including any or all of: ["phi", "timesteps", "normalized time"]
+    :param x_axis_types_share_y_limits: whether to force a consensus set of y-axis limits on all x-axis types.
     :param flip_bool_color: if True, then the config var should be of type bool, and we wish the True value
         (instead of the False value, which is the default) to appear first in the legend and to be plotted
         using cycler color C0.
@@ -1520,10 +1522,15 @@ def post_process_graphs(simulation_data: list[dict],
         color_code_and_clean_up_labels(timestep_dicts_list)
         color_code_and_clean_up_labels(phi_dicts_list)
         
+        # For using consensus y-limits:
         # Since the data was binned differently in the time dicts vs the phi dict, they might have slightly
         # different ranges. So to make the y-axis scales identical on the three plots we'll generate, combine
         # ALL the data from all three to determine the y limits. (The two time dicts – timestep and normalized –
         # might be binned the same? I'm not 100% sure, but it's easy enough to include them both):
+        # ToDo: I will be switching to a proper resampling approach instead of this binning approach,
+        #  which statistically is completely wrong. At that point, I'm not sure I can even plot a
+        #  composite plot v timesteps anymore, because the duration of a sim can vary so much. So then
+        #  I can probably retire this case (using consensus: x_axis_types_share_y_limits = True).
         all_data: list[list[float]] = []
         if "normalized time" in x_axis_types:
             all_data.extend([plot_data["data"] for plot_data in normtime_dicts_list])
@@ -1531,13 +1538,22 @@ def post_process_graphs(simulation_data: list[dict],
             all_data.extend([plot_data["data"] for plot_data in timestep_dicts_list])
         if "phi" in x_axis_types:
             all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
-        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
         
         filename_suffix: str = f", grouped by {config_var_key}" if include_legends else ""
         for x_axis_type in x_axis_types:
-            _plot_datasets_v_time(datadicts=(timestep_dicts_list if x_axis_type == "timesteps" else
-                                             normtime_dicts_list if x_axis_type == "normalized time" else
-                                             phi_dicts_list),
+            dicts_list: list[PlotData] = (timestep_dicts_list if x_axis_type == "timesteps" else
+                                          normtime_dicts_list if x_axis_type == "normalized time" else
+                                          phi_dicts_list)
+            
+            # if not using consensus y-limits:
+            # in this case, each of the three plots gets its own tailored y-limits.
+            # They might each be very different:
+            current_data: list[list[float]] = [plot_data["data"] for plot_data in dicts_list]
+            
+            the_data: list[list[float]] = all_data if x_axis_types_share_y_limits else current_data
+            limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=the_data)
+            
+            _plot_datasets_v_time(datadicts=dicts_list,
                                   filename=f"{filename} v. {x_axis_type}, Median{filename_suffix}",
                                   limits=limits,
                                   ylabel=f"{ylabel} (Median)",
