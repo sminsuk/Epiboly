@@ -1441,14 +1441,14 @@ def post_process_graphs(simulation_data: list[dict],
         
         # bin the timestep values over this range:
         all_timesteps: list[list[int]] = [composite_dict["timesteps"] for composite_dict in composite_dicts.values()]
-        flat_phi_iterator = chain.from_iterable(all_timesteps)
+        flat_iterator = chain.from_iterable(all_timesteps)
         min_timestep: int = 0
-        max_timestep: int = max(flat_phi_iterator)
+        max_timestep: int = max(flat_iterator)
         
         # bin the phi values over this range:
         all_phi: list[list[float]] = [composite_dict["phi"] for composite_dict in composite_dicts.values()]
-        flat_phi_iterator = chain.from_iterable(all_phi)
-        min_phi: float = min(flat_phi_iterator)
+        flat_iterator = chain.from_iterable(all_phi)
+        min_phi: float = min(flat_iterator)
         max_phi: float = np.pi
         
         for composite_key, composite_dict in composite_dicts.items():
