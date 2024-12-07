@@ -295,6 +295,7 @@ if __name__ == "__main__":
             entry: os.DirEntry
             directory_names = [entry.name for entry in dir_entries_it
                                if not entry.name.startswith("skip")
+                               # if not entry.name.startswith("test skip")    # comment out, to actually include those
                                if not entry.name.startswith(".")]
     
     simulation_data: list[dict] = []
