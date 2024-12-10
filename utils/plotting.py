@@ -1253,6 +1253,15 @@ def post_process_graphs(simulation_data: list[dict],
                 del datadict["label"]
             datadict["fmt"] = f"-C{cycler_index}"
     
+    def get_cell_division_cessation_phi() -> float:
+        # Get axvline position, which should be the same in all the sims, as long as they all started
+        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
+        # (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each
+        # simulation will have crossed the threshold at a slightly different time, so would make a mess
+        # if displayed.)
+        # So just grab it from the first simulation:
+        return simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+
     def show_multi_progress() -> None:
         """Overlay multiple progress plots on one Axes, color-coded by treatment (edge bond-angle constraint lambda)"""
         datadicts: list[PlotData] = [{
@@ -1288,6 +1297,8 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_margin_pop() -> None:
         """Overlay multiple margin pop plots on one Axes, grouped and color-coded by the provided config_var"""
+        axvline: float = get_cell_division_cessation_phi()
+
         margin_count_dicts: list[PlotData] = []
         margin_cum_dicts: list[PlotData] = []
         simulation: dict
@@ -1319,7 +1330,7 @@ def post_process_graphs(simulation_data: list[dict],
         count_ylabel: str = "Margin cell count"
         cum_ylabel: str = "Cumulative edge rearrangement events"
         default_limits: tuple[float, float] = (-2, 10)
-        show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits)
+        show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits, axvline)
         show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits)
 
         color_code_and_clean_up_labels(margin_count_dicts)
@@ -1329,7 +1340,8 @@ def post_process_graphs(simulation_data: list[dict],
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_count_data)
         plot_datasets_v_selected_time_proxies(margin_count_dicts,
                                               filename=count_filename,
-                                              limits=limits)
+                                              limits=limits,
+                                              axvline=axvline)
         
         all_cum_data: list[list[int]] = [datadict["data"] for datadict in margin_cum_dicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_cum_data)
@@ -1565,6 +1577,8 @@ def post_process_graphs(simulation_data: list[dict],
         
     def show_multi_straightness() -> None:
         """Overlay multiple Straightness Index plots on one Axes, grouped and color-coded by the provided config_var"""
+        axvline: float = get_cell_division_cessation_phi()
+
         datadicts: list[PlotData] = [{
                 "data": simulation["plot"]["straightness_cyl"],
                 "phi": simulation["plot"]["leading_edge_phi"],
@@ -1577,14 +1591,14 @@ def post_process_graphs(simulation_data: list[dict],
         filename: str = "Straightness Index"
         ylabel: str = "Straightness Index (SI)"
         default_limits: tuple[float, float] = (0.9, 1.001)
-        show_composite_medians(datadicts, filename, ylabel, default_limits)
+        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
 
         color_code_and_clean_up_labels(datadicts)
         
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
-        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits)
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline)
 
     def show_multi_lopsidedness() -> None:
         """Overlay multiple Lopsidedness plots on one Axes, grouped and color-coded by the provided config_var"""
@@ -1614,13 +1628,7 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_tension() -> None:
         """Overlay multiple leading edge tension plots, grouped and color-coded by the provided config_var"""
-        # Get axvline position, which should be the same in all the sims, as long as they all started
-        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
-        # (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each
-        # simulation will have crossed the threshold at a slightly different time, so would make a mess
-        # if displayed.)
-        # So just grab it from the first simulation:
-        axvline = simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+        axvline: float = get_cell_division_cessation_phi()
         
         datadicts: list[PlotData] = [{
                 "data": simulation["plot"]["median_tension_leading_edge"],
@@ -1634,7 +1642,7 @@ def post_process_graphs(simulation_data: list[dict],
         filename: str = "Leading edge tension"
         ylabel: str = "Average tension at leading edge"
         default_limits: tuple[float, float] = (-0.01, 0.2)
-        show_composite_medians(datadicts, filename, ylabel, default_limits)
+        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
         
         color_code_and_clean_up_labels(datadicts)
         
@@ -1645,13 +1653,7 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_circumferential_tension() -> None:
         """Overlay multiple **circumferential** tension plots, grouped and color-coded by the provided config_var"""
-        # Get axvline position, which should be the same in all the sims, as long as they all started
-        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
-        # (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each
-        # simulation will have crossed the threshold at a slightly different time, so would make a mess
-        # if displayed.)
-        # So just grab it from the first simulation:
-        axvline = simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+        axvline: float = get_cell_division_cessation_phi()
     
         datadicts: list[PlotData] = [{
                 "data": simulation["plot"]["median_tension_circumferential"],
@@ -1672,7 +1674,7 @@ def post_process_graphs(simulation_data: list[dict],
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
     
-        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits)
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline)
 
     def show_multi_tension_hello_world() -> None:
         """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors
@@ -1680,10 +1682,7 @@ def post_process_graphs(simulation_data: list[dict],
         This is the first multi-plot I tried. I'm doing things a bit differently now so no longer using this,
         but keep it around for now, in case I want something like it back again.
         """
-        # Get axvline position, which should be the same in all the sims, as long as they all started
-        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
-        # So just grab it from the first one:
-        axvline = simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+        axvline: float = get_cell_division_cessation_phi()
         
         # From each simulation, get two datasets: tension for leading edge cells, and for all cells
         datadicts: list[PlotData] = []
