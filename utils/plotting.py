@@ -1331,7 +1331,7 @@ def post_process_graphs(simulation_data: list[dict],
         cum_ylabel: str = "Cumulative edge rearrangement events"
         default_limits: tuple[float, float] = (-2, 10)
         show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits, axvline)
-        show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits)
+        show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits, axvline)
 
         color_code_and_clean_up_labels(margin_count_dicts)
         color_code_and_clean_up_labels(margin_cum_dicts)
@@ -1347,7 +1347,8 @@ def post_process_graphs(simulation_data: list[dict],
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_cum_data)
         plot_datasets_v_selected_time_proxies(margin_cum_dicts,
                                               filename=cum_filename,
-                                              limits=limits)
+                                              limits=limits,
+                                              axvline=axvline)
 
     def plot_datasets_v_selected_time_proxies(datadicts: list[PlotData],
                                               filename: str,
