@@ -174,12 +174,14 @@ max_edge_neighbor_count: int = 3
 
 # Strength of each term in energy calculations on topological constraints (neighbor count, bond angle).
 # Separate values for the edge transformations, so they can be tuned separately if desired.
-k_neighbor_count: float = 0
-k_edge_neighbor_count: float = 0
-k_bond_angle: float = 3.75
+# Note, for backward compatibility, the dict keys for these in the metadata file have to still
+# use the old "k_" names instead of the new "lambda_" names!
+lambda_neighbor_count: float = 0
+lambda_edge_neighbor_count: float = 0
+lambda_bond_angle: float = 3.75
 # Separately specified value for edge angles originally defaulted to the same optimum of 3.75 used for internal
 # angles, but let's default to 4 instead because it's more convenient for the plots in our figures.
-k_edge_bond_angle: float = 4
+lambda_edge_bond_angle: float = 4
 special_constraint_all_edge_bonds: bool = False
 
 # For neighbor angle energy calculations
@@ -336,10 +338,10 @@ def get_state() -> dict:
                         "coupled_bond_remodeling_freq": coupled_bond_remodeling_freq,
                         "min_neighbor_count": min_neighbor_count,
                         "max_edge_neighbor_count": max_edge_neighbor_count,
-                        "k_neighbor_count": k_neighbor_count,
-                        "k_edge_neighbor_count": k_edge_neighbor_count,
-                        "k_bond_angle": k_bond_angle,
-                        "k_edge_bond_angle": k_edge_bond_angle,
+                        "k_neighbor_count": lambda_neighbor_count,
+                        "k_edge_neighbor_count": lambda_edge_neighbor_count,
+                        "k_bond_angle": lambda_bond_angle,
+                        "k_edge_bond_angle": lambda_edge_bond_angle,
                         "special_constraint_all_edge_bonds": special_constraint_all_edge_bonds,
                         "target_neighbor_angle": target_neighbor_angle,
                         "target_edge_angle": target_edge_angle,
@@ -416,7 +418,8 @@ def set_state(d: dict) -> None:
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
     global bond_remodeling_enabled
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
-    global k_neighbor_count, k_edge_neighbor_count, k_bond_angle, k_edge_bond_angle, special_constraint_all_edge_bonds
+    global lambda_neighbor_count, lambda_edge_neighbor_count
+    global lambda_bond_angle, lambda_edge_bond_angle, special_constraint_all_edge_bonds
     global target_neighbor_angle, target_edge_angle, leading_edge_recruitment_limit
     
     # model control
@@ -480,10 +483,10 @@ def set_state(d: dict) -> None:
     coupled_bond_remodeling_freq = model["coupled_bond_remodeling_freq"]
     min_neighbor_count = model["min_neighbor_count"]
     max_edge_neighbor_count = model["max_edge_neighbor_count"]
-    k_neighbor_count = model["k_neighbor_count"]
-    k_edge_neighbor_count = model["k_edge_neighbor_count"]
-    k_bond_angle = model["k_bond_angle"]
-    k_edge_bond_angle = model["k_edge_bond_angle"]
+    lambda_neighbor_count = model["k_neighbor_count"]
+    lambda_edge_neighbor_count = model["k_edge_neighbor_count"]
+    lambda_bond_angle = model["k_bond_angle"]
+    lambda_edge_bond_angle = model["k_edge_bond_angle"]
     special_constraint_all_edge_bonds = model["special_constraint_all_edge_bonds"]
     target_neighbor_angle = model["target_neighbor_angle"]
     target_edge_angle = model["target_edge_angle"]

@@ -291,8 +291,9 @@ def _make_break_or_become() -> None:
             p1: tf.ParticleHandle = main_particle
             p2: tf.ParticleHandle = making_particle or breaking_particle
 
-            k_neighbor_count_energy: float = cfg.k_edge_neighbor_count if is_edge_bond(p1, p2) else cfg.k_neighbor_count
-            if k_neighbor_count_energy == 0:
+            lambda_neighbor_count_energy: float = (cfg.lambda_edge_neighbor_count if is_edge_bond(p1, p2) else
+                                                   cfg.lambda_neighbor_count)
+            if lambda_neighbor_count_energy == 0:
                 return 0
             
             p1current_count: int = len(p1.bonded_neighbors)
@@ -313,7 +314,7 @@ def _make_break_or_become() -> None:
             p2final_energy: float = (p2final_count - p2target_count) ** 2
     
             delta_energy: float = (p1final_energy + p2final_energy) - (p1current_energy + p2current_energy)
-            return k_neighbor_count_energy * delta_energy
+            return lambda_neighbor_count_energy * delta_energy
         
         def delta_energy_angle(main_particle: tf.ParticleHandle,
                                making_particle: tf.ParticleHandle,
@@ -515,15 +516,15 @@ def _make_break_or_become() -> None:
 
                 return AngleStateChange(before, after)
             
-            k_angle_energy: float = cfg.k_edge_bond_angle if becoming else cfg.k_bond_angle
+            lambda_angle_energy: float = cfg.lambda_edge_bond_angle if becoming else cfg.lambda_bond_angle
             if cfg.special_constraint_all_edge_bonds:
-                # Apply k_edge_bond_angle at the edge, but not just for bonds between TWO edge particles;
+                # Apply lambda_edge_bond_angle at the edge, but not just for bonds between TWO edge particles;
                 # now also for any bond involving even ONE edge particle:
                 if (main_particle.type() == g.LeadingEdge or
                         (making_particle and making_particle.type() == g.LeadingEdge) or
                         (breaking_particle and breaking_particle.type() == g.LeadingEdge)):
-                    k_angle_energy = cfg.k_edge_bond_angle
-            if k_angle_energy == 0:
+                    lambda_angle_energy = cfg.lambda_edge_bond_angle
+            if lambda_angle_energy == 0:
                 return 0
             
             main_p_state_change: AngleStateChange
@@ -545,7 +546,7 @@ def _make_break_or_become() -> None:
             delta_energy: float = (main_p_state_change.delta_energy() +
                                    making_p_state_change.delta_energy() +
                                    breaking_p_state_change.delta_energy())
-            return k_angle_energy * delta_energy
+            return lambda_angle_energy * delta_energy
             
         # Test for basic validity: screen for configurations that shouldn't happen at all
         assert making_particle or breaking_particle, "Making and breaking particles both equal None!"
