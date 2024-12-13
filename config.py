@@ -177,7 +177,9 @@ max_edge_neighbor_count: int = 3
 k_neighbor_count: float = 0
 k_edge_neighbor_count: float = 0
 k_bond_angle: float = 3.75
-k_edge_bond_angle: float = 3.75
+# Separately specified value for edge angles originally defaulted to the same optimum of 3.75 used for internal
+# angles, but let's default to 4 instead because it's more convenient for the plots in our figures.
+k_edge_bond_angle: float = 4
 special_constraint_all_edge_bonds: bool = False
 
 # For neighbor angle energy calculations
