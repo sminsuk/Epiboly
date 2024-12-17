@@ -848,6 +848,12 @@ def _make_break_or_become() -> None:
         # but we can at least prevent by a rule. Disallow recruitment if the recruited particle is too far from
         # the leading edge.
         leading_edge_baseline_phi: float = max(epu.embryo_phi(p), epu.embryo_phi(other_leading_edge_p))
+        # # Here is probably a better way to set the baseline, it is much stricter (maybe a little too strict),
+        # # and it helped me to run the balanced-force-control with cell division enabled, which ran into problems
+        # # when I tried to tune the balance of forces. However, to switch to this would require me to re-do a
+        # # ton of work in generating figures, because it shifts the total cumulative amount of migration in and
+        # # out of the leading edge. So, will have to do without this:
+        # leading_edge_baseline_phi: float = epu.leading_edge_max_phi()
         mean_cell_radius: float = fmean([gc.get_cell_radius(p),
                                          gc.get_cell_radius(other_leading_edge_p),
                                          gc.get_cell_radius(recruit)])
