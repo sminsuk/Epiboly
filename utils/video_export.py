@@ -62,6 +62,10 @@ def _test_when_to_start_rotation() -> None:
     """At the appropriate time, trigger rotation by changing the value of _rotation_started from False to True"""
     global _rotation_started
     
+    if cfg.paint_pattern == cfg.PaintPattern.ORIGINAL_TIER and cfg.paint_tier > 1:
+        # suppress camera rotation for this lineage tracing, so the labeled cells don't rotate out of view
+        return
+    
     # Position of leading edge at which we start rotating the camera. π/2 is good for testing (the equator,
     # which is reached by the leading edge early in the simulation). For full epiboly, wait until close to veg pole.
     rotation_start_position: float = math.pi * 0.75
@@ -90,8 +94,16 @@ def _test_when_to_finish_rotation() -> None:
     # (maybe because I'm not moving the camera around as much, or maybe due to internal TF issues); either way,
     # in windowed mode, the angle we read is for the previous position so we need to stop rotating one
     # timestep earlier, so just make the tolerance bigger.
-    tolerance: float = 0.04 if cfg.windowed_mode else 0.01
-    target_camera_angle: float = math.pi + tolerance
+    target_camera_angle: float
+    if cfg.paint_pattern == cfg.PaintPattern.PATCH:
+        # Quick-and-dirty attempt to stay centered on the patch. Tracking positions of labeled cells would
+        # be better, but is harder. So instead, assuming the patch is up against the leading edge
+        # (cfg.patch_margin_gap == 0), just stop rotation earlier, half way between the initial position
+        # (side view) and the vegetal pole. This is approximate, so don't worry about tolerance.
+        target_camera_angle = 1.25 * math.pi
+    else:
+        tolerance: float = 0.04 if cfg.windowed_mode else 0.01
+        target_camera_angle = math.pi + tolerance
     
     quat: tf.fQuaternion = tf.system.camera_rotation()
     # print(f"Target  = {target_camera_angle}\ncurrent = {quat.angle()}")
@@ -397,17 +409,26 @@ def make_movie(filename: str = None) -> None:
                            for entry in dir_entries_chron
                            if entry.name.endswith(f"{side}.jpg")]
         print(f"Assembling movie \"{side}\" from {len(image_filepaths)} images")
-        clip = ImageSequenceClip.ImageSequenceClip(image_filepaths, fps=24)
         
-        # Save the clip using tfu.export_directory() also as the movie name, and save it to the Screenshots subdirectory
-        # (Or, if filename was provided, then __name__ == "__main__", see below.)
-        if filename is None:
-            filename = tfu.export_directory()
-        clip.write_videofile(os.path.join(_movie_path, filename + f" {side}.mp4"))
+        # Normally, assemble a movie. But if we are doing Patch lineage tracing, don't bother with any but the Front
+        if cfg.paint_pattern != cfg.PaintPattern.PATCH or side == "Front":
+            clip = ImageSequenceClip.ImageSequenceClip(image_filepaths, fps=24)
+            
+            # Save the clip to the Screenshots subdirectory using tfu.export_directory() also as the movie name
+            # (Or, if filename was provided, then __name__ == "__main__", see below.)
+            if filename is None:
+                filename = tfu.export_directory()
+            clip.write_videofile(os.path.join(_movie_path, filename + f" {side}.mp4"))
         
         # Discard all the exported image files.
         # (But not if there was an exception, because I may still need them.)
         # (And not if simulation still running in a different process, because definitely still need them.)
+        # (And if we are doing lineage tracing with a patch, retain the initial and final image for the Front side. Note
+        # that the final image will be taken from an oblique camera angle so will not be the same as the image
+        # captured later by final_result_screenshots(), which will be from the side.)
+        if cfg.paint_pattern == cfg.PaintPattern.PATCH and side == "Front":
+            image_filepaths.pop()
+            image_filepaths.pop(0)
         if not events.event_exception_was_thrown() and not _retain_screenshots_after_movie:
             print(f"\nRemoving {len(image_filepaths)} images...")
             for path in image_filepaths:
