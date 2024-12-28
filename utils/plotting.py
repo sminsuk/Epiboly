@@ -1264,32 +1264,48 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_progress() -> None:
         """Overlay multiple progress plots on one Axes, color-coded by treatment (edge bond-angle constraint lambda)"""
+        # We put the phi values in twice. It's the data we want to plot (hence "data"), not the x-axis
+        # (hence we won't use "phi"), but show_composite_medians() needs it to be there.
         datadicts: list[PlotData] = [{
                 "data": simulation["plot"]["leading_edge_phi"],
+                "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
                           simulation["config"]["config_values"][config_section_key][config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
         
-        color_code_and_clean_up_labels(datadicts)
-
+        filename = "Leading edge phi"
+        ylabel: str = r"Leading edge  $\bar{\phi}$  (radians)"
+        limits: tuple[float, float] = (np.pi * 7 / 16, np.pi)
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
                   "labels": [r"$\pi$/2", r"3$\pi$/4", r"$\pi$"]}
+        
+        # show_composite_medians() uses the nonlocal variable x_axis_types (parameter passed to the
+        # enclosing function post_process_graphs()), but in this edge case we want show_composite_medians()
+        # to ignore that and always plot vs. timesteps and normalized time, so (kludge...)
+        # temporarily swap it out, then restore it so any other plotting function will still work
+        nonlocal x_axis_types
+        original_x_axis_types: list[str] = x_axis_types.copy()
+        x_axis_types = ["timesteps", "normalized time"]
+        show_composite_medians(datadicts, filename, ylabel, limits, yticks=yticks)
+        x_axis_types = original_x_axis_types
+
+        color_code_and_clean_up_labels(datadicts)
 
         _plot_datasets_v_time(datadicts,
-                              filename="Leading edge phi v. timesteps",
-                              limits=(np.pi * 7 / 16, np.pi),
-                              ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
+                              filename=f"{filename} v. timesteps",
+                              limits=limits,
+                              ylabel=ylabel,
                               yticks=yticks,
                               plot_v_time=True,
                               post_process=True)
 
         _plot_datasets_v_time(datadicts,
-                              filename="Leading edge phi v. normalized time",
-                              limits=(np.pi * 7 / 16, np.pi),
-                              ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
+                              filename=f"{filename} v. normalized time",
+                              limits=limits,
+                              ylabel=ylabel,
                               yticks=yticks,
                               plot_v_time=True,
                               normalize_time=True,
