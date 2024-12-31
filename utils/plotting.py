@@ -47,6 +47,7 @@ _margin_cum_divide: list[int] = []
 _median_tension_leading_edge: list[float] = []
 _median_tension_all: list[float] = []
 _median_tension_circumferential: list[float] = []
+_median_speed_leading_edge: list[float] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
@@ -130,6 +131,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                           yticks: dict = None,
                           plot_v_time: bool = None,
                           normalize_time: bool = False,
+                          suppress_timestep_zero: bool = False,
                           post_process: bool = False) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
     
@@ -164,6 +166,9 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         means to decide based on cfg.run_balanced_force_control. In post-process plotting, None is treated as False.
     :param normalize_time: In real-time plotting, ignored. In post-process plotting vs. phi, ignored. In post-process
         plotting vs. time, whether to normalize (time axis goes from 0 to 1).
+    :param suppress_timestep_zero: don't plot the first point in the dataset (regardless of whether we are plotting
+        vs. timesteps or something else). Useful for e.g. leading edge speed, since it starts as 0 but this is
+        an artifact; we want to start at the very high value that comes at the next timestep measured.
     :param post_process: plotting post-process (presumably with multiple datasets per plot) as opposed to during
         the real-time simulation (which may have one or more datasets per plot).
     """
@@ -193,13 +198,19 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     x: list[float] | list[int] = []
     if not post_process:
         x = _timesteps if plot_v_time else _leading_edge_phi
+        if suppress_timestep_zero:
+            x = x[1:]
     
     for datadict in datadicts:
         if post_process:
             x = (datadict["phi"] if not plot_v_time else
                  datadict["norm_times"] if normalize_time else
                  datadict["timesteps"])
+            if suppress_timestep_zero:
+                x = x[1:]
         data: list[float] = datadict["data"]
+        if suppress_timestep_zero:
+            data = data[1:]
         plot_format: str = datadict["fmt"] if "fmt" in datadict else plot_formats if plot_formats else "-"
         label: object = None if "label" not in datadict else datadict["label"]
         if label is not None:
@@ -525,8 +536,14 @@ def _show_tension_by_cell_size(end: bool) -> None:
                        axhline=0,  # compression/tension boundary
                        end=end)
 
-def _show_avg_tensions_v_microtime() -> None:
-    """Show tension on a much finer timescale; median tension of all cells, and of leading edge cells"""
+def _get_cell_division_cessation_threshold() -> float | None:
+    """Return x-coord at which to draw cell-division cessation. In terms of phi if possible, else timestep
+    
+    If running balanced force control, then plotting v. timestep, so return cell_division_cessation_timestep.
+    Else plotting v. phi, so return cell_division_cessation_phi.
+    Return None if cell division disabled, or if plotting v. time and the cessation timestep hasn't been
+    determined yet. In other words, if None is returned, don't draw the line.
+    """
     axvline: float | None = None
     if cfg.run_balanced_force_control:
         # Plotting vs. time; display axvline for cessation time once we know it.
@@ -541,6 +558,12 @@ def _show_avg_tensions_v_microtime() -> None:
         if epu.cell_division_cessation_phi > 0:
             # cell division is enabled, and that is where it will or did cease
             axvline = epu.cell_division_cessation_phi
+            
+    return axvline
+
+def _show_avg_tensions_v_microtime() -> None:
+    """Show tension on a much finer timescale; median tension of all cells, and of leading edge cells"""
+    axvline: float | None = _get_cell_division_cessation_threshold()
 
     # calculate tensions
     leading_edge_cells: list = []
@@ -572,20 +595,7 @@ def _show_avg_tensions_v_microtime() -> None:
 
 def _show_circumferential_edge_tension_v_microtime() -> None:
     """Like _show_avg_tensions_v_microtime(), but get tension only along edge bonds, not whole cell tension"""
-    axvline: float | None = None
-    if cfg.run_balanced_force_control:
-        # Plotting vs. time; display axvline for cessation time once we know it.
-        # (However, note that it should never happen, if force parameters are correct, since
-        # EVL should not expand, and should never reach the cessation position. And of course,
-        # there should be little if any cell division, either.)
-        if epu.cell_division_cessation_timestep > 0:
-            # cell division is enabled and has already ceased, at that time
-            axvline = epu.cell_division_cessation_timestep
-    else:
-        # Plotting vs. epiboly progress (phi); we know by definition, at what phi that will happen
-        if epu.cell_division_cessation_phi > 0:
-            # cell division is enabled, and that is where it will or did cease
-            axvline = epu.cell_division_cessation_phi
+    axvline: float | None = _get_cell_division_cessation_threshold()
 
     # calculate circumferential edge tensions - i.e., only the tension of edge bonds
     leading_edge_bonds: list[tf.BondHandle] = [bhandle for bhandle in tf.BondHandle.items()
@@ -606,6 +616,41 @@ def _show_circumferential_edge_tension_v_microtime() -> None:
                           ylabel="Median circumferential tension",
                           axvline=axvline)
 
+def _phi_and_vegetal_speed(phandle: tf.ParticleHandle) -> tuple[float, float]:
+    theta, particle_position_phi = epu.embryo_coords(phandle)
+    tangent_phi: float = particle_position_phi + np.pi / 2
+    tangent_vec: tf.fVector3 = tfu.cartesian_from_spherical([1, theta, tangent_phi])
+    velocity: tf.fVector3 = phandle.velocity
+    return particle_position_phi, tfu.signed_scalar_from_vector_projection(velocity, tangent_vec)
+
+def _show_leading_edge_speed_v_microtime() -> None:
+    """Show speed on a much finer timescale; median veg-directed velocity component of leading edge cells
+    
+    Don't plot timestep 0 (the first datapoint) because it has a meaningless value near 0. Start with the
+    first measured value after the simulation starts, after the speed jumps up to its true starting value.
+    """
+    axvline: float | None = _get_cell_division_cessation_threshold()
+
+    # calculate leading edge speeds - i.e., only the speed of leading edge particles
+    phi_and_speed_tuple_generator = (_phi_and_vegetal_speed(phandle) for phandle in g.LeadingEdge.items())
+    leading_edge_speeds: list[float] = [speed for _, speed in phi_and_speed_tuple_generator]
+    # leading_edge_speed: float = np.median(leading_edge_speeds).item()
+    # ToDo: If I use this version with fmean() instead, fix all the var names and strings!
+    leading_edge_speed: float = fmean(leading_edge_speeds)
+    _median_speed_leading_edge.append(leading_edge_speed)
+
+    # Plot
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(-0.005, 0.08), data=_median_speed_leading_edge)
+    speed_data: PlotData = {"data": _median_speed_leading_edge,
+                            "fmt": "-b"}
+    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    _plot_datasets_v_time([speed_data],
+                          filename=f"Median leading edge speed v. {time_axis}",
+                          limits=limits,
+                          ylabel=r"Median leading edge speed, $\Vert\mathbf{v_{veg}}\Vert$",
+                          axvline=axvline,
+                          suppress_timestep_zero=True)
+
 def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     """Particle Image Velocimetry - or the one aspect of it that's relevant in this context
     
@@ -614,13 +659,6 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
     
     Further, generate strain rates from these values, so plot those here as well.
     """
-    def phi_and_vegetal_speed(phandle: tf.ParticleHandle) -> tuple[float, float]:
-        theta, particle_position_phi = epu.embryo_coords(phandle)
-        tangent_phi: float = particle_position_phi + np.pi / 2
-        tangent_vec: tf.fVector3 = tfu.cartesian_from_spherical([1, theta, tangent_phi])
-        velocity: tf.fVector3 = phandle.velocity
-        return particle_position_phi, tfu.signed_scalar_from_vector_projection(velocity, tangent_vec)
-
     if end:
         # Normally we've been accumulating into these lists over multiple timesteps, so we just continue to add to them.
         # But if end, we'll keep things simple by dumping earlier data (if any) and gathering just the current
@@ -630,11 +668,11 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
 
     phandle: tf.ParticleHandle
     for phandle in g.Little.items():
-        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
+        particle_position_phi, speed = _phi_and_vegetal_speed(phandle)
         _speeds.append(speed)
         _speeds_particle_phi.append(particle_position_phi)
     for phandle in g.LeadingEdge.items():
-        particle_position_phi, speed = phi_and_vegetal_speed(phandle)
+        particle_position_phi, speed = _phi_and_vegetal_speed(phandle)
         _speeds.append(speed)
         _speeds_particle_phi.append(particle_position_phi)
 
@@ -1019,6 +1057,7 @@ def show_graphs(end: bool = False) -> None:
         _show_margin_population()
         _show_avg_tensions_v_microtime()
         _show_circumferential_edge_tension_v_microtime()
+        _show_leading_edge_speed_v_microtime()
 
     plot_interval: int = cfg.plotting_interval_timesteps
     
@@ -1076,6 +1115,7 @@ def get_state() -> dict:
             "median_tension_leading_edge": _median_tension_leading_edge,
             "median_tension_all": _median_tension_all,
             "median_tension_circumferential": _median_tension_circumferential,
+            "median_speed_leading_edge": _median_speed_leading_edge,
             "timesteps": _timesteps,
             
             "tension_bin_axis_history": _tension_bin_axis_history,
@@ -1113,7 +1153,8 @@ def set_state(d: dict) -> None:
     global _straightness_cyl
     global _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
-    global _median_tension_leading_edge, _median_tension_all, _median_tension_circumferential
+    global _median_tension_leading_edge, _median_tension_all
+    global _median_tension_circumferential, _median_speed_leading_edge
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
     global _divided_tensions_bin_axis_history, _divided_tensions_history, _divided_tensions_timestep_history
@@ -1136,6 +1177,7 @@ def set_state(d: dict) -> None:
     _median_tension_leading_edge = d["median_tension_leading_edge"]
     _median_tension_all = d["median_tension_all"]
     _median_tension_circumferential = d["median_tension_circumferential"]
+    _median_speed_leading_edge = d["median_speed_leading_edge"]
     _timesteps = d["timesteps"]
     
     _tension_bin_axis_history = d["tension_bin_axis_history"]
@@ -1256,11 +1298,14 @@ def post_process_graphs(simulation_data: list[dict],
     def get_cell_division_cessation_phi() -> float:
         # Get axvline position, which should be the same in all the sims, as long as they all started
         # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
+        # (If we are actually comparing cell division with no cell division, then only the cell division
+        # sims will have it; ignore it and return 0, meaning don't plot it.)
         # (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each
         # simulation will have crossed the threshold at a slightly different time, so would make a mess
         # if displayed.)
         # So just grab it from the first simulation:
-        return simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
+        return (0.0 if config_var_key == "cell_division_enabled" else
+                simulation_data[0]["epiboly"]["cell_division_cessation_phi"])
 
     def show_multi_progress() -> None:
         """Overlay multiple progress plots on one Axes, color-coded by treatment (edge bond-angle constraint lambda)"""
@@ -1371,7 +1416,8 @@ def post_process_graphs(simulation_data: list[dict],
                                               ylabel: str = None,
                                               limits: tuple[float, float] = None,
                                               axvline: float = None,
-                                              yticks: dict = None) -> None:
+                                              yticks: dict = None,
+                                              suppress_timestep_zero: bool = False) -> None:
         """Send data to _plot_datasets_v_time() for each selected time axis proxy.
         
         :param datadicts: one PlotData for each simulation to be plotted
@@ -1381,6 +1427,7 @@ def post_process_graphs(simulation_data: list[dict],
         :param yticks: special tick marks for the y-axis.
         :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
             plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not time.
+        :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
         """
         x_axis_type: str
         filename_suffix: str = f", grouped by {config_var_key}" if include_legends else ""
@@ -1393,6 +1440,7 @@ def post_process_graphs(simulation_data: list[dict],
                                   yticks=yticks,
                                   plot_v_time=(x_axis_type != "phi"),
                                   normalize_time=(x_axis_type == "normalized time"),
+                                  suppress_timestep_zero=suppress_timestep_zero,
                                   post_process=True)
 
     def show_composite_medians(rawdicts: list[PlotData],
@@ -1400,7 +1448,8 @@ def post_process_graphs(simulation_data: list[dict],
                                ylabel: str,
                                default_limits: tuple[float, float],
                                axvline: float = None,
-                               yticks: dict = None) -> None:
+                               yticks: dict = None,
+                               suppress_timestep_zero: bool = False) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
         
         'Treatment' refers to the different values of a single variable that we are contrasting.
@@ -1424,6 +1473,7 @@ def post_process_graphs(simulation_data: list[dict],
         :param yticks: special tick marks for the y-axis.
         :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
             plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not plots v. time.
+        :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
         """
         composite_dicts: dict[str: PlotData] = {}
         composite_key: str
@@ -1447,7 +1497,10 @@ def post_process_graphs(simulation_data: list[dict],
             plotdata_key: str
             for plotdata_key in ["data", "phi", "timesteps", "norm_times"]:
                 # (Type checker doesn't like variables as keys; it's fine.)
-                composite_dict[plotdata_key].extend(rawdict[plotdata_key])  # type: ignore
+                rawdata: list = rawdict[plotdata_key]  # type: ignore
+                if suppress_timestep_zero:
+                    rawdata = rawdata[1:]
+                composite_dict[plotdata_key].extend(rawdata)  # type: ignore
             
         # After exiting the above outer loop (for rawdict in rawdicts), we now have a dict (composite_dicts)
         # containing exactly one sub-dict for each treatment. Their lists are no longer in chronological
@@ -1693,6 +1746,31 @@ def post_process_graphs(simulation_data: list[dict],
     
         plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline)
 
+    def show_multi_leading_edge_speed() -> None:
+        """Overlay multiple leading-edge speed plots, grouped and color-coded by the provided config_var"""
+        axvline: float = get_cell_division_cessation_phi()
+        
+        datadicts: list[PlotData] = [{
+                "data": simulation["plot"]["median_speed_leading_edge"],
+                "phi": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                } for simulation in simulation_data]
+        normalize(datadicts)
+
+        filename: str = "Leading edge speed"
+        ylabel: str = r"Average speed of leading edge vegetalward movement"
+        default_limits: tuple[float, float] = (-0.005, 0.08)
+        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
+
+        color_code_and_clean_up_labels(datadicts)
+
+        all_data: list[list[float]] = [data["data"] for data in datadicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
+
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline, suppress_timestep_zero=True)
+
     def show_multi_tension_hello_world() -> None:
         """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors
         
@@ -1730,6 +1808,7 @@ def post_process_graphs(simulation_data: list[dict],
     # print(simulation_data)
     show_multi_tension()
     show_multi_circumferential_tension()
+    show_multi_leading_edge_speed()
     show_multi_straightness()
     show_multi_lopsidedness()
     show_multi_margin_pop()
