@@ -48,6 +48,7 @@ _median_tension_leading_edge: list[float] = []
 _median_tension_all: list[float] = []
 _median_tension_circumferential: list[float] = []
 _median_speed_leading_edge: list[float] = []
+_speed_by_phi_diffs: list[float] = []
 
 # Note: I considered trying to share bin_axis and timestep histories over all quantities being binned over phi. I think
 # I could do it, minimize code duplication, and save on memory and disk space. However, it would also lock me into
@@ -86,6 +87,10 @@ _strain_rate_bond_phi: list[float] = []
 _timesteps: list[int] = []
 _timestep: int = 0
 _plot_path: str = ""
+
+# For speed calculations. Initialize in first call to show_graphs():
+_previous_leading_edge_phi: float = 0.0
+_previous_universe_time: float = 0.0
 
 class PlotData(TypedDict, total=False):
     data: list[float] | list[int]   # required
@@ -616,6 +621,45 @@ def _show_circumferential_edge_tension_v_microtime() -> None:
                           ylabel="Median circumferential tension",
                           axvline=axvline)
 
+def _show_speed_by_phi_diffs() -> None:
+    """Plots the speed of leading edge movement based on tracking leading edge position, rather than particle velocities
+
+    Speed based on particle velocities was ridiculously noisy; hence all the time averaging with the original
+    approach, and then the crazy noisy plots with the approach in _show_leading_edge_speed_v_microtime().
+    Instead, let's just track the position of the leading edge, which is a mean over all the edge particles and
+    isn't noisy at all. Then calculate the speed from that. Still a bit noisy, late in epiboly! But definitely an
+    improvement over the particle-velocity approach.
+    """
+    global _previous_leading_edge_phi, _previous_universe_time
+    
+    axvline: float | None = _get_cell_division_cessation_threshold()
+
+    # Calculate speed
+    # Scale is arbitrary but do it in terms of Universe.time so the values will be robust to changes
+    # either in cfg.dt (timestep interval) or in the frequency of plot generation.
+    new_leading_edge_phi: float = epu.leading_edge_mean_phi()
+    new_universe_time: float = tf.Universe.time
+    radians_traveled: float = new_leading_edge_phi - _previous_leading_edge_phi
+    time_elapsed: float = new_universe_time - _previous_universe_time
+    _previous_leading_edge_phi = new_leading_edge_phi
+    _previous_universe_time = new_universe_time
+    
+    # First time through, time_elapsed will be 0, and speed will be zero (which we won't be plotting anyway)
+    current_speed: float = 0 if time_elapsed == 0 else radians_traveled / time_elapsed
+    _speed_by_phi_diffs.append(current_speed)
+
+    # Plot
+    limits: tuple[float, float] = _expand_limits_if_needed(limits=(-0.0005, 0.03), data=_speed_by_phi_diffs)
+    speed_data: PlotData = {"data": _speed_by_phi_diffs,
+                            "fmt": "-b"}
+    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    _plot_datasets_v_time([speed_data],
+                          filename=f"Speed by phi diffs v. {time_axis}",
+                          limits=limits,
+                          ylabel="Speed (radians / unit simulation time)",
+                          axvline=axvline,
+                          suppress_timestep_zero=True)
+
 def _phi_and_vegetal_speed(phandle: tf.ParticleHandle) -> tuple[float, float]:
     theta, particle_position_phi = epu.embryo_coords(phandle)
     tangent_phi: float = particle_position_phi + np.pi / 2
@@ -1022,7 +1066,7 @@ def _show_progress_graph() -> None:
                           plot_v_time=True)
 
 def show_graphs(end: bool = False) -> None:
-    global _timestep
+    global _timestep, _previous_leading_edge_phi, _previous_universe_time
     
     if not g.LeadingEdge.items() or g.LeadingEdge.items()[0].frozen_z:
         # Prior to instantiating any LeadingEdge particles, or during the z-frozen phase of equilibration,
@@ -1034,6 +1078,8 @@ def show_graphs(end: bool = False) -> None:
     if not _plot_path:
         # if init hasn't been run yet, run it
         _init_graphs()
+        _previous_leading_edge_phi = epu.leading_edge_mean_phi()
+        _previous_universe_time = tf.Universe.time
         
     if cfg.cell_division_enabled and epu.cell_division_cessation_timestep == 0:
         # We haven't yet detected threshold crossing, so check it.
@@ -1058,6 +1104,7 @@ def show_graphs(end: bool = False) -> None:
         _show_avg_tensions_v_microtime()
         _show_circumferential_edge_tension_v_microtime()
         _show_leading_edge_speed_v_microtime()
+        _show_speed_by_phi_diffs()
 
     plot_interval: int = cfg.plotting_interval_timesteps
     
@@ -1116,6 +1163,7 @@ def get_state() -> dict:
             "median_tension_all": _median_tension_all,
             "median_tension_circumferential": _median_tension_circumferential,
             "median_speed_leading_edge": _median_speed_leading_edge,
+            "speed_by_phi_diffs": _speed_by_phi_diffs,
             "timesteps": _timesteps,
             
             "tension_bin_axis_history": _tension_bin_axis_history,
@@ -1154,7 +1202,7 @@ def set_state(d: dict) -> None:
     global _margin_lopsidedness, _timesteps
     global _margin_count, _margin_cum_in, _margin_cum_out, _margin_cum_divide
     global _median_tension_leading_edge, _median_tension_all
-    global _median_tension_circumferential, _median_speed_leading_edge
+    global _median_tension_circumferential, _median_speed_leading_edge, _speed_by_phi_diffs
     global _tension_bin_axis_history, _median_tensions_history, _tension_timestep_history
     global _undivided_tensions_bin_axis_history, _undivided_tensions_history, _undivided_tensions_timestep_history
     global _divided_tensions_bin_axis_history, _divided_tensions_history, _divided_tensions_timestep_history
@@ -1178,6 +1226,7 @@ def set_state(d: dict) -> None:
     _median_tension_all = d["median_tension_all"]
     _median_tension_circumferential = d["median_tension_circumferential"]
     _median_speed_leading_edge = d["median_speed_leading_edge"]
+    _speed_by_phi_diffs = d["speed_by_phi_diffs"]
     _timesteps = d["timesteps"]
     
     _tension_bin_axis_history = d["tension_bin_axis_history"]
@@ -1746,7 +1795,7 @@ def post_process_graphs(simulation_data: list[dict],
     
         plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline)
 
-    def show_multi_leading_edge_speed() -> None:
+    def show_multi_speed_leading_edge_velocity_based() -> None:
         """Overlay multiple leading-edge speed plots, grouped and color-coded by the provided config_var"""
         axvline: float = get_cell_division_cessation_phi()
         
@@ -1759,8 +1808,8 @@ def post_process_graphs(simulation_data: list[dict],
                 } for simulation in simulation_data]
         normalize(datadicts)
 
-        filename: str = "Leading edge speed"
-        ylabel: str = r"Average speed of leading edge vegetalward movement"
+        filename: str = "Leading edge speed (velocity based)"
+        ylabel: str = "Average vegetalward speed"
         default_limits: tuple[float, float] = (-0.005, 0.08)
         show_composite_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
 
@@ -1769,6 +1818,31 @@ def post_process_graphs(simulation_data: list[dict],
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline, suppress_timestep_zero=True)
+
+    def show_multi_speed_leading_edge_position_based() -> None:
+        """Overlay multiple leading-edge speed plots, grouped and color-coded by the provided config_var"""
+        axvline: float = get_cell_division_cessation_phi()
+    
+        datadicts: list[PlotData] = [{
+                "data": simulation["plot"]["speed_by_phi_diffs"],
+                "phi": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                } for simulation in simulation_data]
+        normalize(datadicts)
+    
+        filename: str = "Leading edge speed (position based)"
+        ylabel: str = "Speed (radians / unit simulation time)"
+        default_limits: tuple[float, float] = (-0.0005, 0.03)
+        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
+    
+        color_code_and_clean_up_labels(datadicts)
+    
+        all_data: list[list[float]] = [data["data"] for data in datadicts]
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
+    
         plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline, suppress_timestep_zero=True)
 
     def show_multi_tension_hello_world() -> None:
@@ -1808,7 +1882,8 @@ def post_process_graphs(simulation_data: list[dict],
     # print(simulation_data)
     show_multi_tension()
     show_multi_circumferential_tension()
-    show_multi_leading_edge_speed()
+    show_multi_speed_leading_edge_velocity_based()
+    show_multi_speed_leading_edge_position_based()
     show_multi_straightness()
     show_multi_lopsidedness()
     show_multi_margin_pop()
