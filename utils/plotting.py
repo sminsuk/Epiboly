@@ -1344,17 +1344,32 @@ def post_process_graphs(simulation_data: list[dict],
                 del datadict["label"]
             datadict["fmt"] = f"-C{cycler_index}"
     
-    def get_cell_division_cessation_phi() -> float:
-        # Get axvline position, which should be the same in all the sims, as long as they all started
-        # at the same epiboly_initial_percentage and had the same cell_division_cessation_percentage.
-        # (If we are actually comparing cell division with no cell division, then only the cell division
-        # sims will have it; ignore it and return 0, meaning don't plot it.)
-        # (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each
-        # simulation will have crossed the threshold at a slightly different time, so would make a mess
-        # if displayed.)
-        # So just grab it from the first simulation:
-        return (0.0 if config_var_key == "cell_division_enabled" else
-                simulation_data[0]["epiboly"]["cell_division_cessation_phi"])
+    def get_cell_division_cessation_phi(force: bool = False) -> float:
+        """Return the phi value where cell division stopped (to be able to mark it on the plot)
+        
+        Normally (when we are not color coding by cell division enabled vs. disabled), we will assume that
+        either all of the sims had cell division enabled, or none of them did. Either way, they will all
+        have the same value for cell_division_cessation_phi (0.0 if cell division was disabled) – as long as,
+        if enabled, they all had the same cell_division_cessation_percentage, which we also assume to be true.
+        We can just grab the value from the first sim in the list. "force" is ignored.
+        
+        When we ARE color coding by cell division enabled/disabled, we assume we have a mix of both, and we
+        don't know which are which. We let the caller decide how to treat it. If force == True, search through
+        the list and find one that has phi > 0 (cell division was enabled), and return that. If force == False,
+        then just return 0 (meaning the line won't be plotted).
+        
+        (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each simulation
+        will have crossed the threshold at a slightly different time, so would make a mess if displayed.)
+        """
+        if config_var_key == "cell_division_enabled":
+            sim: dict
+            if force:
+                for sim in simulation_data:
+                    phi: float = sim["epiboly"]["cell_division_cessation_phi"]
+                    if phi > 0.0:
+                        return phi
+            return 0.0
+        return simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
 
     def show_multi_progress() -> None:
         """Overlay multiple progress plots on one Axes, color-coded by treatment (edge bond-angle constraint lambda)"""
@@ -1407,7 +1422,7 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_margin_pop() -> None:
         """Overlay multiple margin pop plots on one Axes, grouped and color-coded by the provided config_var"""
-        axvline: float = get_cell_division_cessation_phi()
+        axvline: float = get_cell_division_cessation_phi(force=True)
 
         margin_count_dicts: list[PlotData] = []
         margin_cum_dicts: list[PlotData] = []
@@ -1772,7 +1787,7 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_circumferential_tension() -> None:
         """Overlay multiple **circumferential** tension plots, grouped and color-coded by the provided config_var"""
-        axvline: float = get_cell_division_cessation_phi()
+        axvline: float = get_cell_division_cessation_phi(force=True)
     
         datadicts: list[PlotData] = [{
                 "data": simulation["plot"]["median_tension_circumferential"],
