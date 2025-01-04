@@ -126,6 +126,10 @@ def _add_time_axis(axes: Axes, plot_v_time: bool = False, normalize_time: bool =
     axes.set_xticks([np.pi / 2, np.pi * 5/8, np.pi * 3/4, np.pi * 7/8, np.pi],
                     labels=[r"$\pi$/2", "", r"3$\pi$/4", "", r"$\pi$"])
 
+def _balanced_force_ever() -> bool:
+    """True if the leading edge was not moving, due to balanced forces, at least PART of the time"""
+    return cfg.run_balanced_force_control or cfg.balanced_force_equilibration_kludge
+
 def _plot_datasets_v_time(datadicts: list[PlotData],
                           filename: str,
                           limits: tuple[float, float] = None,
@@ -178,7 +182,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         the real-time simulation (which may have one or more datasets per plot).
     """
     if plot_v_time is None:
-        plot_v_time = False if post_process else cfg.run_balanced_force_control
+        plot_v_time = False if post_process else _balanced_force_ever()
         
     fig: Figure
     ax: Axes
@@ -550,7 +554,7 @@ def _get_cell_division_cessation_threshold() -> float | None:
     determined yet. In other words, if None is returned, don't draw the line.
     """
     axvline: float | None = None
-    if cfg.run_balanced_force_control:
+    if _balanced_force_ever():
         # Plotting vs. time; display axvline for cessation time once we know it.
         # (However, note that it should never happen, if force parameters are correct, since
         # EVL should not expand, and should never reach the cessation position. And of course,
@@ -591,7 +595,7 @@ def _show_avg_tensions_v_microtime() -> None:
     all_cells_data: PlotData = {"data": _median_tension_all,
                                 "fmt": "-b",
                                 "label": "All cells"}
-    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    time_axis: str = "time" if _balanced_force_ever() else "leading edge progress (phi)"
     _plot_datasets_v_time([leading_edge_data, all_cells_data],
                           filename=f"Median tension v. {time_axis}",
                           limits=(-0.01, 0.2),
@@ -614,7 +618,7 @@ def _show_circumferential_edge_tension_v_microtime() -> None:
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(-0.01, 0.2), data=_median_tension_circumferential)
     leading_edge_data: PlotData = {"data": _median_tension_circumferential,
                                    "fmt": "-b"}
-    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    time_axis: str = "time" if _balanced_force_ever() else "leading edge progress (phi)"
     _plot_datasets_v_time([leading_edge_data],
                           filename=f"Median circumferential edge tension v. {time_axis}",
                           limits=limits,
@@ -652,7 +656,7 @@ def _show_speed_by_phi_diffs() -> None:
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(-0.0005, 0.03), data=_speed_by_phi_diffs)
     speed_data: PlotData = {"data": _speed_by_phi_diffs,
                             "fmt": "-b"}
-    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    time_axis: str = "time" if _balanced_force_ever() else "leading edge progress (phi)"
     _plot_datasets_v_time([speed_data],
                           filename=f"Speed by phi diffs v. {time_axis}",
                           limits=limits,
@@ -687,7 +691,7 @@ def _show_leading_edge_speed_v_microtime() -> None:
     limits: tuple[float, float] = _expand_limits_if_needed(limits=(-0.005, 0.08), data=_median_speed_leading_edge)
     speed_data: PlotData = {"data": _median_speed_leading_edge,
                             "fmt": "-b"}
-    time_axis: str = "time" if cfg.run_balanced_force_control else "leading edge progress (phi)"
+    time_axis: str = "time" if _balanced_force_ever() else "leading edge progress (phi)"
     _plot_datasets_v_time([speed_data],
                           filename=f"Median leading edge speed v. {time_axis}",
                           limits=limits,
@@ -1141,6 +1145,13 @@ def show_graphs(end: bool = False) -> None:
                 _show_strain_rates_v_phi(remainder == 0, end)
         
     _timestep += 1
+    
+    # kludge/hack alert: this is just to quickly test something; not the right way to do this!
+    # After a delay, turn off the equilibration flag and set force back to what is configured
+    if epu.balanced_force_equilibration_kludge and _timestep > 600:
+        if not cfg.run_balanced_force_control:
+            mt._force_per_unit_length = cfg.yolk_cortical_tension + cfg.external_force
+        epu.balanced_force_equilibration_kludge = False
     
 def get_state() -> dict:
     """In composite runs, save incomplete plot data so those plots can be completed with cumulative data, all back to 0
@@ -1891,8 +1902,30 @@ def post_process_graphs(simulation_data: list[dict],
                               axvline=axvline,
                               post_process=True)
 
+    def handle_balanced_force_equilibration_kludge() -> None:
+        nonlocal x_axis_types
+        model_control_values: dict = simulation_data[0]["config"]["config_values"]["model control"]
+        if "balanced_force_equilibration_kludge" in model_control_values:
+            # I want to still be able to read in data from before I created that, so only proceed if it's there.
+            # If it's not there (older sims), then we can treat as if the value is False (no need to do anything).
+            # In case of a mixed set (old and new), then we can also assume it's False in any simulation that has it,
+            # because you'd never mix simulations with the value set to true, with ones that don't have it.
+            if model_control_values["balanced_force_equilibration_kludge"]:
+                # If it's there and True, safe to assume it's True for all simulations. Override the x_axis_types.
+                # Note, this is just for testing the idea of a balanced force equilibration. If I ever
+                # decide to switch to using this for real, it would not be good to force this; instead,
+                # would want to exclude that equilibration phase from plotting so that I can use whichever
+                # x_axis_types I want. For now, it's helpful to see that phase plotted.
+                if "phi" in x_axis_types:
+                    x_axis_types.remove("phi")
+                    if not x_axis_types:
+                        # "phi" was the only thing in there
+                        x_axis_types = ["timesteps"]
+
     if x_axis_types is None:
         x_axis_types = ["phi", "timesteps", "normalized time"]
+    handle_balanced_force_equilibration_kludge()
+    
     _init_graphs()
     # print(simulation_data)
     show_multi_tension()

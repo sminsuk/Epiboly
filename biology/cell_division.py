@@ -246,6 +246,11 @@ def cell_division() -> None:
     if not cfg.cell_division_enabled:
         return
     
+    # kludge/hack alert: this is just to quickly test something; not the right way to do this!
+    # Suppress cell division during balanced force equilibration
+    if epu.balanced_force_equilibration_kludge:
+        return
+
     if epu.leading_edge_mean_phi() > _cell_division_cessation_phi:
         return
         

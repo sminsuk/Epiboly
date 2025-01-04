@@ -30,6 +30,12 @@ recoil_experiment_in_progress: bool = False
 cell_division_cessation_timestep: int = 0
 cell_division_cessation_phi: float = 0.0
 
+# kludge/hack alert: this is just to quickly test something; not the right way to do this!
+# If True:
+# For the first 600 timesteps, override external force and turn off cell division (i.e. temporary balanced
+# force control), then after that delay, set this to False and adopt whatever the configured behavior is.
+balanced_force_equilibration_kludge: bool = cfg.balanced_force_equilibration_kludge
+
 # Cell radius is distinct from PARTICLE radius. It represents the extent of the cell, an average distance
 # from the center of mass, to the edge of the cell. Particles only represent the point center of mass, and their
 # radii are mainly for visualization (though the TF neighbor search also uses them, to define the search space).

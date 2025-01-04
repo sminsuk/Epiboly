@@ -27,6 +27,11 @@ def initialize_tangent_forces() -> None:
     force_enabled = True
     external_force: float = 0 if cfg.run_balanced_force_control else cfg.external_force
     _force_per_unit_length = cfg.yolk_cortical_tension + external_force
+    
+    # kludge/hack alert: this is just to quickly test something; not the right way to do this!
+    if epu.balanced_force_equilibration_kludge:
+        # Suppress extra forces for now, while equilibrating; we'll reinstate them later
+        _force_per_unit_length = cfg.yolk_cortical_tension
 
 def remove_tangent_forces() -> None:
     """Call this once to remove tangent forces from all particles, after turning off the updates."""
