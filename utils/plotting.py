@@ -1911,16 +1911,12 @@ def post_process_graphs(simulation_data: list[dict],
             # In case of a mixed set (old and new), then we can also assume it's False in any simulation that has it,
             # because you'd never mix simulations with the value set to true, with ones that don't have it.
             if model_control_values["balanced_force_equilibration_kludge"]:
-                # If it's there and True, safe to assume it's True for all simulations. Override the x_axis_types.
-                # Note, this is just for testing the idea of a balanced force equilibration. If I ever
-                # decide to switch to using this for real, it would not be good to force this; instead,
-                # would want to exclude that equilibration phase from plotting so that I can use whichever
-                # x_axis_types I want. For now, it's helpful to see that phase plotted.
-                if "phi" in x_axis_types:
-                    x_axis_types.remove("phi")
-                    if not x_axis_types:
-                        # "phi" was the only thing in there
-                        x_axis_types = ["timesteps"]
+                # If it's there and True, safe to assume it's True for all simulations. Let's override the config
+                # and see all x_axis_types. Note that when plotting v. phi, the equilibration phase is all compressed
+                # because phi isn't changing, but it's still helpful to see the plot.
+                # This is just for testing the idea of a balanced force equilibration. If I ever decide to add this
+                # to the model everywhere, better to just exclude that equilibration phase from plotting.
+                x_axis_types = ["phi", "timesteps", "normalized time"]
 
     if x_axis_types is None:
         x_axis_types = ["phi", "timesteps", "normalized time"]
