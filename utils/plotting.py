@@ -1550,7 +1550,7 @@ def post_process_graphs(simulation_data: list[dict],
             plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not plots v. time.
         :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
         """
-        composite_dicts: dict[str: PlotData] = {}
+        composite_dicts: dict[str, PlotData] = {}
         composite_key: str
         # Using str keys for the different treatments, since I'm unsure how safe it is to use floats as keys
         # composite_dicts will contain one PlotData for each treatment, keyed by the treatment value
@@ -1590,9 +1590,9 @@ def post_process_graphs(simulation_data: list[dict],
         # same values, because the binning will shake out differently, depending on whether it's for plotting
         # v. phi, or v. normalized time.
         num_bins = 20
-        binned_v_phi_dicts: dict[str: PlotData] = {}
-        binned_v_timesteps_dicts: dict[str: PlotData] = {}
-        binned_v_normtime_dicts: dict[str: PlotData] = {}
+        binned_v_phi_dicts: dict[str, PlotData] = {}
+        binned_v_timesteps_dicts: dict[str, PlotData] = {}
+        binned_v_normtime_dicts: dict[str, PlotData] = {}
         
         # bin the normalized time values over this range:
         min_normtime: float = 0.0
