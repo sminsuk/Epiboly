@@ -138,6 +138,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                           axvline: float = None,
                           legend_loc: str = None,
                           yticks: dict = None,
+                          title: str = None,
                           plot_v_time: bool = None,
                           normalize_time: bool = False,
                           suppress_timestep_zero: bool = False,
@@ -171,6 +172,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     :param legend_loc: optional, specify where legend will go if there is one.
     :param yticks: Currently using this in only 2 spots, ad hoc, not anticipating more. But if I start using this
         more generally, then... ToDo: define a proper typed dict and do parameter validation
+    :param title: A title for the plot.
     :param plot_v_time: whether to plot vs. time instead of vs. phi. In real-time plotting only, a value of None
         means to decide based on cfg.run_balanced_force_control. In post-process plotting, None is treated as False.
     :param normalize_time: In real-time plotting, ignored. In post-process plotting vs. phi, ignored. In post-process
@@ -200,6 +202,9 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         # For now, assuming yticks dict has all the correct content and format, since I'm only passing this ad hoc.
         ax.set_yticks(yticks["major_range"], labels=yticks["labels"])
         ax.set_yticks(yticks["minor_range"], minor=True)
+        
+    if title:
+        ax.set_title(title)
         
     data: list[float]
     legend_needed: bool = False
@@ -1431,6 +1436,95 @@ def post_process_graphs(simulation_data: list[dict],
                               normalize_time=True,
                               post_process=True)
 
+    def replot_individual_margin_pop(simulation: dict,
+                                     limits: tuple[float, float],
+                                     plot_num: int) -> None:
+        """Plot from a single sim, four different margin population metrics together on a single Axes
+        
+        Basically reconstruct what _show_margin_population() does, but as an after-the fact-reconstruction.
+        Show four metrics together (cumulative migration into, and out of, the margin; total number of margin cells;
+        and, only for sims with cell division, show cumulative divisions). But with the following differences:
+        - Assume our consensus plots contain two lines each, one with cell division and one without; so, use the
+            same colors as those, meaning C0 or C1, depending on whether this sim has cell division.
+        - But line style should be like the original, since all 4 lines will be the same color; distinguish them
+            by their dots/dashes.
+        - Don't add legends based on treatment, since this is just a single sim; instead, the legends will be
+            added manually for each metric, as in _show_margin_population().
+        - limits must be passed in, not calculated here, because they'll be the same for all sims, based on the
+            maximum required for any of the datasets, so that the separate sims, each on their own set of Axes,
+            will be comparable.
+        - Do both plot v. phi and plot v. timesteps.
+        """
+        margin_count: list[int] = simulation["plot"]["margin_count"]
+        margin_in: list[int] = simulation["plot"]["margin_cum_in"]
+        margin_out: list[int] = simulation["plot"]["margin_cum_out"]
+        margin_divide: list[int] = simulation["plot"]["margin_cum_divide"]
+        leading_edge_phi: list[float] = simulation["plot"]["leading_edge_phi"]
+        timesteps: list[int] = simulation["plot"]["timesteps"]
+        cell_division_enabled: bool = True if margin_divide else False
+        
+        has_div: str = "WITH cell division" if cell_division_enabled else "NO cell division"
+        color: str = "C0" if flip_bool_color == cell_division_enabled else "C1"
+        title: str = "Cell Division Enabled" if cell_division_enabled else "Cell Division Disabled"
+        
+        margin_count_data: PlotData = {"data": margin_count, "fmt": f".{color}", "label": "Total margin cell count"}
+        margin_cum_in_data: PlotData = {"data": margin_in, "fmt": f"--{color}", "label": "Cumulative in"}
+        margin_cum_out_data: PlotData = {"data": margin_out, "fmt": f":{color}", "label": "Cumulative out"}
+        margin_cum_divide_data: PlotData = {"data": margin_divide, "fmt": f"-{color}", "label": "Cumulative divisions"}
+        datasets: list[PlotData] = [margin_count_data, margin_cum_in_data, margin_cum_out_data]
+        if cell_division_enabled:
+            datasets.append(margin_cum_divide_data)
+        plotdata: PlotData
+        for plotdata in datasets:
+            plotdata["phi"] = leading_edge_phi
+            plotdata["timesteps"] = timesteps
+            
+        _plot_datasets_v_time(datasets,
+                              filename=f"Margin cell rearrangement, plus cumulative v. phi, {has_div} {plot_num}",
+                              limits=limits,
+                              legend_loc="upper left",
+                              title=title,
+                              post_process=True)
+        _plot_datasets_v_time(datasets,
+                              filename=f"Margin cell rearrangement, plus cumulative v. timesteps, {has_div} {plot_num}",
+                              limits=limits,
+                              legend_loc="upper left",
+                              title=title,
+                              plot_v_time=True,
+                              post_process=True)
+
+    def replot_individual_margin_pops() -> None:
+        """Plot from two individual sims, four different margin population metrics together, but just one sim per Axes
+
+        This one a bit different from the others here. Basically reconstruct what _show_margin_population() does,
+        but after-the fact, matching the style of the other post-process plots. To avoid premature
+        generalization, we will assume that we are comparing sims that have cell division, with those that do not.
+        So to avoid a huge explosion of output files, we plot only if that's the case. Provide a disambiguating
+        identifier so the output files will have unique names. And furthermore, plot a maximum of 10 sims.
+        
+        For each sim, reconstruct that original plot from the data, which shows four metrics together (cumulative
+        migration into, and out of, the margin; total number of margin cells; and for the one with cell division,
+        cumulative divisions). But unlike the original real-time plots, both should use the same y-limits, based
+        on the maximum range required for any of the metrics, so that the two Axes will be comparable. (Once I've
+        selected which two to use in my figure, run again with just those two, and the limits will be right.)
+        """
+        if not include_legends or config_var_key != "cell_division_enabled":
+            return
+        
+        all_metrics_data: list[list[int]] = []
+        simulation: dict
+        for simulation in simulation_data[:10]:
+            all_metrics_data.append(simulation["plot"]["margin_count"])
+            all_metrics_data.append(simulation["plot"]["margin_cum_in"])
+            all_metrics_data.append(simulation["plot"]["margin_cum_out"])
+            all_metrics_data.append(simulation["plot"]["margin_cum_divide"])
+        limits: tuple[float, float] = _expand_limits_if_needed(limits=(-2, 2), data=all_metrics_data)
+        
+        plot_num: int = 0
+        for simulation in simulation_data[:10]:
+            plot_num += 1
+            replot_individual_margin_pop(simulation, limits, plot_num)
+
     def show_multi_margin_pop() -> None:
         """Overlay multiple margin pop plots on one Axes, grouped and color-coded by the provided config_var"""
         axvline: float = get_cell_division_cessation_phi(force=True)
@@ -1932,3 +2026,4 @@ def post_process_graphs(simulation_data: list[dict],
     show_multi_lopsidedness()
     show_multi_margin_pop()
     show_multi_progress()
+    replot_individual_margin_pops()
