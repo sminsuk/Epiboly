@@ -405,8 +405,6 @@ if __name__ == "__main__":
     """Print a correspondence between epiboly percentage, and phi"""
     phi_for_epiboly(cfg.epiboly_initial_percentage)
     print()
-    for epiboly_percentage in range(30, 96, 5):
-        phi_for_epiboly(epiboly_percentage)
-    for epiboly_percentage in range(96, 101):
+    for epiboly_percentage in range(30, 101):
         phi_for_epiboly(epiboly_percentage)
         
