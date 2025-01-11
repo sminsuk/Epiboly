@@ -98,6 +98,7 @@ class PlotData(TypedDict, total=False):
     timesteps: list[int]
     norm_times: list[float]
     fmt: str                        # not required
+    color: str                      # not required, and if present and not None, overrides fmt color
     label: object                   # not required; can be str or anything that can be turned into str (float, int...)
 
 def _init_graphs() -> None:
@@ -226,10 +227,16 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         if suppress_timestep_zero:
             data = data[1:]
         plot_format: str = datadict["fmt"] if "fmt" in datadict else plot_formats if plot_formats else "-"
+        color: str = datadict["color"] if "color" in datadict else None
         label: object = None if "label" not in datadict else datadict["label"]
         if label is not None:
             legend_needed = True
-        ax.plot(x, data, plot_format, label=label)
+        if color:
+            # use the specified colors, overriding the ones in "fmt"
+            ax.plot(x, data, "-", color=color, label=label)
+        else:
+            # use the colors specified in "fmt"
+            ax.plot(x, data, plot_format, label=label)
     if legend_needed:
         ax.legend(loc=legend_loc)
     
@@ -1311,7 +1318,7 @@ def post_process_graphs(simulation_data: list[dict],
                 timesteps: list[int] = datadict["timesteps"]
                 datadict["norm_times"] = list(np.array(timesteps) / timesteps[-1])
     
-    def color_code_and_clean_up_labels(datadicts: list[PlotData]) -> None:
+    def color_code_and_clean_up_labels(datadicts: list[PlotData], use_alpha: bool = False) -> None:
         """Color code plot lines according to treatment (parameter value); and only label one plot per treatment
         
         On entry, each PlotData["label"] is a numerical or bool value. Sort the list according to that value (so that
@@ -1325,7 +1332,10 @@ def post_process_graphs(simulation_data: list[dict],
         This is so that these plots seem more consistent with the other types of plots.
         
         :param datadicts: one PlotData for each line that is to be plotted. "label" field should
-        be numerical or bool, representing the treatment.
+            be numerical or bool, representing the treatment.
+        :param use_alpha: if True, use this color hack. alpha = 0.5, but brighter colors than the ones in
+            the default color cycler, to prevent them from getting all washed out by the white background.
+            I'm probably not doing this right.
         """
         if not include_legends:
             return
@@ -1358,7 +1368,25 @@ def post_process_graphs(simulation_data: list[dict],
                 cycler_index += 1
             else:
                 del datadict["label"]
-            datadict["fmt"] = f"-C{cycler_index}"
+            if use_alpha and cycler_index < 3:
+                # Color hack. I don't have time to really master color control in matplotlib. But the
+                # default colors look awful when I just decrease alpha, because they get all washed out.
+                # This is my attempt to substitute different colors that are brighter, just using my rgb
+                # intuition. Can't use the format string for those, so have to use the color parameter instead.
+                # Can add more colors to this hack if I want to. Full default color cycle is here:
+                # https://matplotlib.org/stable/users/explain/colors/colors.html and the hex definitions of
+                # those colors are here: https://gist.github.com/leblancfg/b145a966108be05b4a387789c4f9f474
+                # Following are my experiments with substituting better colors (alpha = 0.5/'80' in all):
+                # Some bright, pure colors; blue, red, green (not terrible; alpha 0.25 also not terrible):
+                # datadict["color"] = f"{['#0000ff80', '#ff000080', '#00ff0080'][cycler_index]}"
+                # The first three default color cycler colors from the link above, but with alpha:
+                # datadict["color"] = f"{['#5778a480', '#e4944480', '#6a9f5880'][cycler_index]}"
+                # Those default colors, brightened up (brightest channel to ff):
+                # datadict["color"] = f"{['#5778ff80', '#ff944480', '#6aff5880'][cycler_index]}"
+                # Those default colors, with brighter brights and darker darks (not bad):
+                datadict["color"] = f"{['#0021ff80', '#ff500080', '#12ff0080'][cycler_index]}"
+            else:
+                datadict["fmt"] = f"-C{cycler_index}"
     
     def get_cell_division_cessation_phi(force: bool = False) -> float:
         """Return the phi value where cell division stopped (to be able to mark it on the plot)
@@ -1832,7 +1860,7 @@ def post_process_graphs(simulation_data: list[dict],
         default_limits: tuple[float, float] = (0.9, 1.001)
         show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
 
-        color_code_and_clean_up_labels(datadicts)
+        color_code_and_clean_up_labels(datadicts, use_alpha=True)
         
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
@@ -1858,7 +1886,7 @@ def post_process_graphs(simulation_data: list[dict],
                   "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
         show_composite_medians(datadicts, filename, ylabel, default_limits, yticks=yticks)
     
-        color_code_and_clean_up_labels(datadicts)
+        color_code_and_clean_up_labels(datadicts, use_alpha=True)
     
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
