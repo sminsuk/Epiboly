@@ -1866,7 +1866,10 @@ def post_process_graphs(simulation_data: list[dict],
         plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, yticks=yticks)
 
     def show_multi_tension() -> None:
-        """Overlay multiple leading edge tension plots, grouped and color-coded by the provided config_var"""
+        """Overlay multiple leading edge tension plots, grouped and color-coded by the provided config_var
+        
+        Deprecated in favor of show_multi_circumferential_tension()
+        """
         axvline: float = get_cell_division_cessation_phi()
         
         datadicts: list[PlotData] = [{
@@ -1916,7 +1919,10 @@ def post_process_graphs(simulation_data: list[dict],
         plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline)
 
     def show_multi_speed_leading_edge_velocity_based() -> None:
-        """Overlay multiple leading-edge speed plots, grouped and color-coded by the provided config_var"""
+        """Overlay multiple leading-edge speed plots, grouped and color-coded by the provided config_var
+        
+        Deprecated in favor of show_multi_speed_leading_edge_position_based()
+        """
         axvline: float = get_cell_division_cessation_phi()
         
         datadicts: list[PlotData] = [{
@@ -2018,9 +2024,10 @@ def post_process_graphs(simulation_data: list[dict],
     
     _init_graphs()
     # print(simulation_data)
-    show_multi_tension()
+    
+    # show_multi_tension()
     show_multi_circumferential_tension()
-    show_multi_speed_leading_edge_velocity_based()
+    # show_multi_speed_leading_edge_velocity_based()
     show_multi_speed_leading_edge_position_based()
     show_multi_straightness()
     show_multi_lopsidedness()
