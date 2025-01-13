@@ -426,8 +426,11 @@ def make_movie(filename: str = None) -> None:
         # (And if we are doing lineage tracing with a patch, retain the initial and final image for the Front side. Note
         # that the final image will be taken from an oblique camera angle so will not be the same as the image
         # captured later by final_result_screenshots(), which will be from the side.)
+        # (And if doing elastic stretch (no bond remodeling), retain the initial image for all 4 side views.)
         if cfg.paint_pattern == cfg.PaintPattern.PATCH and side == "Front":
             image_filepaths.pop()
+            image_filepaths.pop(0)
+        elif not cfg.bond_remodeling_enabled and side != "Top":
             image_filepaths.pop(0)
         if not events.event_exception_was_thrown() and not _retain_screenshots_after_movie:
             print(f"\nRemoving {len(image_filepaths)} images...")
