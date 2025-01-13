@@ -1105,9 +1105,7 @@ def show_graphs(end: bool = False) -> None:
             epu.cell_division_cessation_timestep = _timestep
 
     # Don't need to add to the graphs every timestep.
-    simtime_interval: float = 4
-    timestep_interval: int = round(simtime_interval / cfg.dt)
-    if _timestep % timestep_interval == 0 or end:
+    if _timestep % cfg.simple_plot_interval_timesteps == 0 or end:
         # alternative measures of time, available to all plots:
         _timesteps.append(_timestep)
         _leading_edge_phi.append(round(epu.leading_edge_mean_phi(), 4))

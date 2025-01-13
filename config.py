@@ -260,6 +260,11 @@ screenshots_timesteps_per_export: int = (0 if screenshots_simtime_per_export == 
 # Warning: Thousands of images, gigabytes, are produced over the course of a typical run. Set True at your own risk.
 retain_screenshots_after_movie: bool = False
 
+# Interval between time points in the simple plots (the ones that are just a single value over time).
+# (Set the value in time units; calculated value in timesteps will be used during execution.)
+simple_plot_interval_simtime: float = 4.0
+simple_plot_interval_timesteps: int = round(simple_plot_interval_simtime / dt)
+
 # Interval between time points in the aggregate graphs. Depending on the experiment, a different value may work better.
 # (Set the value in time units; calculated value in timesteps will be used during execution.)
 plotting_interval_simtime: float = 50
@@ -372,6 +377,7 @@ def get_state() -> dict:
                         "color_code_daughter_cells": color_code_daughter_cells,
                         "screenshots_simtime_per_export": screenshots_simtime_per_export,
                         "retain_screenshots_after_movie": retain_screenshots_after_movie,
+                        "simple_plot_interval_simtime": simple_plot_interval_simtime,
                         "plotting_interval_simtime": plotting_interval_simtime,
                         "plot_time_averages": plot_time_averages,
                         "config_time_avg_accumulation_steps": config_time_avg_accumulation_steps,
@@ -386,6 +392,7 @@ def get_state() -> dict:
             "derived_values": {
                 "sim_state_timesteps_per_export": sim_state_timesteps_per_export,
                 "screenshots_timesteps_per_export": screenshots_timesteps_per_export,
+                "simple_plot_interval_timesteps": simple_plot_interval_timesteps,
                 "plotting_interval_timesteps": plotting_interval_timesteps,
                 "time_avg_accumulation_steps": time_avg_accumulation_steps,
                 }
@@ -435,14 +442,15 @@ def set_state(d: dict) -> None:
     global show_equilibration, paint_pattern, paint_tier
     global patch_margin_gap, patch_width, patch_height, color_code_daughter_cells
     global screenshots_simtime_per_export, retain_screenshots_after_movie
-    global plotting_interval_simtime, plot_time_averages, config_time_avg_accumulation_steps, plot_t0_as_single_timestep
+    global simple_plot_interval_simtime, plotting_interval_simtime
+    global plot_time_averages, config_time_avg_accumulation_steps, plot_t0_as_single_timestep
     
     # data export
     global sim_state_simtime_per_export, sim_state_minutes_per_export, sim_state_export_keep
     
     # derived values
     global sim_state_timesteps_per_export, screenshots_timesteps_per_export
-    global plotting_interval_timesteps, time_avg_accumulation_steps
+    global simple_plot_interval_timesteps, plotting_interval_timesteps, time_avg_accumulation_steps
     
     comment = d["config_values"]["comment"]
     
@@ -518,6 +526,7 @@ def set_state(d: dict) -> None:
     color_code_daughter_cells = visualization["color_code_daughter_cells"]
     screenshots_simtime_per_export = visualization["screenshots_simtime_per_export"]
     retain_screenshots_after_movie = visualization["retain_screenshots_after_movie"]
+    simple_plot_interval_simtime = visualization["simple_plot_interval_simtime"]
     plotting_interval_simtime = visualization["plotting_interval_simtime"]
     plot_time_averages = visualization["plot_time_averages"]
     config_time_avg_accumulation_steps = visualization["config_time_avg_accumulation_steps"]
@@ -531,5 +540,6 @@ def set_state(d: dict) -> None:
     derived_values: dict = d["derived_values"]
     sim_state_timesteps_per_export = derived_values["sim_state_timesteps_per_export"]
     screenshots_timesteps_per_export = derived_values["screenshots_timesteps_per_export"]
+    simple_plot_interval_timesteps = derived_values["simple_plot_interval_timesteps"]
     plotting_interval_timesteps = derived_values["plotting_interval_timesteps"]
     time_avg_accumulation_steps = derived_values["time_avg_accumulation_steps"]
