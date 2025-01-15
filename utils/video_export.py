@@ -410,8 +410,8 @@ def make_movie(filename: str = None) -> None:
                            if entry.name.endswith(f"{side}.jpg")]
         print(f"Assembling movie \"{side}\" from {len(image_filepaths)} images")
         
-        # Normally, assemble a movie. But if we are doing Patch lineage tracing, don't bother with any but the Front
-        if cfg.paint_pattern != cfg.PaintPattern.PATCH or side == "Front":
+        # Normally, assemble a movie. But if we are doing Patch lineage tracing, don't bother with any but Front & Top
+        if cfg.paint_pattern != cfg.PaintPattern.PATCH or side in ["Front", "Top"]:
             clip = ImageSequenceClip.ImageSequenceClip(image_filepaths, fps=24)
             
             # Save the clip to the Screenshots subdirectory using tfu.export_directory() also as the movie name
@@ -423,11 +423,11 @@ def make_movie(filename: str = None) -> None:
         # Discard all the exported image files.
         # (But not if there was an exception, because I may still need them.)
         # (And not if simulation still running in a different process, because definitely still need them.)
-        # (And if we are doing lineage tracing with a patch, retain the initial and final image for the Front side. Note
-        # that the final image will be taken from an oblique camera angle so will not be the same as the image
-        # captured later by final_result_screenshots(), which will be from the side.)
+        # (And if we are doing lineage tracing with a patch, retain the initial and final image for Front and
+        # Top sides. Note that the final image will be taken from an oblique camera angle so will not be the
+        # same as the image captured later by final_result_screenshots(), which will be from the side.)
         # (And if doing elastic stretch (no bond remodeling), retain the initial image for all 4 side views.)
-        if cfg.paint_pattern == cfg.PaintPattern.PATCH and side == "Front":
+        if cfg.paint_pattern == cfg.PaintPattern.PATCH and side in ["Front", "Top"]:
             image_filepaths.pop()
             image_filepaths.pop(0)
         elif not cfg.bond_remodeling_enabled and side != "Top":
