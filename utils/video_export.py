@@ -98,9 +98,12 @@ def _test_when_to_finish_rotation() -> None:
     if cfg.paint_pattern == cfg.PaintPattern.PATCH:
         # Quick-and-dirty attempt to stay centered on the patch. Tracking positions of labeled cells would
         # be better, but is harder. So instead, assuming the patch is up against the leading edge
-        # (cfg.patch_margin_gap == 0), just stop rotation earlier, half way between the initial position
+        # (cfg.patch_margin_gap == 0), just stop rotation earlier, half way (1.25π) between the initial position
         # (side view) and the vegetal pole. This is approximate, so don't worry about tolerance.
-        target_camera_angle = 1.25 * math.pi
+        # But go a bit past half way, so that the yellow edge of the rotated Universe boundary doesn't come
+        # to rest smack in the middle, right in the center of the embryo view, which is visually confusing,
+        # especially in a static image.
+        target_camera_angle = 1.2 * math.pi
     else:
         tolerance: float = 0.04 if cfg.windowed_mode else 0.01
         target_camera_angle = math.pi + tolerance
