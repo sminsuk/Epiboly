@@ -234,7 +234,7 @@ class PaintPattern(Enum):
     PATCH = 4               # By position at initialization, ignoring type entirely
     SPECIES = 5             # Read a concentration from the particle, and use that concentration to determine the color.
 
-paint_pattern: PaintPattern = PaintPattern.PATCH
+paint_pattern: PaintPattern = PaintPattern.CELL_TYPE
 
 # Which tier to paint, in the ORIGINAL_TIER PaintPattern.
 paint_tier: int = 0
@@ -246,7 +246,7 @@ patch_width: float = 30
 patch_height: float = 10
 
 # Whether to color daughter cells differently from parent cells, in the CELL_TYPE PaintPattern
-color_code_daughter_cells: bool = True
+color_code_daughter_cells: bool = False
 
 # Number of timesteps between screenshots. Set to 0 to disable screenshot export.
 # If enabled, interval value can be adjusted dynamically at run time using the setter in module video_export.
