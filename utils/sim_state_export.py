@@ -270,8 +270,8 @@ if __name__ == "__main__":
     # Some pre-set configurations:
     if config_var_key == "run_balanced_force_control":
         config_section_key = "model control"
-        true_legend_format = "reduced forces"
-        false_legend_format = "normal"
+        true_legend_format = "reduced force"
+        false_legend_format = "control"
         x_axis_types = ["timesteps"]
         flip_bool_color = True
     if config_var_key == "k_edge_bond_angle":
