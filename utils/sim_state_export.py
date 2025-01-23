@@ -249,8 +249,12 @@ if __name__ == "__main__":
     # variable represents those treatments. See config.py, get_state(), for variable keys. If not grouping
     # by treatments, then the additional variables below will be ignored, and plots will each be a different color
     # (with duplication, depending on the color cycler). If grouping by treatment, then provide the additional values.
+    # If grouping by TWO treatments, then they must both be boolean, giving a 2x2 matrix of treatment types, and
+    # 4 treatments in total on each plot. For now, we only support using the same config_section_key for both.
+    # If they are not both boolean, then behavior is undefined.
     include_legends: bool = True
-    config_var_key: str = "config key for variable goes here"
+    first_config_var_key: str = "config key for variable goes here"
+    second_config_var_key: str = ""
     
     # If grouping by treatment, and no presets available below, provide these values (or consider creating a preset).
     # Where to find the variable in the config, and how to show the legends for each group.
@@ -258,6 +262,13 @@ if __name__ == "__main__":
     num_legend_format: str = "legend label with a {} in it, where the numerical value will go"
     true_legend_format: str = "legend label to use when bool variable is True"
     false_legend_format: str = "legend label to use when bool variable is False"
+    
+    # for the two-treatment case. The appropriate value from the first legend format, and the appropriate value
+    # from the second legend format, will be combined in the legend, separated by a space.
+    # Order of legend will be: "1st legend False, 2nd legend False", then "False, True", then "True, False",
+    # then "True, True"
+    second_true_legend_format: str = ""
+    second_false_legend_format: str = ""
     
     # When grouping by a boolean config var, by default the "False" value will appear first in the legend and
     # will be plotted using cycler color C0. To flip that usage, set this to True.
@@ -268,26 +279,30 @@ if __name__ == "__main__":
     x_axis_types_share_y_limits: bool = False
     
     # Some pre-set configurations:
-    if config_var_key == "run_balanced_force_control":
+    if first_config_var_key == "run_balanced_force_control":
         config_section_key = "model control"
         true_legend_format = "reduced force"
         false_legend_format = "control"
         x_axis_types = ["timesteps"]
         flip_bool_color = True
-    if config_var_key == "k_edge_bond_angle":
+    if first_config_var_key == "k_edge_bond_angle":
         config_section_key = "model"
         num_legend_format = r"$\lambda$ = {}"
-    if config_var_key == "harmonic_edge_spring_constant":
+    if first_config_var_key == "harmonic_edge_spring_constant":
         config_section_key = "model"
         num_legend_format = "k = {}"
-    if config_var_key == "cell_division_enabled":
+    if first_config_var_key == "cell_division_enabled":
         config_section_key = "model"
         true_legend_format = "with cell division"
         false_legend_format = "without cell division"
-    if config_var_key == "force_is_weighted_by_distance_from_pole":
+    if first_config_var_key == "force_is_weighted_by_distance_from_pole":
         config_section_key = "model"
-        true_legend_format = "regulated"
-        false_legend_format = "unregulated"
+        true_legend_format = "Model 2"
+        false_legend_format = "Model 1"
+        
+    if second_config_var_key == "cell_division_enabled":
+        second_true_legend_format = "with cell division"
+        second_false_legend_format = "without cell division"
         
     if not directory_names:
         input_path: str = tfu.export_path(enclosing_directory_full_path)
@@ -325,6 +340,8 @@ if __name__ == "__main__":
         for directory_name in directory_names:
             print(directory_name, file=output_file)
     
-    plot.post_process_graphs(simulation_data, include_legends, config_section_key, config_var_key,
+    plot.post_process_graphs(simulation_data, include_legends, config_section_key,
+                             first_config_var_key, second_config_var_key,
                              num_legend_format, true_legend_format, false_legend_format,
+                             second_true_legend_format, second_false_legend_format,
                              x_axis_types, x_axis_types_share_y_limits, flip_bool_color)

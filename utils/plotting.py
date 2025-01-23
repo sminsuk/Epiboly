@@ -100,6 +100,7 @@ class PlotData(TypedDict, total=False):
     fmt: str                        # not required
     color: str                      # not required, and if present and not None, overrides fmt color
     label: object                   # not required; can be str or anything that can be turned into str (float, int...)
+    second_label: bool | None       # not required; must be bool, because two keys/labels only allowed when both bool
 
 def _init_graphs() -> None:
     """Initialize matplotlib and also a subdirectory in which to put the saved plots
@@ -1281,10 +1282,13 @@ def set_state(d: dict) -> None:
 def post_process_graphs(simulation_data: list[dict],
                         include_legends: bool = True,
                         config_section_key: str = "model",
-                        config_var_key: str = "",
+                        first_config_var_key: str = "",
+                        second_config_var_key: str = "",
                         num_legend_format: str = "{}",
                         true_legend_format: str = "True",
                         false_legend_format: str = "False",
+                        second_true_legend_format: str = "True",
+                        second_false_legend_format: str = "False",
                         x_axis_types: list[str] = None,
                         x_axis_types_share_y_limits: bool = False,
                         flip_bool_color: bool = False) -> None:
@@ -1298,11 +1302,15 @@ def post_process_graphs(simulation_data: list[dict],
         ungrouped, all in the same color, and with no legends.
     :param config_section_key: the key for the config section in which to find the variable that we are varying.
         See config.py, get_state().
-    :param config_var_key: the key for the particular config variable that we are varying. See config.py, get_state().
+    :param first_config_var_key: the key for the particular config variable that we are varying.
+        See config.py, get_state().
+    :param second_config_var_key: If a second treatment is used, assume both treatments are boolean.
     :param num_legend_format: for numerical variables, a string containing a replacement field,
         into which the treatment value for each legend will be inserted to create each legend.
     :param true_legend_format: for boolean variables, a string to use as the legend when the variable is True.
     :param false_legend_format: for boolean variables, a string to use as the legend when the variable is False.
+    :param second_true_legend_format: for boolean variables, a string to use in the legend when the variable is True.
+    :param second_false_legend_format: for boolean variables, a string to use in the legend when the variable is False.
     :param x_axis_types: list of x axis types to plot, including any or all of: ["phi", "timesteps", "normalized time"]
     :param x_axis_types_share_y_limits: whether to force a consensus set of y-axis limits on all x-axis types.
     :param flip_bool_color: if True, then the config var should be of type bool, and we wish the True value
@@ -1343,6 +1351,8 @@ def post_process_graphs(simulation_data: list[dict],
         false_format: str = false_legend_format
         if flip_bool_color:
             # Swap the legend labels
+            # This will be only for the first treatment. If we are plotting against two of them,
+            # the second one gets whatever it gets.
             true_format = false_legend_format
             false_format = true_legend_format
             
@@ -1350,6 +1360,19 @@ def post_process_graphs(simulation_data: list[dict],
             for datadict in datadicts:
                 datadict["label"] = not datadict["label"]
         
+        # Create the possible combination labels for two boolean treatments:
+        double_bool_label_dict = {0: false_format + " " + second_false_legend_format,
+                                  1: false_format + " " + second_true_legend_format,
+                                  10: true_format + " " + second_false_legend_format,
+                                  11: true_format + " " + second_true_legend_format}
+        if second_config_var_key:
+            # We are combining two treatments.
+            # We can assume both labels are boolean, and we want to sort into four categories.
+            # We can treat the True/False values as 0 and 1, and combine them to produce 00, 01, 10, 11;
+            # then store that in label, and henceforth ignore second_label (and we can then sort on those):
+            for datadict in datadicts:
+                datadict["label"] = 10 * bool(datadict["label"]) + datadict["second_label"]
+                
         datadicts.sort(key=lambda plot_data: plot_data["label"])
         previous_label: int | float | bool = -1
         cycler_index: int = -1
@@ -1359,9 +1382,13 @@ def post_process_graphs(simulation_data: list[dict],
             # datadict["label"] is known to be int, float, or bool
             current_label: int | float | bool = datadict["label"]  # type: ignore
             if current_label > previous_label:
-                datadict["label"] = (num_legend_format.format(current_label) if not isinstance(current_label, bool) else
-                                     true_format if current_label else
-                                     false_format)
+                if second_config_var_key:
+                    # Convert the 0|1|10|11 into the right combination of strings:
+                    datadict["label"] = double_bool_label_dict[current_label]
+                elif not isinstance(current_label, bool):
+                    datadict["label"] = num_legend_format.format(current_label)
+                else:
+                    datadict["label"] = true_format if current_label else false_format
                 previous_label = current_label
                 cycler_index += 1
             else:
@@ -1403,7 +1430,7 @@ def post_process_graphs(simulation_data: list[dict],
         (Note that for multi-plotting, this will only work on plots v. phi. In plots v. time, each simulation
         will have crossed the threshold at a slightly different time, so would make a mess if displayed.)
         """
-        if config_var_key == "cell_division_enabled":
+        if first_config_var_key == "cell_division_enabled" or second_config_var_key == "cell_division_enabled":
             sim: dict
             if force:
                 for sim in simulation_data:
@@ -1422,7 +1449,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
         
@@ -1534,7 +1563,7 @@ def post_process_graphs(simulation_data: list[dict],
         on the maximum range required for any of the metrics, so that the two Axes will be comparable. (Once I've
         selected which two to use in my figure, run again with just those two, and the limits will be right.)
         """
-        if not include_legends or config_var_key != "cell_division_enabled":
+        if not include_legends or first_config_var_key != "cell_division_enabled":
             return
         
         all_metrics_data: list[list[int]] = []
@@ -1562,12 +1591,15 @@ def post_process_graphs(simulation_data: list[dict],
             leading_edge_phi: list[float] = simulation["plot"]["leading_edge_phi"]
             timesteps: list[int] = simulation["plot"]["timesteps"]
             label = (None if not include_legends else
-                     simulation["config"]["config_values"][config_section_key][config_var_key])
+                     simulation["config"]["config_values"][config_section_key][first_config_var_key])
+            second_label = (None if not second_config_var_key else
+                            simulation["config"]["config_values"][config_section_key][second_config_var_key])
             
             margin_count: PlotData = {"data": simulation["plot"]["margin_count"],
                                       "phi": leading_edge_phi,
                                       "timesteps": timesteps,
-                                      "label": label}
+                                      "label": label,
+                                      "second_label": second_label}
             margin_count_dicts.append(margin_count)
             
             margin_cum_in: list[int] = simulation["plot"]["margin_cum_in"]
@@ -1576,7 +1608,8 @@ def post_process_graphs(simulation_data: list[dict],
             margin_cum: PlotData = {"data": margin_cum_total,
                                     "phi": leading_edge_phi,
                                     "timesteps": timesteps,
-                                    "label": label}
+                                    "label": label,
+                                    "second_label": second_label}
             margin_cum_dicts.append(margin_cum)
             
         normalize(margin_count_dicts)
@@ -1625,7 +1658,8 @@ def post_process_graphs(simulation_data: list[dict],
         :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
         """
         x_axis_type: str
-        filename_suffix: str = f", grouped by {config_var_key}" if include_legends else ""
+        filename_suffix: str = f", grouped by {first_config_var_key}" if include_legends else ""
+        filename_suffix += f" and {second_config_var_key}" if second_config_var_key else ""
         for x_axis_type in x_axis_types:
             _plot_datasets_v_time(datadicts,
                                   filename=f"{filename} v. {x_axis_type}{filename_suffix}",
@@ -1676,7 +1710,7 @@ def post_process_graphs(simulation_data: list[dict],
         # composite_dicts will contain one PlotData for each treatment, keyed by the treatment value
 
         for rawdict in rawdicts:
-            composite_key = str(rawdict["label"])
+            composite_key = str(rawdict["label"]) + str(rawdict["second_label"])
             
             # Create the appropriate key-value pair in which to store the content of the current rawdict,
             # if it doesn't yet exist. (I.e., the first time each treatment is encountered.)
@@ -1685,7 +1719,8 @@ def post_process_graphs(simulation_data: list[dict],
                                                   "phi": [],
                                                   "timesteps": [],
                                                   "norm_times": [],
-                                                  "label": rawdict["label"]}
+                                                  "label": rawdict["label"],
+                                                  "second_label": rawdict["second_label"]}
                 
             # Add each list from the current rawdict into the corresponding list in the composite dict
             composite_dict: PlotData = composite_dicts[composite_key]
@@ -1782,13 +1817,16 @@ def post_process_graphs(simulation_data: list[dict],
                     
             binned_v_normtime_dicts[composite_key] = {"data": normtime_median_data,
                                                       "norm_times": normtime_axis,
-                                                      "label": composite_dict["label"]}
+                                                      "label": composite_dict["label"],
+                                                      "second_label": composite_dict["second_label"]}
             binned_v_timesteps_dicts[composite_key] = {"data": timestep_median_data,
                                                        "timesteps": timestep_axis,
-                                                       "label": composite_dict["label"]}
+                                                       "label": composite_dict["label"],
+                                                       "second_label": composite_dict["second_label"]}
             binned_v_phi_dicts[composite_key] = {"data": phi_median_data,
                                                  "phi": phi_axis,
-                                                 "label": composite_dict["label"]}
+                                                 "label": composite_dict["label"],
+                                                 "second_label": composite_dict["second_label"]}
             
         # Finally, after exiting the above loop, we have three of dict[str: PlotData], one binned by
         # normalized times, one by timesteps, and one by phi. Now we can plot them.
@@ -1816,7 +1854,8 @@ def post_process_graphs(simulation_data: list[dict],
         if "phi" in x_axis_types:
             all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
         
-        filename_suffix: str = f", grouped by {config_var_key}" if include_legends else ""
+        filename_suffix: str = f", grouped by {first_config_var_key}" if include_legends else ""
+        filename_suffix += f" and {second_config_var_key}" if second_config_var_key else ""
         for x_axis_type in x_axis_types:
             dicts_list: list[PlotData] = (timestep_dicts_list if x_axis_type == "timesteps" else
                                           normtime_dicts_list if x_axis_type == "normalized time" else
@@ -1849,7 +1888,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
         
@@ -1874,7 +1915,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
     
@@ -1905,7 +1948,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
         
@@ -1930,7 +1975,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
     
@@ -1958,7 +2005,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
 
@@ -1983,7 +2032,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
                 "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][config_var_key])
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
                 } for simulation in simulation_data]
         normalize(datadicts)
     
