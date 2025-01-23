@@ -1856,6 +1856,7 @@ def post_process_graphs(simulation_data: list[dict],
         filename: str = "Straightness Index"
         ylabel: str = "Straightness Index (SI)"
         default_limits: tuple[float, float] = (0.9, 1.001)
+        # Use axvline here, because I want it where I use this fig.:
         show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
 
         color_code_and_clean_up_labels(datadicts, use_alpha=True)
@@ -1863,7 +1864,8 @@ def post_process_graphs(simulation_data: list[dict],
         all_data: list[list[float]] = [data["data"] for data in datadicts]
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
 
-        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline)
+        # but don't use axvline here, because I don't want it where I use this fig.:
+        plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits)
 
     def show_multi_lopsidedness() -> None:
         """Overlay multiple Lopsidedness plots on one Axes, grouped and color-coded by the provided config_var"""
