@@ -1324,7 +1324,10 @@ def post_process_graphs(simulation_data: list[dict],
                 timesteps: list[int] = datadict["timesteps"]
                 datadict["norm_times"] = list(np.array(timesteps) / timesteps[-1])
     
-    def color_code_and_clean_up_labels(datadicts: list[PlotData], use_alpha: bool = False) -> None:
+    def color_code_and_clean_up_labels(datadicts: list[PlotData],
+                                       use_alpha: bool = False,
+                                       extradata: PlotData = None,
+                                       extradata_colorindex: int = None) -> None:
         """Color code plot lines according to treatment (parameter value); and only label one plot per treatment
         
         On entry, each PlotData["label"] is a numerical or bool value. Sort the list according to that value (so that
@@ -1342,6 +1345,12 @@ def post_process_graphs(simulation_data: list[dict],
         :param use_alpha: if True, use this color hack. alpha = 0.5, but brighter colors than the ones in
             the default color cycler, to prevent them from getting all washed out by the white background.
             I'm probably not doing this right.
+        :param extradata: An external dataset, not coming from the simulations themselves, that we wish
+            to superimpose over the rest of the data. "label" will be used verbatim, so the PlotData should
+            specify it as desired. It will be plotted as dots. Since the external data won't have anything
+            to do with our sim timesteps, it's intended to be used with normalized time.
+        :param extradata_colorindex: which item in the color cycle to use, if you want the dots to match the
+            color of one of the treatments in the sim data. If None, it will be plotted in its own color
         """
         if not include_legends:
             return
@@ -1412,6 +1421,13 @@ def post_process_graphs(simulation_data: list[dict],
                 datadict["color"] = f"{['#0021ff80', '#ff500080', '#12ff0080'][cycler_index]}"
             else:
                 datadict["fmt"] = f"-C{cycler_index}"
+        
+        if extradata:
+            # Now add in the extradata, plot with just small dots on a dotted line, and its own color
+            if extradata_colorindex is None:
+                extradata_colorindex = cycler_index + 1
+            extradata["fmt"] = f".:C{extradata_colorindex}"
+            datadicts.append(extradata)
     
     def get_cell_division_cessation_phi(force: bool = False) -> float:
         """Return the phi value where cell division stopped (to be able to mark it on the plot)
@@ -1455,9 +1471,41 @@ def post_process_graphs(simulation_data: list[dict],
                 } for simulation in simulation_data]
         normalize(datadicts)
         
+        def kimmel_percent_epiboly_as_phi() -> PlotData:
+            """Convert Kimmel et al. 1995 Fig. 12 to plot polar angle instead of percent epiboly"""
+            # The following stages (as percent epiboly) and times (as hours post fertilization) come
+            # from Kimmel et al. 1995, Table 2 and the text descriptions under their "Stages During the
+            # Blastula Period" and "Stages During the Gastrula Period"; and/or from their Fig. 11 legend.
+            # Note that we substitute 43% epiboly for what they describe as 30% epiboly.
+            kimmel_pct_epiboly: list[int] = [43, 50, 70, 75, 80, 90, 100]
+            # Convert:
+            kimmel_polar_angle: list[float] = [epu.phi_for_epiboly(pct) for pct in kimmel_pct_epiboly]
+            # hours of germ-ring and shield-stage pause; in text they say "about 1 hr";
+            # I use 1.1 as estimated from their figure 12:
+            pause: float = 1.1
+            # These are their reported development times for each of those stages, adjusted for the pause
+            # at 50% epiboly so that we can compare apples to apples:
+            kimmel_hours: list[float] = [4.67, 5.25, 7.7 - pause, 8 - pause, 8.4 - pause, 9 - pause, 10 - pause]
+            # Adjust to measure from 30% epiboly instead of from fertilization, just like our sims:
+            offset: float = kimmel_hours[0]
+            kimmel_relative_hours: list[float] = [hpf - offset for hpf in kimmel_hours]
+            # Just multiply by 100 to get integers without losing precision. We'll use them as the "timesteps"
+            # scale. They are not comparable to the timesteps in our simulations, but we don't care, because
+            # we are interested in the plot vs. normalized time; and these will normalize just fine;
+            kimmel_time_ints: list[int] = [int(round(100 * kimmel_hour)) for kimmel_hour in kimmel_relative_hours]
+            
+            # Construct a PlotData for the Kimmel data:
+            kimmeldata: PlotData = {"data": kimmel_polar_angle,
+                                    "phi": kimmel_polar_angle,
+                                    "timesteps": kimmel_time_ints,
+                                    "label": "Kimmel et al. 1995"}
+            # Create the normalized time axis
+            normalize([kimmeldata])
+            return kimmeldata
+
         filename = "Leading edge phi"
         ylabel: str = r"Leading edge  $\bar{\phi}$  (radians)"
-        limits: tuple[float, float] = (np.pi * 7 / 16, np.pi)
+        limits: tuple[float, float] = (np.pi * 7 / 16, np.pi + 0.05)
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
                   "labels": [r"$\pi$/2", r"3$\pi$/4", r"$\pi$"]}
@@ -1470,6 +1518,15 @@ def post_process_graphs(simulation_data: list[dict],
         original_x_axis_types: list[str] = x_axis_types.copy()
         x_axis_types = ["timesteps", "normalized time"]
         show_composite_medians(datadicts, filename, ylabel, limits, yticks=yticks)
+        
+        # Plot again with the Kimmel data added in. Use color index 3 because this is intended for the particular
+        # case where the figure is grouped by Model 1/Model 2, and with/without cell division, and we want it to match
+        # the color of Model 2 with cell division (model flag and cell division flag both == True, so "11", i.e., 3)
+        # And this time, we only want it for the one x-axis type.
+        x_axis_types = ["normalized time"]
+        extradata: PlotData = kimmel_percent_epiboly_as_phi()
+        show_composite_medians(datadicts, filename + " plus Kimmel data", ylabel, limits, yticks=yticks,
+                               extradata=extradata, extradata_colorindex=3)
         x_axis_types = original_x_axis_types
 
         color_code_and_clean_up_labels(datadicts)
@@ -1678,7 +1735,9 @@ def post_process_graphs(simulation_data: list[dict],
                                default_limits: tuple[float, float],
                                axvline: float = None,
                                yticks: dict = None,
-                               suppress_timestep_zero: bool = False) -> None:
+                               suppress_timestep_zero: bool = False,
+                               extradata: PlotData = None,
+                               extradata_colorindex: int = None) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
         
         'Treatment' refers to the different values of a single variable that we are contrasting.
@@ -1703,6 +1762,8 @@ def post_process_graphs(simulation_data: list[dict],
         :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
             plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not plots v. time.
         :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
+        :param extradata: Pass-through to color_code_and_clean_up_labels(); see definition there.
+        :param extradata_colorindex: Pass-through to color_code_and_clean_up_labels(); see definition there.
         """
         composite_dicts: dict[str, PlotData] = {}
         composite_key: str
@@ -1833,7 +1894,8 @@ def post_process_graphs(simulation_data: list[dict],
         normtime_dicts_list: list[PlotData] = list(binned_v_normtime_dicts.values())
         timestep_dicts_list: list[PlotData] = list(binned_v_timesteps_dicts.values())
         phi_dicts_list: list[PlotData] = list(binned_v_phi_dicts.values())
-        color_code_and_clean_up_labels(normtime_dicts_list)
+        color_code_and_clean_up_labels(normtime_dicts_list,
+                                       extradata=extradata, extradata_colorindex=extradata_colorindex)
         color_code_and_clean_up_labels(timestep_dicts_list)
         color_code_and_clean_up_labels(phi_dicts_list)
         
