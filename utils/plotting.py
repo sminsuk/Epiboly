@@ -1738,7 +1738,27 @@ def post_process_graphs(simulation_data: list[dict],
                                suppress_timestep_zero: bool = False,
                                extradata: PlotData = None,
                                extradata_colorindex: int = None) -> None:
+        """A convenience passthrough"""
+        # How we did it before: now deprecated; for now, keep for comparison purposes. Get rid of it later.
+        show_binned_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
+                            suppress_timestep_zero, extradata, extradata_colorindex)
+        
+        # New version, interpolating all the data and aligning all sims of the same treatment
+        interpolate_and_show_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
+                                     suppress_timestep_zero, extradata, extradata_colorindex)
+
+    def show_binned_medians(rawdicts: list[PlotData],
+                            filename: str,
+                            ylabel: str,
+                            default_limits: tuple[float, float],
+                            axvline: float = None,
+                            yticks: dict = None,
+                            suppress_timestep_zero: bool = False,
+                            extradata: PlotData = None,
+                            extradata_colorindex: int = None) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
+        
+        DEPRECATED. Keeping it around until I know that the interpolation version works properly
         
         'Treatment' refers to the different values of a single variable that we are contrasting.
         
@@ -1918,6 +1938,7 @@ def post_process_graphs(simulation_data: list[dict],
         
         filename_suffix: str = f", grouped by {first_config_var_key}" if include_legends else ""
         filename_suffix += f" and {second_config_var_key}" if second_config_var_key else ""
+        filename_suffix += " - DEPRECATED"
         for x_axis_type in x_axis_types:
             dicts_list: list[PlotData] = (timestep_dicts_list if x_axis_type == "timesteps" else
                                           normtime_dicts_list if x_axis_type == "normalized time" else
@@ -1941,6 +1962,179 @@ def post_process_graphs(simulation_data: list[dict],
                                   normalize_time=(x_axis_type == "normalized time"),
                                   post_process=True)
         
+    def interpolate_and_show_medians(rawdicts: list[PlotData],
+                                     filename: str,
+                                     ylabel: str,
+                                     default_limits: tuple[float, float],
+                                     axvline: float = None,
+                                     yticks: dict = None,
+                                     suppress_timestep_zero: bool = False,
+                                     extradata: PlotData = None,
+                                     extradata_colorindex: int = None) -> None:
+        """Combine multiple datasets into composite metrics, one per 'treatment'.
+
+        'Treatment' refers to the different values of a single variable that we are contrasting.
+
+        The handling of the labels and legends assumes there is more than one treatment being
+        compared in the plot, but if we ever need to do this for just a single treatment, that can
+        be tweaked as necessary.
+
+        Note that when balanced-force control data is included, the plots v. phi will be garbage because
+        there is no phi progression; and the plots v. normalized time should work but "1.0" no longer means
+        epiboly completion, but just reaching a predetermined timestep. Those control datasets should look
+        the same on the timestep and normalized time plots, just with the x-axes labeled accordingly.
+
+        :param rawdicts: one PlotData for each simulation that is to be plotted. It should have already
+            been normalized (normalized time data calculated for each simulation). "label" field should
+            be numerical, representing the treatment.
+        :param filename: will be used as part of the filename for the saved plots.
+        :param ylabel: title of the y-axis.
+        :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
+            the range of the actual data exceeds the default_limits.
+        :param yticks: special tick marks for the y-axis.
+        :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
+            plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not plots v. time.
+        :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
+        :param extradata: Pass-through to color_code_and_clean_up_labels(); see definition there.
+        :param extradata_colorindex: Pass-through to color_code_and_clean_up_labels(); see definition there.
+        """
+        # At least for now, don't try this with timnesteps as the x-axis. I don't think it can work, and
+        # I don't think I need it. This means we're plotting against phi, or normalized time, or both.
+        x_axis_type: str
+        x_axes: list[str] = x_axis_types.copy()
+        if "timesteps" in x_axes:
+            x_axes.remove("timesteps")
+        
+        # Sort the list[Plotdata] into treatments, and for each treatment, make a duplicate sub-list
+        # of the data, once for each x_axis_type
+        sim_list: list[PlotData]                                # all the same treatment and x-axis type
+        x_axis_lists: dict[str, list[PlotData]]                 # map x-axis type to its data (all the same treatment)
+        treatments: dict[str, dict[str, list[PlotData]]] = {}   # map treatment to a dict of x_axis_lists
+        treatment_medians: dict[str, dict[str, PlotData]] = {}  # map treatment to a dict of consensus (median) PlotData
+        treatment_key: str
+
+        for rawdict in rawdicts:
+            treatment_key = str(rawdict["label"]) + str(rawdict["second_label"])
+        
+            # Create an appropriate key-value pair in which to create an entry for each treatment
+            # if it doesn't yet exist. (I.e., the first time each treatment is encountered.)
+            if treatment_key not in treatments:
+                treatments[treatment_key] = {}
+                treatment_medians[treatment_key] = {}
+                # And in each treatment dictionary, add lists for each x_axis_type,
+                # in which to store the current rawdict
+                for x_axis_type in x_axes:
+                    treatments[treatment_key][x_axis_type] = []
+
+            # Add each rawdict to the appropriate lists. But a copy, possibly modified:
+            for x_axis_type in x_axes:
+                newdict: PlotData = rawdict.copy()
+                plotdata_key: str
+                # Make it a deep copy:
+                for plotdata_key in ["data", "phi", "timesteps", "norm_times"]:
+                    # (Type checker doesn't like variables as keys; it's fine.)
+                    newdata: list = newdict[plotdata_key].copy()  # type: ignore
+                    if suppress_timestep_zero:
+                        newdata = newdata[1:]
+                    newdict[plotdata_key] = newdata  # type: ignore
+                treatments[treatment_key][x_axis_type].append(newdict)
+            
+        # Now for each and every PlotData, interpolate. All PlotData within a given x_axis_type and treatment,
+        # will be interpolated the same way (i.e., with the same x-axis points and spacing, though some may
+        # get more points than others, depending on the domain of the data). In general the domains within
+        # x_axis_type:treatment should be the same, but there will be cases when some extend further to the
+        # right than others.
+        for treatment_key, x_axis_lists in treatments.items():
+            for x_axis_type, sim_list in x_axis_lists.items():
+                sim: PlotData
+                
+                # First, figure out the min and max x that we want in our interpolated plots.
+                # They should be within the common range of all plots.
+                # For plotting v. phi (in Model 2 at least), each sim should have a point >= stopping condition,
+                # ToDo: For now, assume no Model 1 here, and get this working; then figure out how to accommodate.
+                max_x: float = 1.0 if x_axis_type == "normalized time" else cfg.stopping_condition_phi
+                
+                # Because the lowest x, when plotting v. phi, is stochastic, we don't know exactly what it is.
+                # And for both kinds of plots, we may have removed the first data point (if suppress_timestep_zero).
+                # So find it.
+                all_data_vals: list[list[float]] = [sim["phi"] if x_axis_type == "phi" else sim["norm_times"]
+                                                    for sim in sim_list]
+                flat_iterator = chain.from_iterable(all_data_vals)
+                min_x: float = min(flat_iterator)
+                    
+                # Get the new x axis
+                # ToDo: Figure out a way to handle domains of different size; then will need to recalculate
+                #  x_interpolated for each sim separately. For now, it can be the same for all.
+                x_interpolated: np.ndarray = np.linspace(min_x, max_x, num=101)
+                for sim in sim_list:
+                    # Interpolate, and replace the original data with the new data
+                    x_axis: list[float] = sim["phi"] if x_axis_type == "phi" else sim["norm_times"]
+                    sim["data"] = np.interp(x_interpolated, x_axis, sim["data"]).tolist()
+                    # (x_interpolated contains floats, and I'm assigning it to a list[float], but for some reason
+                    # type checker thinks tolist() is returning 'object')
+                    x_axis = x_interpolated.tolist()  # type: ignore
+                    if x_axis_type == "phi":
+                        sim["phi"] = x_axis
+                    else:
+                        sim["norm_times"] = x_axis
+                        
+        # Now we have for each x_axis type in each treatment, a list of PlotData with interpolations.
+        # From each of those lists, create a single PlotData with the median of all the values. These
+        # are what we want to plot.
+        for treatment_key, x_axis_lists in treatments.items():
+            for x_axis_type, sim_list in x_axis_lists.items():
+                # Each PlotData in the list contains the same relevant x-axis and other fields, we want
+                # our result to have all that, and just combine the "data" fields.
+                result: PlotData = sim_list[0].copy()
+                result["data"] = np.median([sim["data"] for sim in sim_list], axis=0).tolist()  # type: ignore
+                treatment_medians[treatment_key][x_axis_type] = result
+                
+        # Now gather the sets of interpolations we want to plot together. One interpolated over the phi axis,
+        # and one interpolated over the normalized time axis:
+        phi_dicts: list[PlotData] = []
+        normtime_dicts: list[PlotData] = []
+        for treatment_key, interpolated_data in treatment_medians.items():
+            if "phi" in x_axes:
+                phi_dicts.append(interpolated_data["phi"])
+            if "normalized time" in x_axes:
+                normtime_dicts.append(interpolated_data["normalized time"])
+            
+        color_code_and_clean_up_labels(normtime_dicts, extradata=extradata, extradata_colorindex=extradata_colorindex)
+        color_code_and_clean_up_labels(phi_dicts)
+    
+        # For using consensus y-limits:
+        # Since the data was interpolated differently in the time dict vs the phi dict, they might have slightly
+        # different ranges. So to make the y-axis scales identical on the two plots we'll generate, combine
+        # ALL the data from both to determine the y limits.
+        all_data: list[list[float]] = []
+        if "normalized time" in x_axes:
+            all_data.extend([plot_data["data"] for plot_data in normtime_dicts])
+        if "phi" in x_axes:
+            all_data.extend([plot_data["data"] for plot_data in phi_dicts])
+    
+        filename_suffix: str = f", grouped by {first_config_var_key}" if include_legends else ""
+        filename_suffix += f" and {second_config_var_key}" if second_config_var_key else ""
+        for x_axis_type in x_axes:
+            dicts_list: list[PlotData] = (phi_dicts if x_axis_type == "phi" else normtime_dicts)
+        
+            # if not using consensus y-limits:
+            # in this case, each of the plots gets its own tailored y-limits.
+            # They might each be very different:
+            current_data: list[list[float]] = [plot_data["data"] for plot_data in dicts_list]
+        
+            the_data: list[list[float]] = all_data if x_axis_types_share_y_limits else current_data
+            limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=the_data)
+        
+            _plot_datasets_v_time(datadicts=dicts_list,
+                                  filename=f"{filename} v. {x_axis_type}, Median{filename_suffix}",
+                                  limits=limits,
+                                  ylabel=f"{ylabel} (Median)",
+                                  axvline=axvline if x_axis_type == "phi" else None,
+                                  yticks=yticks,
+                                  plot_v_time=(x_axis_type != "phi"),
+                                  normalize_time=(x_axis_type == "normalized time"),
+                                  post_process=True)
+
     def show_multi_straightness() -> None:
         """Overlay multiple Straightness Index plots on one Axes, grouped and color-coded by the provided config_var"""
         axvline: float = get_cell_division_cessation_phi()
@@ -2175,3 +2369,18 @@ def post_process_graphs(simulation_data: list[dict],
     show_multi_margin_pop()
     show_multi_progress()
     replot_individual_margin_pops()
+
+if __name__ == "__main__":
+    # test my syntax, and understanding of numpy's axis parameter.
+    sim_list: list[PlotData] = [{"data": [1, 2, 3]},
+                                {"data": [4, 5, 6]}]
+    print(f"sim_list: {sim_list}")
+    data_list = [sim["data"] for sim in sim_list]
+    print(f"type(data_list) (should be list[list[float]]): {type(data_list)}")
+    print(f"data_list: {data_list}")
+    np_medians = np.median(data_list, axis=0)
+    print(f"type(np_medians) (should be np.ndarray): {type(np_medians)}")
+    print(f"np_medians: {np_medians}")
+    median_data = np_medians.tolist()  # type: ignore
+    print(f"type(median_data) (should be list[float]): {type(median_data)}")
+    print(f"median_data: {median_data}")
