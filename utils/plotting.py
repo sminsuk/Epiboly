@@ -1317,12 +1317,50 @@ def post_process_graphs(simulation_data: list[dict],
         (instead of the False value, which is the default) to appear first in the legend and to be plotted
         using cycler color C0.
     """
-    def normalize(datadicts: list[PlotData]) -> None:
+    def normalize(datadicts: list[PlotData], suppress_scaling: bool = False) -> None:
+        """Calculate the normalized-time axis based on the timestep axis
+        
+        Normally, the last timestep of each sim maps to 1.0. But, if we are comparing Model 1 to Model 2,
+        then that doesn't really make sense. We still want all the Model 1 sims to align, but we don't want
+        to stretch them out the same as Model 2, because time 1.0 is meant to represent "completion", i.e.,
+        the mean polar angle of the leading edge reaching cfg.stopping_condition_phi, which usually does not
+        take place with Model 1. So, find the median stopping time of the Model 1 sims, find its ratio to the
+        median stopping time of the Model 2 sims, and normalize the Model 1 sims such that their final timestep
+        maps to that fraction.
+        """
         datadict: PlotData
+        assert all(["timesteps" in datadict for datadict in datadicts]), "Can't normalize; timesteps not present!"
+        
+        # For these boolean tests, see longer explanation in interpolate_and_show_medians() > is_model_1()
+        def sim_is_model_1(sim: PlotData) -> bool:
+            # Assumes first_config_var_key == "force_is_weighted_by_distance_from_pole"
+            # "label" field of sim only distinguishes the two models when that is the case
+            return sim["label"] is False
+
+        comparing_models_1_and_2: bool = False
+        if first_config_var_key == "force_is_weighted_by_distance_from_pole":
+            # Ensure there are some of each
+            are_model_1: list[bool] = [sim_is_model_1(datadict) for datadict in datadicts]
+            comparing_models_1_and_2 = any(are_model_1) and not all(are_model_1)
+
+        def should_scale(sim: PlotData) -> bool:
+            return comparing_models_1_and_2 and sim_is_model_1(sim)
+        
+        model_1_fraction: float = 1.0
+        if comparing_models_1_and_2:
+            # Since both are present, neither of the following will be empty
+            model_1_finals: list[int] = [datadict["timesteps"][-1] for datadict in datadicts
+                                         if sim_is_model_1(datadict)]
+            model_2_finals: list[int] = [datadict["timesteps"][-1] for datadict in datadicts
+                                         if not sim_is_model_1(datadict)]
+            model_1_fraction = np.median(model_1_finals).item() / np.median(model_2_finals).item()
+            
         for datadict in datadicts:
-            if "timesteps" in datadict:
-                timesteps: list[int] = datadict["timesteps"]
-                datadict["norm_times"] = list(np.array(timesteps) / timesteps[-1])
+            timesteps: list[int] = datadict["timesteps"]
+            result: np.ndarray = np.array(timesteps) / timesteps[-1]
+            if should_scale(datadict):
+                result = result * model_1_fraction
+            datadict["norm_times"] = list(result)
     
     def color_code_and_clean_up_labels(datadicts: list[PlotData],
                                        use_alpha: bool = False,
