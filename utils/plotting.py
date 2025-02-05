@@ -1457,7 +1457,7 @@ def post_process_graphs(simulation_data: list[dict],
         return simulation_data[0]["epiboly"]["cell_division_cessation_phi"]
 
     def show_multi_progress() -> None:
-        """Overlay multiple progress plots on one Axes, color-coded by treatment (edge bond-angle constraint lambda)"""
+        """Overlay multiple progress plots on one Axes, color-coded by treatment"""
         # We put the phi values in twice. It's the data we want to plot (hence "data"), not the x-axis
         # (hence we won't use "phi"), but show_composite_medians() needs it to be there.
         datadicts: list[PlotData] = [{
