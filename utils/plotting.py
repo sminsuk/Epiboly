@@ -2027,16 +2027,16 @@ def post_process_graphs(simulation_data: list[dict],
                     treatments[treatment_key][x_axis_type] = []
 
             # Add each rawdict to the appropriate lists. But a copy, possibly modified:
+            newdict: PlotData = rawdict.copy()
+            plotdata_key: str
+            # Make it a deep copy:
+            for plotdata_key in ["data", "phi", "timesteps", "norm_times"]:
+                # (Type checker doesn't like variables as keys; it's fine.)
+                newdata: list = newdict[plotdata_key].copy()  # type: ignore
+                if suppress_timestep_zero:
+                    newdata = newdata[1:]
+                newdict[plotdata_key] = newdata  # type: ignore
             for x_axis_type in x_axes:
-                newdict: PlotData = rawdict.copy()
-                plotdata_key: str
-                # Make it a deep copy:
-                for plotdata_key in ["data", "phi", "timesteps", "norm_times"]:
-                    # (Type checker doesn't like variables as keys; it's fine.)
-                    newdata: list = newdict[plotdata_key].copy()  # type: ignore
-                    if suppress_timestep_zero:
-                        newdata = newdata[1:]
-                    newdict[plotdata_key] = newdata  # type: ignore
                 treatments[treatment_key][x_axis_type].append(newdict)
             
         # Now for each and every PlotData, interpolate. All PlotData within a given x_axis_type and treatment,
@@ -2056,10 +2056,10 @@ def post_process_graphs(simulation_data: list[dict],
                 
                 # Because the lowest x, when plotting v. phi, is stochastic, we don't know exactly what it is.
                 # And for both kinds of plots, we may have removed the first data point (if suppress_timestep_zero).
-                # So find it.
-                all_data_vals: list[list[float]] = [sim["phi"] if x_axis_type == "phi" else sim["norm_times"]
-                                                    for sim in sim_list]
-                flat_iterator = chain.from_iterable(all_data_vals)
+                # So find the current lowest x.
+                all_x_vals: list[list[float]] = [sim["phi"] if x_axis_type == "phi" else sim["norm_times"]
+                                                 for sim in sim_list]
+                flat_iterator = chain.from_iterable(all_x_vals)
                 min_x: float = min(flat_iterator)
                     
                 # Get the new x axis
