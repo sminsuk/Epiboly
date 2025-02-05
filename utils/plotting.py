@@ -2065,7 +2065,7 @@ def post_process_graphs(simulation_data: list[dict],
                 # Get the new x axis
                 # ToDo: Figure out a way to handle domains of different size; then will need to recalculate
                 #  x_interpolated for each sim separately. For now, it can be the same for all.
-                x_interpolated: np.ndarray = np.linspace(min_x, max_x, num=101)
+                x_interpolated: np.ndarray = np.linspace(min_x, max_x, num=21)
                 for sim in sim_list:
                     # Interpolate, and replace the original data with the new data
                     x_axis: list[float] = sim["phi"] if x_axis_type == "phi" else sim["norm_times"]
