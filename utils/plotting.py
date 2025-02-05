@@ -1737,7 +1737,8 @@ def post_process_graphs(simulation_data: list[dict],
                                yticks: dict = None,
                                suppress_timestep_zero: bool = False,
                                extradata: PlotData = None,
-                               extradata_colorindex: int = None) -> None:
+                               extradata_colorindex: int = None,
+                               remove_bias: bool = False) -> None:
         """A convenience passthrough"""
         # How we did it before: now deprecated; for now, keep for comparison purposes. Get rid of it later.
         show_binned_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
@@ -1745,7 +1746,7 @@ def post_process_graphs(simulation_data: list[dict],
         
         # New version, interpolating all the data and aligning all sims of the same treatment
         interpolate_and_show_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
-                                     suppress_timestep_zero, extradata, extradata_colorindex)
+                                     suppress_timestep_zero, extradata, extradata_colorindex, remove_bias)
 
     def show_binned_medians(rawdicts: list[PlotData],
                             filename: str,
@@ -1962,6 +1963,69 @@ def post_process_graphs(simulation_data: list[dict],
                                   normalize_time=(x_axis_type == "normalized time"),
                                   post_process=True)
         
+    def compute_filtered_medians(x: list[float],
+                                 all_data: list[list[float]],
+                                 exclusion_flag: float,
+                                 remove_bias: bool = False) -> tuple[list[float], list[float]]:
+        """
+        Compute the median of each column in all_data after filtering out invalid values.
+        We assume the excluded values represent sims that ended early, so, if high values of x
+        in a given row are equal to exclusion_flag, that means that sim was finished by that point.
+        The flag should not be included in the data.
+        
+        This function was helpfully written by ChatGPT, according to my specifications. The full
+        conversation can be found here: https://chatgpt.com/share/67a065a6-6c58-8013-b0d8-0ff1dddcc45a
+
+        Each column represents a dataset for a specific x-coordinate. Values equal to `exclusion_flag` are
+        removed. Optionally (if remove_bias is True), the same number of lowest remaining values are also
+        removed before computing the median. Columns where all values are excluded are omitted.
+
+        :param x: List of x-coordinates corresponding to columns in `all_data`.
+        :param all_data: 2D list where each row is a dataset, and each column corresponds to an x-coordinate.
+        :param exclusion_flag: Value indicating an invalid data point, which should be excluded.
+        :param remove_bias: If True, assume the invalid data points represent a high data value, so that the
+            remaining values would be biased toward lower value. In each column, remove an equivalent number
+            of low values to the number of excluded invalid values, to try to account for this bias.
+            ToDo: this works great for lopsidedness! If I ever want to use this approach for Straightness
+             Index, I think it would be the opposite: I'd want to compensate by removing high values rather
+             than low. For now, not needed.
+            
+        :return: A tuple containing:
+            - A filtered list of x-coordinates.
+            - The computed median values for the remaining data in each column.
+        """
+        # Convert input data to a NumPy array for efficient filtering
+        data_array: np.ndarray = np.array(all_data, dtype=float)
+    
+        # Lists to store the filtered x-values and their corresponding median values
+        filtered_x: list[float] = []
+        filtered_medians: list[float] = []
+    
+        # Iterate over each column in all_data
+        for col_idx in range(data_array.shape[1]):
+            column_values: np.ndarray = data_array[:, col_idx]
+        
+            # Exclude values equal to exclusion_flag
+            valid_values: np.ndarray = column_values[column_values != exclusion_flag]
+        
+            # Determine how many values were excluded
+            num_excluded: int = len(column_values) - len(valid_values)
+        
+            # Skip this column if all values would be removed
+            num_to_remove: int = num_excluded if remove_bias else 0
+            if len(valid_values) > num_to_remove:
+                if remove_bias:
+                    # Sort and remove the lowest `num_to_remove` values
+                    valid_values.sort()
+                    valid_values = valid_values[num_to_remove:]
+            
+                # Compute the median and store results
+                median_value: float = float(np.median(valid_values))
+                filtered_x.append(x[col_idx])
+                filtered_medians.append(median_value)
+    
+        return filtered_x, filtered_medians
+
     def interpolate_and_show_medians(rawdicts: list[PlotData],
                                      filename: str,
                                      ylabel: str,
@@ -1970,7 +2034,8 @@ def post_process_graphs(simulation_data: list[dict],
                                      yticks: dict = None,
                                      suppress_timestep_zero: bool = False,
                                      extradata: PlotData = None,
-                                     extradata_colorindex: int = None) -> None:
+                                     extradata_colorindex: int = None,
+                                     remove_bias: bool = False) -> None:
         """Combine multiple datasets into composite metrics, one per 'treatment'.
 
         'Treatment' refers to the different values of a single variable that we are contrasting.
@@ -1997,7 +2062,26 @@ def post_process_graphs(simulation_data: list[dict],
         :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
         :param extradata: Pass-through to color_code_and_clean_up_labels(); see definition there.
         :param extradata_colorindex: Pass-through to color_code_and_clean_up_labels(); see definition there.
+        :param remove_bias: If True, assume the invalid data points represent a high data value, so that the
+            remaining values would be biased toward lower value. In each column, remove an equivalent number
+            of low values to the number of excluded invalid values, to try to account for this bias.
+            (Passthrough to compute_filtered_medians().)
         """
+        def is_model_1(sim_list: list[PlotData]) -> bool:
+            # We assume every sim within a treatment is the same model, so we can check it by looking at
+            # sim_list[0]. In the most general case, we ALWAYS need to know which model it is, so we would
+            # need to add another field to PlotData to capture it. Maybe something ToDo later.
+            # But in practice, the only time I currently do plots for Model 1 is when I'm comparing Models 1
+            # and 2 in the same plot, which means we have already captured it as the definition of the treatment
+            # we are grouping by, so first_config_var_key will equal "force_is_weighted_by_distance_from_pole"
+            # and the "label" field of each PlotData will be False (because Model 1 is when the force is NOT
+            # weighted by distance).
+            if not sim_list:
+                # None or empty list
+                return False
+            return (first_config_var_key == "force_is_weighted_by_distance_from_pole" and
+                    sim_list[0]["label"] is False)
+        
         # At least for now, don't try this with timnesteps as the x-axis. I don't think it can work, and
         # I don't think I need it. This means we're plotting against phi, or normalized time, or both.
         x_axis_type: str
@@ -2044,14 +2128,14 @@ def post_process_graphs(simulation_data: list[dict],
         # get more points than others, depending on the domain of the data). In general the domains within
         # x_axis_type:treatment should be the same, but there will be cases when some extend further to the
         # right than others.
+        beyond_domain: float = -10  # a value we don't expect in the data, to flag x is beyond end-of-sim
         for treatment_key, x_axis_lists in treatments.items():
             for x_axis_type, sim_list in x_axis_lists.items():
                 sim: PlotData
                 
                 # First, figure out the min and max x that we want in our interpolated plots.
                 # They should be within the common range of all plots.
-                # For plotting v. phi (in Model 2 at least), each sim should have a point >= stopping condition,
-                # ToDo: For now, assume no Model 1 here, and get this working; then figure out how to accommodate.
+                # For plotting v. phi (assuming Model 2), each sim should have a point >= stopping condition,
                 max_x: float = 1.0 if x_axis_type == "normalized time" else cfg.stopping_condition_phi
                 
                 # Because the lowest x, when plotting v. phi, is stochastic, we don't know exactly what it is.
@@ -2061,15 +2145,26 @@ def post_process_graphs(simulation_data: list[dict],
                                                  for sim in sim_list]
                 flat_iterator = chain.from_iterable(all_x_vals)
                 min_x: float = min(flat_iterator)
+                
+                # Prepare to handle cases where the individual sims don't have similar domains (x-axis range)
+                # This is an issue only with Model 1 (unregulated force), where each sim gets terminated when
+                # a projection gets too near the vegetal pole, leading to different termination points for
+                # each. This approach should always work, but, let's do it ONLY for Model 1; the rest of the time,
+                # let's stick with the simpler procedure.
+                # "left" and "right" tell the interp() function how to behave when attempting to interpolate
+                # outside the domain. When used, they need to match our data type (float). Use them to flag
+                # truncated Model 1 data:
+                left = None
+                right = None
+                if is_model_1(sim_list):
+                    left = right = beyond_domain
                     
                 # Get the new x axis
-                # ToDo: Figure out a way to handle domains of different size; then will need to recalculate
-                #  x_interpolated for each sim separately. For now, it can be the same for all.
                 x_interpolated: np.ndarray = np.linspace(min_x, max_x, num=21)
                 for sim in sim_list:
                     # Interpolate, and replace the original data with the new data
                     x_axis: list[float] = sim["phi"] if x_axis_type == "phi" else sim["norm_times"]
-                    sim["data"] = np.interp(x_interpolated, x_axis, sim["data"]).tolist()
+                    sim["data"] = np.interp(x_interpolated, x_axis, sim["data"], left=left, right=right).tolist()
                     # (x_interpolated contains floats, and I'm assigning it to a list[float], but for some reason
                     # type checker thinks tolist() is returning 'object')
                     x_axis = x_interpolated.tolist()  # type: ignore
@@ -2086,7 +2181,23 @@ def post_process_graphs(simulation_data: list[dict],
                 # Each PlotData in the list contains the same relevant x-axis and other fields, we want
                 # our result to have all that, and just combine the "data" fields.
                 result: PlotData = sim_list[0].copy()
-                result["data"] = np.median([sim["data"] for sim in sim_list], axis=0).tolist()  # type: ignore
+                all_data: list[list[float]] = [sim["data"] for sim in sim_list]
+                if is_model_1(sim_list):
+                    filtered_x: list[float]
+                    medians: list[float]
+                    x_axis: list[float] = result["phi"] if x_axis_type == "phi" else result["norm_times"]
+                    filtered_x, medians = compute_filtered_medians(x_axis,
+                                                                   all_data,
+                                                                   exclusion_flag=beyond_domain,
+                                                                   remove_bias=remove_bias)
+                    if x_axis_type == "phi":
+                        result["phi"] = filtered_x
+                    else:
+                        result["norm_times"] = filtered_x
+                    result["data"] = medians
+                else:
+                    # Simple case, just take the median of each column
+                    result["data"] = np.median(all_data, axis=0).tolist()  # type: ignore
                 treatment_medians[treatment_key][x_axis_type] = result
                 
         # Now gather the sets of interpolations we want to plot together. One interpolated over the phi axis,
@@ -2183,7 +2294,7 @@ def post_process_graphs(simulation_data: list[dict],
         yticks = {"major_range": np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
                   "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
                   "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
-        show_composite_medians(datadicts, filename, ylabel, default_limits, yticks=yticks)
+        show_composite_medians(datadicts, filename, ylabel, default_limits, yticks=yticks, remove_bias=True)
     
         color_code_and_clean_up_labels(datadicts, use_alpha=True)
     
@@ -2384,3 +2495,16 @@ if __name__ == "__main__":
     median_data = np_medians.tolist()  # type: ignore
     print(f"type(median_data) (should be list[float]): {type(median_data)}")
     print(f"median_data: {median_data}")
+    
+    # test what happens with numpy.interp() if values along new axis are beyond the range of the old axis.
+    # (I.e., if testing a new x value beyond the original domain, where extrapolation would be needed.)
+    xp = fp = [1, 2, 3, 4]
+    x = np.linspace(0, 5, num=51)
+    print(f"\nxp = fp = {xp}")
+    print(f"new x = {x}")
+    y = np.interp(x, xp, fp, left=-1, right=-1)
+    print(f"y = {y}")
+    # Result: if left=right=None, you just get horizontal lines outside the range.
+    # if left=right=complex, it's only allowed if fp is complex. (I tried it.)
+    # So, to specify a value that is used as a flag for being outside the range, you have to pick something
+    # that you know is outside the possible range of y.
