@@ -84,7 +84,7 @@ min_neighbor_initial_distance_factor: float = 1.5
 harmonic_repulsion_spring_constant: float = 0.5
 harmonic_spring_constant: float = 0.5
 harmonic_edge_spring_constant: float = 0.5
-harmonic_yolk_evl_spring_constant: float = 5
+harmonic_yolk_evl_spring_constant: float = 4
 
 # Bonds on smaller cells need smaller spring constant. For each bond, divide spring constant
 # by this amount once for each smaller (divided) cell involved with the bond. When it was 1 (i.e. not yet
