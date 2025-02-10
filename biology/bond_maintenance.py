@@ -816,6 +816,9 @@ def _make_break_or_become() -> None:
         # return 0, attempt_break_bond(p)
         
         # #### Actual implementation:
+        if cfg.never_allow_enter_margin:
+            return 0, 0
+        
         leading_edge_neighbors: list[tf.ParticleHandle] = [phandle for phandle in nbrs.getBondedNeighbors(p)
                                                            if phandle.type_id == g.LeadingEdge.id]
         assert len(leading_edge_neighbors) == 2, f"Leading edge particle {p.id} has {len(leading_edge_neighbors)}" \

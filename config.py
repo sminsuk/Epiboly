@@ -198,6 +198,10 @@ leading_edge_recruitment_limit: float = 1.5     # in number of cell radii (not p
 run_balanced_force_control: bool = False
 balanced_force_equilibration_kludge: bool = False
 
+# Unlike the flags below this, this one prevents migration into the margin in the simulation ALWAYS,
+# not just during the recoil experiment.
+never_allow_enter_margin: bool = False
+
 test_recoil_without_bond_remodeling: bool = False
 test_recoil_with_bond_remodeling: bool = False
 # While recoil experiment with bond remodeling is in progress, modify these flags to change the remodeling rules:
@@ -356,6 +360,7 @@ def get_state() -> dict:
                 "model control": {
                         "run_balanced_force_control": run_balanced_force_control,
                         "balanced_force_equilibration_kludge": balanced_force_equilibration_kludge,
+                        "never_allow_enter_margin": never_allow_enter_margin,
                         "test_recoil_without_bond_remodeling": test_recoil_without_bond_remodeling,
                         "test_recoil_with_bond_remodeling": test_recoil_with_bond_remodeling,
                         "allow_exit_margin": allow_exit_margin,
@@ -433,6 +438,7 @@ def set_state(d: dict) -> None:
     
     # model control
     global run_balanced_force_control, balanced_force_equilibration_kludge
+    global never_allow_enter_margin
     global test_recoil_without_bond_remodeling, test_recoil_with_bond_remodeling
     global allow_exit_margin, allow_enter_margin, always_accept_enter_margin, allow_internal_remodeling
     global recoil_duration_without_remodeling, recoil_duration_with_remodeling
@@ -505,6 +511,7 @@ def set_state(d: dict) -> None:
     control: dict = d["config_values"]["model control"]
     run_balanced_force_control = control["run_balanced_force_control"]
     balanced_force_equilibration_kludge = control["balanced_force_equilibration_kludge"]
+    never_allow_enter_margin = control["never_allow_enter_margin"]
     test_recoil_without_bond_remodeling = control["test_recoil_without_bond_remodeling"]
     test_recoil_with_bond_remodeling = control["test_recoil_with_bond_remodeling"]
     allow_exit_margin = control["allow_exit_margin"]
