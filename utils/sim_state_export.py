@@ -10,7 +10,7 @@ import tissue_forge as tf
 import config as cfg
 
 import biology.cell_division as cd
-import biology.microtubules as mt
+import biology.forces as mt
 import epiboly_globals as g
 import utils.global_catalogs as gc
 import utils.tf_logging as logging

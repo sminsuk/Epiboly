@@ -30,7 +30,7 @@ import tissue_forge as tf
 import epiboly_globals as g
 
 import biology.bond_maintenance as bonds
-import biology.microtubules as mt
+import biology.forces as mt
 import config as cfg
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu

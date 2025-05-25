@@ -9,7 +9,7 @@ import config as cfg
 
 import biology.bond_maintenance as bonds
 import biology.cell_division as cd
-import biology.microtubules as mt
+import biology.forces as mt
 import control_flow.events as events
 from control_flow.interactive import toggle_visibility
 import setup_and_equilibrate as setup
