@@ -30,7 +30,7 @@ import tissue_forge as tf
 import epiboly_globals as g
 
 import biology.bond_maintenance as bonds
-import biology.forces as mt
+import biology.forces as fo
 import config as cfg
 import utils.epiboly_utils as epu
 import utils.tf_utils as tfu
@@ -1060,7 +1060,7 @@ def _show_forces() -> None:
     
     Force per unit edge is constant, so this just reflects the changing circumference over time.
     """
-    _forces.append(mt.current_total_force())
+    _forces.append(fo.current_total_force())
     forces_data: PlotData = {"data": _forces}
     _plot_datasets_v_time([forces_data],
                           filename="Forces on leading edge",
@@ -1161,7 +1161,7 @@ def show_graphs(end: bool = False) -> None:
     # After a delay, turn off the equilibration flag and set force back to what is configured
     if epu.balanced_force_equilibration_kludge and _timestep > 600:
         if not cfg.run_balanced_force_control:
-            mt._force_per_unit_length = cfg.yolk_cortical_tension + cfg.external_force
+            fo._force_per_unit_length = cfg.yolk_cortical_tension + cfg.external_force
         epu.balanced_force_equilibration_kludge = False
     
 def get_state() -> dict:

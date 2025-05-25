@@ -10,7 +10,7 @@ import tissue_forge as tf
 import config as cfg
 
 import biology.cell_division as cd
-import biology.forces as mt
+import biology.forces as fo
 import epiboly_globals as g
 import utils.global_catalogs as gc
 import utils.tf_logging as logging
@@ -67,7 +67,7 @@ def _export_additional_state(filename: str) -> None:
                          "epiboly": epu.get_state(),
                          "video_export": vx.get_state(),
                          "cell_division": cd.get_state(),
-                         "forces": mt.get_state(),
+                         "forces": fo.get_state(),
                          "logging": logging.get_state(),
                          "plot": plot.get_state(),
                          "catalogs": gc.get_state(),
@@ -91,7 +91,7 @@ def import_additional_state(import_path: str) -> None:
     plot.set_state(import_dict["plot"])
     logging.set_state(import_dict["logging"])
     cd.set_state(import_dict["cell_division"])
-    mt.set_state(import_dict["forces"])
+    fo.set_state(import_dict["forces"])
     vx.set_state(import_dict["video_export"])
     cfg.set_state(import_dict["config"])
     gc.set_state(import_dict["catalogs"])

@@ -1,4 +1,4 @@
-"""Simulate the towing of the margin toward the vegetal pole by microtubule arrays in the yolk cells"""
+"""Simulate the towing of the margin toward the vegetal pole by vegetally oriented force generated in the yolk cell"""
 from dataclasses import dataclass
 import math
 

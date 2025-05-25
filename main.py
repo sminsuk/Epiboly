@@ -9,7 +9,7 @@ import config as cfg
 
 import biology.bond_maintenance as bonds
 import biology.cell_division as cd
-import biology.forces as mt
+import biology.forces as fo
 import control_flow.events as events
 from control_flow.interactive import toggle_visibility
 import setup_and_equilibrate as setup
@@ -73,7 +73,7 @@ def main():
         
         setup.initialize_embryo()
         cd.initialize_division_rate_tracking_by_evl_area()
-        mt.initialize_tangent_forces()
+        fo.initialize_tangent_forces()
         
         # Call now so that state is exported after setup/equilibration but before any update events;
         # then again at the end so I get the final state if the script completes.
@@ -84,7 +84,7 @@ def main():
     events.execute_repeatedly(tasks=[
             {"invoke": vx.save_screenshot_repeatedly},
             {"invoke": plot.show_graphs},
-            {"invoke": mt.apply_even_tangent_forces},
+            {"invoke": fo.apply_even_tangent_forces},
             {"invoke": bonds.maintain_bonds},
             {"invoke": cd.cell_division},
             {"invoke": state.export_repeatedly},
@@ -101,12 +101,12 @@ def main():
         events.execute_repeatedly(tasks=[
                 {"invoke": vx.save_screenshot_repeatedly},
                 {"invoke": plot.show_graphs},
-                {"invoke": mt.apply_even_tangent_forces},
+                {"invoke": fo.apply_even_tangent_forces},
                 {"invoke": bonds.maintain_bonds},
                 {"invoke": cd.cell_division},
                 {"invoke": state.export_repeatedly},
                 ])
-        # mt.remove_tangent_forces()
+        # fo.remove_tangent_forces()
         
         # ### Note, this block can go, but am just keeping it for the comment about irun(), to remind me,
         # ### in case I ever get to where I actually have interactive execution available and working.
@@ -183,7 +183,7 @@ def main():
             epu.recoil_experiment_in_progress = True
             
             # Turn off the external force
-            mt.remove_tangent_forces()
+            fo.remove_tangent_forces()
             
             # Set up new task list. Include same observational monitoring as in the main sim, but omit external
             # force application, and cell division. Include/exclude bond breaking/making as indicated.
