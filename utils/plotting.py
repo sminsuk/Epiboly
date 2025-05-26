@@ -476,7 +476,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     phandle: tf.ParticleHandle
     tensions: list[float] = []
     particle_phi: list[float] = []
-    for phandle in g.Little.items():
+    for phandle in g.Evl.items():
         tensions.append(epu.tension(phandle))
         particle_phi.append(epu.embryo_phi(phandle))
     
@@ -520,7 +520,7 @@ def _show_tension_by_cell_size(end: bool) -> None:
     undivided_particle_phi: list[float] = []
     divided_tensions: list[float] = []
     divided_particle_phi: list[float] = []
-    for phandle in g.Little.items():
+    for phandle in g.Evl.items():
         if epu.is_undivided(phandle):
             undivided_tensions.append(epu.tension(phandle))
             undivided_particle_phi.append(epu.embryo_phi(phandle))
@@ -592,7 +592,7 @@ def _show_avg_tensions_v_microtime() -> None:
     leading_edge_cells.extend(g.LeadingEdge.items())
     all_cells: list = []
     all_cells.extend(g.LeadingEdge.items())
-    all_cells.extend(g.Little.items())
+    all_cells.extend(g.Evl.items())
 
     leading_edge_tensions: list[float] = [epu.tension(phandle) for phandle in leading_edge_cells]
     all_tensions: list[float] = [epu.tension(phandle) for phandle in all_cells]
@@ -728,7 +728,7 @@ def _show_piv_speed_v_phi(finished_accumulating: bool, end: bool) -> None:
         _speeds_particle_phi.clear()
 
     phandle: tf.ParticleHandle
-    for phandle in g.Little.items():
+    for phandle in g.Evl.items():
         particle_position_phi, speed = _phi_and_vegetal_speed(phandle)
         _speeds.append(speed)
         _speeds_particle_phi.append(particle_position_phi)
@@ -1006,14 +1006,14 @@ def _show_bond_counts() -> None:
     phandle: tf.ParticleHandle
     
     # logical: it's the mean of how many neighbors each particle has:
-    mean_bonds_per_particle: float = fmean([len(phandle.bonded_neighbors) for phandle in g.Little.items()])
+    mean_bonds_per_particle: float = fmean([len(phandle.bonded_neighbors) for phandle in g.Evl.items()])
     
     # better & faster: it's twice the ratio of bonds to particles. (Have to include leading edge if doing it this way.)
     # On the other hand, I have not tested to be sure BondHandle.items() isn't affected by the phantom-bond bug,
     # something I probably need ToDo.
     # So save this and maybe use it later:
     # mean_bonds_per_particle: float = (2 * len(tf.BondHandle.items()) /
-    #                                   (len(g.Little.items()) + len(g.LeadingEdge.items())))
+    #                                   (len(g.Evl.items()) + len(g.LeadingEdge.items())))
     
     _bonds_per_particle.append(mean_bonds_per_particle)
     

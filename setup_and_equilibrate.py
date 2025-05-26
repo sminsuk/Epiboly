@@ -60,7 +60,7 @@ def initialize_full_sphere_evl_cells() -> None:
     # (i.e. particles just touching) and concentric on the big particle.
     # And even though plain python lists[3] is what we ultimately need, easiest to do the math
     # by converting them to fVector3 here.
-    big_particle: tf.ParticleHandle = g.Big.items()[0]
+    big_particle: tf.ParticleHandle = g.Yolk.items()[0]
     scale: float = big_particle.radius + g.LeadingEdge.radius
     
     def final_position(vector) -> tf.fVector3:
@@ -91,12 +91,12 @@ def initialize_full_sphere_evl_cells() -> None:
     #
     # Benchmarked at around 0.007 seconds! Barely faster than 1-at-a-time. So the problem was not
     # really the particle creation, but the calculation of random_points()!
-    g.Little.factory(positions=final_positions)
+    g.Evl.factory(positions=final_positions)
     
     # Give these each a Style object so I can access them later
     # Also assign each particle its own cell radius, and add each one to the global catalog
     phandle: tf.ParticleHandle
-    for phandle in g.Little.items():
+    for phandle in g.Evl.items():
         phandle.style = tf.rendering.Style()
         gc.add_particle(phandle, radius=_initial_cell_radius)
     
@@ -110,12 +110,12 @@ def initialize_full_sphere_evl_cells() -> None:
 def filter_evl_to_animal_cap_phi(leading_edge_phi: float) -> None:
     """Filter to include only the ones above where the leading edge will be."""
     phandle: tf.ParticleHandle
-    vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
+    vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Evl.items()
                                                   if epu.embryo_phi(phandle) > leading_edge_phi]
     for phandle in vegetal_particles:
         gc.destroy_particle(phandle)
     
-    print(f"{len(g.Little.items())} particles remaining")
+    print(f"{len(g.Evl.items())} particles remaining")
 
 def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
     """Filter to include only the ones above where the ring will be.
@@ -125,17 +125,17 @@ def filter_evl_to_animal_cap(leading_edge_z: float) -> None:
     down before the simulation even starts.
     """
     phandle: tf.ParticleHandle
-    vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()
+    vegetal_particles: list[tf.ParticleHandle] = [phandle for phandle in g.Evl.items()
                                                   if phandle.position.z() < leading_edge_z + 2.5 * _initial_cell_radius]
     for phandle in vegetal_particles:
         gc.destroy_particle(phandle)
         
-    print(f"{len(g.Little.items())} particles remaining")
+    print(f"{len(g.Evl.items())} particles remaining")
         
 def add_interior_bonds():
     print("Bonding interior particles.")
     particle: tf.ParticleHandle
-    for particle in g.Little.items():
+    for particle in g.Evl.items():
         bonds.make_all_bonds(particle, min_neighbor_count=5)
     
     print(f"Created {len(tf.BondHandle.items())} bonds.")
@@ -174,7 +174,7 @@ def initialize_bonded_edge():
         leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cfg.epiboly_initial_percentage)
         
         # some basic needed quantities
-        big_particle: tf.ParticleHandle = g.Big.items()[0]
+        big_particle: tf.ParticleHandle = g.Yolk.items()[0]
         scale: float = big_particle.radius + g.LeadingEdge.radius
         r_latitude = math.sin(leading_edge_phi) * scale
         
@@ -241,8 +241,8 @@ def initialize_leading_edge_bending_resistance() -> None:
 def replace_all_small_small_potentials(new_potential):
     """Wipes out old potential, replaces with new, for all small-small interactions"""
     tf.bind.types(new_potential, g.LeadingEdge, g.LeadingEdge)
-    tf.bind.types(new_potential, g.LeadingEdge, g.Little)
-    tf.bind.types(new_potential, g.Little, g.Little)
+    tf.bind.types(new_potential, g.LeadingEdge, g.Evl)
+    tf.bind.types(new_potential, g.Evl, g.Evl)
 
 def freeze_leading_edge_z() -> None:
     phandle: tf.ParticleHandle
@@ -317,13 +317,13 @@ def setup_global_potentials() -> None:
     # Large-small: originally max = equilibrium distance = sum of radii (for only repulsion), but then
     # expanded max to include attraction for the purposes of bringing particles down to the surface.
     big_small_pot = tf.Potential.harmonic(k=cfg.harmonic_yolk_evl_spring_constant,
-                                          r0=g.Big.radius + g.Little.radius,
+                                          r0=g.Yolk.radius + g.Evl.radius,
                                           min=0.275,
                                           max=5)
-    tf.bind.types(big_small_pot, g.Big, g.LeadingEdge)
+    tf.bind.types(big_small_pot, g.Yolk, g.LeadingEdge)
     
-    # Also bind to Little (interior) particles.
-    tf.bind.types(big_small_pot, g.Big, g.Little)
+    # Also bind to Evl (interior) particles.
+    tf.bind.types(big_small_pot, g.Yolk, g.Evl)
     
     # Small-small (both types, to themselves and to each other):
     # harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
@@ -378,7 +378,7 @@ def find_boundary() -> None:
     # Find the boundary particles and make them leading edge
     p: tf.ParticleHandle
     neighbor: tf.ParticleHandle
-    for p in g.Little.items():
+    for p in g.Evl.items():
         if epu.embryo_phi(p) < leading_edge_phi:
             if any([epu.embryo_phi(neighbor) >= leading_edge_phi for neighbor in p.bonded_neighbors]):
                 p.become(g.LeadingEdge)
@@ -437,7 +437,7 @@ def setup_initial_cell_number_and_size() -> None:
 def initialize_paint_pattern() -> None:
     p: tf.ParticleHandle
     all_particles: list[tf.ParticleHandle] = []
-    all_particles.extend(g.Little.items())
+    all_particles.extend(g.Evl.items())
     all_particles.extend(g.LeadingEdge.items())
 
     # If we are using one of the lineage-tracing PaintPatterns, then initialize the pattern; i.e.,
@@ -534,10 +534,10 @@ def initialize_embryo_with_graph_boundary() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
+    big_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
     big_particle.frozen = True
     big_particle.style = tf.rendering.Style()
-    big_particle.style.color = g.Big.style.color
+    big_particle.style.color = g.Yolk.style.color
     
     initialize_full_sphere_evl_cells()
     screenshot_true_zero()
@@ -573,10 +573,10 @@ def initialize_embryo_with_config() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
+    big_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
     big_particle.frozen = True
     big_particle.style = tf.rendering.Style()
-    big_particle.style.color = g.Big.style.color
+    big_particle.style.color = g.Yolk.style.color
     initialize_bonded_edge()
     freeze_leading_edge_z()
     
@@ -642,10 +642,10 @@ def alt_initialize_embryo_with_config() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    big_particle: tf.ParticleHandle = g.Big([5, 5, 5])
+    big_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
     big_particle.frozen = True
     big_particle.style = tf.rendering.Style()
-    big_particle.style.color = g.Big.style.color
+    big_particle.style.color = g.Yolk.style.color
     initialize_bonded_edge()
     freeze_leading_edge_z()
     screenshot_true_zero()          # Need these? I wasn't sure when I did the big clean-up

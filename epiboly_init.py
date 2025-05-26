@@ -22,7 +22,7 @@ class YolkType(tf.ParticleTypeSpec):
     dynamics = tf.Overdamped
 
 # Same as EvlInternalType, but they will have different potentials and maybe other properties.
-# As a subclass of Little, still gets its own color, and binding the superclass to a
+# As a subclass of EvlInternalType, still gets its own color, and binding the superclass to a
 # potential does NOT result in this getting bound.
 class EvlLeadingEdgeType(EvlInternalType):
     pass
@@ -54,8 +54,8 @@ def init_from_import() -> None:
             window_size=_window_size,
             throw_exc=True)
     
-    g.Little = tf.ParticleType_FindFromName("EvlInternalType")
-    g.Big = tf.ParticleType_FindFromName("YolkType")
+    g.Evl = tf.ParticleType_FindFromName("EvlInternalType")
+    g.Yolk = tf.ParticleType_FindFromName("YolkType")
     g.LeadingEdge = tf.ParticleType_FindFromName("EvlLeadingEdgeType")
     
     state.import_additional_state(latest_extra_state_entry.path)
@@ -94,9 +94,9 @@ def init() -> None:
             window_size=_window_size,
             throw_exc=True)
     
-    g.Little = EvlInternalType.get()
-    g.Big = YolkType.get()
+    g.Evl = EvlInternalType.get()
+    g.Yolk = YolkType.get()
     g.LeadingEdge = EvlLeadingEdgeType.get()
     
-    g.Little.style.color = epu.evl_undivided_color
+    g.Evl.style.color = epu.evl_undivided_color
     g.LeadingEdge.style.color = epu.evl_margin_undivided_color

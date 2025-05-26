@@ -72,7 +72,7 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
     if verbose:
         distance: float = p1.distance(p2)
         print(f"Making new bond {handle.id} between particles {p1.id} and {p2.id},",
-              f"distance = (particle radius * {distance/g.Little.radius})")
+              f"distance = (particle radius * {distance/g.Evl.radius})")
         # p1.style.color = tfu.gray   # testing
         # p2.style.color = tfu.white  # testing
 
@@ -95,7 +95,7 @@ def make_all_bonds(phandle: tf.ParticleHandle,
     """
     existing_neighbor_count: int = len(phandle.bonded_neighbors)
     additional_neighbors_needed: int = max(min_neighbor_count - existing_neighbor_count, 0)
-    ptypes: list[tf.ParticleType] = [g.Little] if phandle.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
+    ptypes: list[tf.ParticleType] = [g.Evl] if phandle.type() == g.LeadingEdge else [g.Evl, g.LeadingEdge]
     neighbors: list[tf.ParticleHandle]
     neighbors = nbrs.get_nearest_non_bonded_neighbors(phandle, ptypes,
                                                       min_neighbors=additional_neighbors_needed,
@@ -250,7 +250,7 @@ def _make_break_or_become() -> None:
     
     "become" refers to the Tissue Forge .become() method on tf.ParticleHandle, which converts a particle to a new
     tf.ParticleType. So in this function, we make bonds, break bonds, or move a particle into or out of the margin,
-    which requires converting it between internal and margin EVL particle types (Little and LeadingEdge).
+    which requires converting it between EVL internal and EVL margin particle types (Evl and LeadingEdge).
     """
 
     def accept(main_particle: tf.ParticleHandle,
@@ -304,8 +304,8 @@ def _make_break_or_become() -> None:
     
             # Simple for now, but this will probably get more complex later. I think LeadingEdge target count
             # needs to gradually increase as edge approaches vegetal pole, because of the geometry (hence float).
-            p1target_count: float = (6 if p1.type_id == g.Little.id else 4)
-            p2target_count: float = (6 if p2.type_id == g.Little.id else 4)
+            p1target_count: float = (6 if p1.type_id == g.Evl.id else 4)
+            p2target_count: float = (6 if p2.type_id == g.Evl.id else 4)
     
             p1current_energy: float = (p1current_count - p1target_count) ** 2
             p2current_energy: float = (p2current_count - p2target_count) ** 2
@@ -585,7 +585,7 @@ def _make_break_or_become() -> None:
         if making_particle:
             if main_particle.type_id != making_particle.type_id:
                 phandle: tf.ParticleHandle
-                p_internal: tf.ParticleHandle = (main_particle if main_particle.type_id == g.Little.id
+                p_internal: tf.ParticleHandle = (main_particle if main_particle.type_id == g.Evl.id
                                                  else making_particle)
                 edge_neighbor_count: int = len([phandle for phandle in nbrs.getBondedNeighbors(p_internal)
                                                 if phandle.type_id == g.LeadingEdge.id])
@@ -619,7 +619,7 @@ def _make_break_or_become() -> None:
         returns: number of bonds broken
         """
         # Don't break bond between two LeadingEdge particles
-        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
+        allowed_types: list[tf.ParticleType] = [g.Evl] if p.type() == g.LeadingEdge else [g.Evl, g.LeadingEdge]
         
         bhandle: tf.BondHandle = find_breakable_bond(p, allowed_types)
         if not bhandle:
@@ -701,7 +701,7 @@ def _make_break_or_become() -> None:
         returns: number of bonds created
         """
         # Don't make a bond between two LeadingEdge particles
-        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
+        allowed_types: list[tf.ParticleType] = [g.Evl] if p.type() == g.LeadingEdge else [g.Evl, g.LeadingEdge]
 
         other_p: tf.ParticleHandle = find_bondable_neighbor(p, allowed_types)
         if not other_p:
@@ -719,7 +719,7 @@ def _make_break_or_become() -> None:
         :param p: the particle that will have an existing bond broken and a new one made
         :return: number of bond pairs modified (1 or 0)
         """
-        allowed_types: list[tf.ParticleType] = [g.Little] if p.type() == g.LeadingEdge else [g.Little, g.LeadingEdge]
+        allowed_types: list[tf.ParticleType] = [g.Evl] if p.type() == g.LeadingEdge else [g.Evl, g.LeadingEdge]
 
         # Find a bond to break
         bhandle: tf.BondHandle = find_breakable_bond(p, allowed_types)
@@ -792,7 +792,7 @@ def _make_break_or_become() -> None:
         if accept(neighbor1, making_particle=neighbor2, becoming=True):
             # test_ring_is_fubar()
             make_bond(neighbor1, neighbor2, verbose=False)
-            p.become(g.Little)
+            p.become(g.Evl)
             epu.update_color(p)
             p.style.visible = gc.visibility_state
             p.force_init = [0, 0, 0]
@@ -889,7 +889,7 @@ def _make_break_or_become() -> None:
             phandle: tf.ParticleHandle
             saturated_internal_neighbors: list[tf.ParticleHandle] = [phandle
                                                                      for phandle in nbrs.getBondedNeighbors(recruit)
-                                                                     if phandle.type_id == g.Little.id
+                                                                     if phandle.type_id == g.Evl.id
                                                                      if too_many_edge_neighbors(phandle)]
             for phandle in saturated_internal_neighbors:
                 gc.destroy_bond(tfu.bond_between(recruit, phandle))
@@ -926,7 +926,7 @@ def _make_break_or_become() -> None:
     
     # Get one giant list of all EVL particles, and shuffle it, so we visit in random order
     all_particles: list[tf.ParticleHandle] = []
-    all_particles.extend(g.Little.items())
+    all_particles.extend(g.Evl.items())
     all_particles.extend(g.LeadingEdge.items())
     random.shuffle(all_particles)
     
@@ -944,7 +944,7 @@ def _make_break_or_become() -> None:
     
     for p in all_particles:
         ran = random.random()
-        if p.type() == g.Little:
+        if p.type() == g.Evl:
             # Internal particles can always make or break bonds (except in the special case where we've
             # disabled it during the recoil experiment); the probabilities of making and breaking sum to 1.
             if no_internal_remodeling_allowed:
@@ -1017,7 +1017,7 @@ def _move_toward_open_space() -> None:
     component, and use that.
     """
     phandle: tf.ParticleHandle
-    for phandle in g.Little.items():
+    for phandle in g.Evl.items():
         bonded_neighbors: tf.ParticleList = nbrs.getBondedNeighbors(phandle)
         bonded_neighbor_positions: tuple[tf.fVector3] = bonded_neighbors.positions
         vecsum: tf.fVector3 = sum(bonded_neighbor_positions, start=tf.fVector3([0, 0, 0]))

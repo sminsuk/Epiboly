@@ -110,12 +110,12 @@ def update_color(p: tf.ParticleHandle) -> None:
             if p.type() == g.LeadingEdge:
                 p.style.color = (evl_margin_undivided_color if is_undivided(p)
                                  else evl_margin_divided_color)
-            elif p.type() == g.Little:
+            elif p.type() == g.Evl:
                 p.style.color = (evl_undivided_color if is_undivided(p)
                                  else evl_divided_color)
         case cfg.PaintPattern.ORIGINAL_TIER | cfg.PaintPattern.VERTICAL_STRIPE | cfg.PaintPattern.PATCH:
             # lineage tracing patterns. Depends on the lineage tracer having been set at initialization
-            if p.type() == g.Big:
+            if p.type() == g.Yolk:
                 p.style.color = yolk_unlabeled_color
             elif gc.get_lineage_tracer(p):
                 p.style.color = lineage_labeled_color
@@ -125,11 +125,11 @@ def update_color(p: tf.ParticleHandle) -> None:
 def update_all_particle_colors():
     """ (For anticipated future use with .SPECIES) """
     p: tf.ParticleHandle
-    for p in g.Little.items():
+    for p in g.Evl.items():
         update_color(p)
     for p in g.LeadingEdge.items():
         update_color(p)
-    update_color(g.Big.items()[0])
+    update_color(g.Yolk.items()[0])
 
 def reset_camera():
     """A good place to park the camera for epiboly
@@ -141,7 +141,7 @@ def reset_camera():
     tf.system.camera_zoom_to(-12)
 
 def embryo_radius() -> float:
-    return g.Big.radius + g.Little.radius
+    return g.Yolk.radius + g.Evl.radius
 
 def embryo_phi(p: tf.fVector3 | tf.ParticleHandle) -> float:
     """phi relative to the animal/vegetal axis
@@ -171,7 +171,7 @@ def embryo_coords(p: tf.fVector3 | tf.ParticleHandle, rotation_matrix: np.ndarra
         rotation_matrix = np.identity(3)
         
     position: tf.fVector3 = p if type(p) is tf.fVector3 else p.position
-    yolk_particle: tf.ParticleHandle = g.Big.items()[0]
+    yolk_particle: tf.ParticleHandle = g.Yolk.items()[0]
     
     # For the rotation to work correctly, need to subtract the yolk center manually before rotating;
     # then convert cartesian to spherical relative to the origin. (As opposed to just making use of the
@@ -186,7 +186,7 @@ def embryo_coords(p: tf.fVector3 | tf.ParticleHandle, rotation_matrix: np.ndarra
 
 def embryo_cartesian_coords(p: tf.ParticleHandle) -> tf.fVector3:
     """x, y, z relative to the yolk center"""
-    yolk_particle: tf.ParticleHandle = g.Big.items()[0]
+    yolk_particle: tf.ParticleHandle = g.Yolk.items()[0]
     normal_vec: tf.fVector3 = p.position - yolk_particle.position
     return normal_vec
 
@@ -226,11 +226,11 @@ def leading_edge_min_mean_max_phi() -> tuple[float, float, float]:
     return min(phi_values), fmean(phi_values), max(phi_values)
 
 def internal_evl_max_phi() -> float:
-    """phi of the most progressed Little (internal EVL) particle
+    """phi of the most progressed Evl (internal EVL) particle
 
     This is useful for plots that only consider the internal particles, like the binned tension plot
     """
-    return max([embryo_phi(particle) for particle in g.Little.items()])
+    return max([embryo_phi(particle) for particle in g.Evl.items()])
 
 def radius_of_circle_at_relative_z(relative_z: float) -> float:
     """Radius of a circle on the surface of the embryo (latitude line) at a given z value relative to the equator
@@ -252,7 +252,7 @@ def circumference_of_circle_at_relative_z(relative_z: float) -> float:
     return 2 * np.pi * radius_of_circle_at_relative_z(relative_z)
 
 def circumference_of_circle_at_z(z: float) -> float:
-    yolk: tf.ParticleHandle = g.Big.items()[0]
+    yolk: tf.ParticleHandle = g.Yolk.items()[0]
     relative_z: float = z - yolk.position.z()
     return circumference_of_circle_at_relative_z(relative_z)
 

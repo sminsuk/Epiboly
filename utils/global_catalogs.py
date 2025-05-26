@@ -41,7 +41,7 @@ Usage:
         value. (We'll never need to look up the value.)
     
     Whenever a particle .becomes(LeadingEdge), set its visibility to True;
-    Whenever a particle .becomes(Little) (interior particle), set its visibility according to the state flag here.
+    Whenever a particle .becomes(Evl) (interior particle), set its visibility according to the state flag here.
         (For now, change of state of the flag itself happens in module "interactive".)
 """
 from typing import TypedDict

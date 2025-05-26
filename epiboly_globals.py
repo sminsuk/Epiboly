@@ -20,6 +20,6 @@ But I guess even just naming them, is a runtime python statement that creates st
 """
 import tissue_forge as tf
 
-Big: tf.ParticleType
-Little: tf.ParticleType
+Yolk: tf.ParticleType
+Evl: tf.ParticleType
 LeadingEdge: tf.ParticleType

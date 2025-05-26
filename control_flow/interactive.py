@@ -15,11 +15,11 @@ vis_toggle_allowed = False
 rad_toggle_allowed = False
 
 def toggle_visibility():
-    """Depends on the fact that all Little particles were assigned a Style instance when they were created."""
+    """Depends on the fact that all Evl particles were assigned a Style instance when they were created."""
     global vis_toggle_allowed
     if vis_toggle_allowed:
         gc.visibility_state = not gc.visibility_state
-        for p in g.Little.items():
+        for p in g.Evl.items():
             p.style.visible = gc.visibility_state
     else:
         print("First invoke, outside Jupyter call twice")
@@ -33,13 +33,13 @@ def toggle_radius():
     resuming, or might affect the simulation"""
     global rad_toggle_allowed
     if rad_toggle_allowed:
-        threshold = g.Little.radius / 2
-        tiny_radius = g.Little.radius / 5
-        for p in g.Little.items():
+        threshold = g.Evl.radius / 2
+        tiny_radius = g.Evl.radius / 5
+        for p in g.Evl.items():
             if p.radius > threshold:
                 p.radius = tiny_radius
             else:
-                p.radius = g.Little.radius
+                p.radius = g.Evl.radius
     else:
         print("First invoke, outside Jupyter call twice")
         rad_toggle_allowed = True
@@ -59,7 +59,7 @@ def count_bonds():
         histogram[key] = histogram[key] + 1    
 
     histogram = {}
-    for p in g.Little.items():
+    for p in g.Evl.items():
         add_to_histogram(p)
     for p in g.LeadingEdge.items():
         add_to_histogram(p)

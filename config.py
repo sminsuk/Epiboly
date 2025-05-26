@@ -232,7 +232,7 @@ windowed_mode: bool = False
 show_equilibration: bool = False
 
 class PaintPattern(Enum):
-    CELL_TYPE = 1           # LeadingEdge vs. Little
+    CELL_TYPE = 1           # LeadingEdge vs. Evl internal
     ORIGINAL_TIER = 2       # By position at initialization, ignoring type entirely
     VERTICAL_STRIPE = 3     # By position at initialization, ignoring type entirely (just proof of concept)
     PATCH = 4               # By position at initialization, ignoring type entirely

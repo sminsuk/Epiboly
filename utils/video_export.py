@@ -163,7 +163,7 @@ def _save_screenshot(filename: str, side: str = None, show_timestep: bool = True
     suffix: str = f"Timestep = {_current_screenshot_timestep}"
     suffix += f"; Universe.time = {round(tf.Universe.time, 2)}"
     suffix += f"; mean phi = {round(epu.leading_edge_mean_phi(), 2)}"
-    suffix += f"; {len(g.Little.items()) + len(g.LeadingEdge.items())} cells"
+    suffix += f"; {len(g.Evl.items()) + len(g.LeadingEdge.items())} cells"
     suffix += f"; {len(tf.BondHandle.items())} bonds"
     if side:
         suffix += f" - {side}"

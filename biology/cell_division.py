@@ -69,7 +69,7 @@ def _adjust_positions(p1: tf.ParticleHandle, p2: tf.ParticleHandle) -> None:
     phi2: float
     
     # Particle rather than ParticleHandle in this case, since that's what sphericalPosition() requires
-    yolk_particle: tf.Particle = g.Big.particle(0)
+    yolk_particle: tf.Particle = g.Yolk.particle(0)
     
     r1, theta1, phi1 = p1.sphericalPosition(particle=yolk_particle)
     r2, theta2, phi2 = p2.sphericalPosition(particle=yolk_particle)
@@ -179,8 +179,8 @@ def _split(parent: tf.ParticleHandle) -> tf.ParticleHandle:
     new_cell_radius: float = parent.radius
     
     # Then the particles themselves can be set back to the original:
-    parent.radius = g.Little.radius
-    daughter.radius = g.Little.radius
+    parent.radius = g.Evl.radius
+    daughter.radius = g.Evl.radius
     gc.set_cell_radius(parent, radius=new_cell_radius)
     gc.copy_particle(copy=daughter, original=parent)
     
@@ -271,7 +271,7 @@ def cell_division() -> None:
     
     # Select the particles to split
     phandle: tf.ParticleHandle
-    particles: list[tf.ParticleHandle] = [phandle for phandle in g.Little.items()]
+    particles: list[tf.ParticleHandle] = [phandle for phandle in g.Evl.items()]
     particles.extend(g.LeadingEdge.items())
     selected_particles: np.ndarray
     if cfg.cell_division_largest_first:
@@ -348,7 +348,7 @@ def cell_division() -> None:
             daughter = _divide(phandle)
             assert daughter.type() == phandle.type(), f"Daughter is type {daughter.type()}, parent is {phandle.type()}!"
             print(f"New cell division (cumulative: {_cumulative_cell_divisions},"
-                  f" total cells: {len(g.Little.items()) + len(g.LeadingEdge.items())}),"
+                  f" total cells: {len(g.Evl.items()) + len(g.LeadingEdge.items())}),"
                   f" daughter id={daughter.id}, {daughter.type()}, {len(daughter.bonded_neighbors)} new bonds")
             
             # ### DEBUG: Color the cells so I can see where they end up

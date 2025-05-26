@@ -65,7 +65,7 @@ def get_nearest_non_bonded_neighbors(phandle: tf.ParticleHandle,
     The caller is indicating that it's okay not to find any, if there are none within min_distance.
     """
     if ptypes is None:
-        ptypes = [g.LeadingEdge, g.Little]
+        ptypes = [g.LeadingEdge, g.Evl]
 
     start: float = time.perf_counter()
 
@@ -278,7 +278,7 @@ def paint_neighbors():
     # Get the two sets of particles. There should be about 2200, and a bit over 100, respectively. Note
     # these two lists are live. Instead of assigning to a variable, make a new list from each of them,
     # that's not live? Thought it might make a difference in memory management. Doesn't seem to help, though.
-    little_particles = tf.ParticleList(g.Little.items())
+    little_particles = tf.ParticleList(g.Evl.items())
     edge_particles = tf.ParticleList(g.LeadingEdge.items())
     print("little, edge particles contain:", len(little_particles), len(edge_particles))
     print(little_particles.thisown)
