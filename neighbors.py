@@ -278,20 +278,20 @@ def paint_neighbors():
     # Get the two sets of particles. There should be about 2200, and a bit over 100, respectively. Note
     # these two lists are live. Instead of assigning to a variable, make a new list from each of them,
     # that's not live? Thought it might make a difference in memory management. Doesn't seem to help, though.
-    little_particles = tf.ParticleList(g.Evl.items())
+    internal_particles = tf.ParticleList(g.Evl.items())
     edge_particles = tf.ParticleList(g.LeadingEdge.items())
-    print("little, edge particles contain:", len(little_particles), len(edge_particles))
-    print(little_particles.thisown)
+    print("internal, edge particles contain:", len(internal_particles), len(edge_particles))
+    print(internal_particles.thisown)
     
-    little_step = round(len(little_particles) / 15)
+    internal_step = round(len(internal_particles) / 15)
     edge_step = round(len(edge_particles) / 10)
     
     found_color = tfu.white
     neighbor_color = tfu.gray
     found_particles = []
     # Iterate over each list with a step, to pick a small subset of particles
-    for i in range(0, len(little_particles), little_step):
-        found_particles.append(little_particles.item(i))
+    for i in range(0, len(internal_particles), internal_step):
+        found_particles.append(internal_particles.item(i))
     
     for i in range(0, len(edge_particles), edge_step):
         found_particles.append(edge_particles.item(i))

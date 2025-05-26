@@ -56,15 +56,15 @@ def initialize_full_sphere_evl_cells() -> None:
     print(f"Creating {num_particles} particles.")
     filtered_time = time.perf_counter()
     
-    # Transform unit sphere to sphere with radius = big particle radius + small particle radius
-    # (i.e. particles just touching) and concentric on the big particle.
+    # Transform unit sphere to sphere with radius = yolk particle radius + EVL particle radius
+    # (i.e. particles just touching) and concentric on the yolk particle.
     # And even though plain python lists[3] is what we ultimately need, easiest to do the math
     # by converting them to fVector3 here.
-    big_particle: tf.ParticleHandle = g.Yolk.items()[0]
-    scale: float = big_particle.radius + g.LeadingEdge.radius
+    yolk_particle: tf.ParticleHandle = g.Yolk.items()[0]
+    scale: float = yolk_particle.radius + g.LeadingEdge.radius
     
     def final_position(vector) -> tf.fVector3:
-        return big_particle.position + tf.fVector3(vector) * scale
+        return yolk_particle.position + tf.fVector3(vector) * scale
     
     # Better workaround of argument problem. Rebuilding the list of positions got past the
     # TypeError in factory(), but the error message for that TypeError showed that it wasn't
@@ -174,8 +174,8 @@ def initialize_bonded_edge():
         leading_edge_phi = epu.phi_for_epiboly(epiboly_percentage=cfg.epiboly_initial_percentage)
         
         # some basic needed quantities
-        big_particle: tf.ParticleHandle = g.Yolk.items()[0]
-        scale: float = big_particle.radius + g.LeadingEdge.radius
+        yolk_particle: tf.ParticleHandle = g.Yolk.items()[0]
+        scale: float = yolk_particle.radius + g.LeadingEdge.radius
         r_latitude = math.sin(leading_edge_phi) * scale
         
         # (gets list of plain python list[2] - unit vectors)
@@ -184,7 +184,7 @@ def initialize_bonded_edge():
         
         # make 3D and scaled
         z_latitude = math.cos(leading_edge_phi) * scale
-        latitude_center_position = big_particle.position + tf.fVector3([0, 0, z_latitude])
+        latitude_center_position = yolk_particle.position + tf.fVector3([0, 0, z_latitude])
         
         def final_position(unit_vector):
             return (latitude_center_position
@@ -238,8 +238,8 @@ def initialize_leading_edge_bending_resistance() -> None:
         
     # bonds.test_ring_is_fubar()
 
-def replace_all_small_small_potentials(new_potential):
-    """Wipes out old potential, replaces with new, for all small-small interactions"""
+def replace_all_evl_evl_potentials(new_potential):
+    """Wipes out old potential, replaces with new, for all EVL-EVL interactions"""
     tf.bind.types(new_potential, g.LeadingEdge, g.LeadingEdge)
     tf.bind.types(new_potential, g.LeadingEdge, g.Evl)
     tf.bind.types(new_potential, g.Evl, g.Evl)
@@ -314,34 +314,34 @@ def move_ring_z(destination: float) -> None:
 def setup_global_potentials() -> None:
     # Potentials, bound at the level of types:
     #
-    # Large-small: originally max = equilibrium distance = sum of radii (for only repulsion), but then
+    # Yolk-EVL: originally max = equilibrium distance = sum of radii (for only repulsion), but then
     # expanded max to include attraction for the purposes of bringing particles down to the surface.
-    big_small_pot = tf.Potential.harmonic(k=cfg.harmonic_yolk_evl_spring_constant,
-                                          r0=g.Yolk.radius + g.Evl.radius,
-                                          min=0.275,
-                                          max=5)
-    tf.bind.types(big_small_pot, g.Yolk, g.LeadingEdge)
+    yolk_evl_pot = tf.Potential.harmonic(k=cfg.harmonic_yolk_evl_spring_constant,
+                                         r0=g.Yolk.radius + g.Evl.radius,
+                                         min=0.275,
+                                         max=5)
+    tf.bind.types(yolk_evl_pot, g.Yolk, g.LeadingEdge)
     
     # Also bind to Evl (interior) particles.
-    tf.bind.types(big_small_pot, g.Yolk, g.Evl)
+    tf.bind.types(yolk_evl_pot, g.Yolk, g.Evl)
     
-    # Small-small (both types, to themselves and to each other):
+    # EVL-EVL (both types, to themselves and to each other):
     # harmonic with repulsion only (max = equilibrium distance = sum of radii, so potential
     # applied only inside the equilibrium distance). (Attraction will be applied on a cell-by-cell
     # basis, i.e. via explicit bonds.)
     # In contrast to yolk-EVL interactions, base this on cell radius, not particle radius
     r0 = _initial_cell_radius * 2
     
-    # All small particles repel each other all the time, inside r0
-    small_small_repulsion = tf.Potential.harmonic(r0=r0,
-                                                  k=cfg.harmonic_repulsion_spring_constant,
-                                                  max=r0)
+    # All EVL particles repel each other all the time, inside r0
+    evl_evl_repulsion = tf.Potential.harmonic(r0=r0,
+                                              k=cfg.harmonic_repulsion_spring_constant,
+                                              max=r0)
     
-    replace_all_small_small_potentials(new_potential=small_small_repulsion)
+    replace_all_evl_evl_potentials(new_potential=evl_evl_repulsion)
 
     # plot:
-    # big_small_pot.plot(potential=True, force=True, ymin=-1e2, ymax=1e2)
-    # small_small_repulsion.plot(potential=True, force=True, ymin=-0.1, ymax=0.01)
+    # yolk_evl_pot.plot(potential=True, force=True, ymin=-1e2, ymax=1e2)
+    # evl_evl_repulsion.plot(potential=True, force=True, ymin=-0.1, ymax=0.01)
     
 def adjust_global_evl_potentials() -> None:
     """Adjust r0 for type-based repulsion between EVL particles. (Leaves yolk-EVL potentials alone.)
@@ -361,7 +361,7 @@ def adjust_global_evl_potentials() -> None:
                                                                 k=cfg.harmonic_repulsion_spring_constant,
                                                                 max=r0)
 
-        replace_all_small_small_potentials(new_potential=evl_evl_repulsion)
+        replace_all_evl_evl_potentials(new_potential=evl_evl_repulsion)
 
 def find_boundary() -> None:
     """Boundary cells are those above the line that are bonded to any below the line"""
@@ -534,10 +534,10 @@ def initialize_embryo_with_graph_boundary() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    big_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
-    big_particle.frozen = True
-    big_particle.style = tf.rendering.Style()
-    big_particle.style.color = g.Yolk.style.color
+    yolk_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
+    yolk_particle.frozen = True
+    yolk_particle.style = tf.rendering.Style()
+    yolk_particle.style.color = g.Yolk.style.color
     
     initialize_full_sphere_evl_cells()
     screenshot_true_zero()
@@ -573,10 +573,10 @@ def initialize_embryo_with_config() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    big_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
-    big_particle.frozen = True
-    big_particle.style = tf.rendering.Style()
-    big_particle.style.color = g.Yolk.style.color
+    yolk_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
+    yolk_particle.frozen = True
+    yolk_particle.style = tf.rendering.Style()
+    yolk_particle.style.color = g.Yolk.style.color
     initialize_bonded_edge()
     freeze_leading_edge_z()
     
@@ -642,10 +642,10 @@ def alt_initialize_embryo_with_config() -> None:
     setup_global_potentials()
     show_equilibrating_message()
     
-    big_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
-    big_particle.frozen = True
-    big_particle.style = tf.rendering.Style()
-    big_particle.style.color = g.Yolk.style.color
+    yolk_particle: tf.ParticleHandle = g.Yolk([5, 5, 5])
+    yolk_particle.frozen = True
+    yolk_particle.style = tf.rendering.Style()
+    yolk_particle.style.color = g.Yolk.style.color
     initialize_bonded_edge()
     freeze_leading_edge_z()
     screenshot_true_zero()          # Need these? I wasn't sure when I did the big clean-up
