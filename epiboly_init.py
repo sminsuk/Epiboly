@@ -11,20 +11,20 @@ import utils.sim_state_export as state
 import utils.tf_utils as tfu
 import utils.video_export as vx
 
-class LittleType(tf.ParticleTypeSpec):
+class EvlInternalType(tf.ParticleTypeSpec):
     mass = 1.0
     radius = cfg.evl_particle_radius
     dynamics = tf.Overdamped
 
-class BigType(tf.ParticleTypeSpec):
+class YolkType(tf.ParticleTypeSpec):
     mass = 70.0
     radius = 3.0
     dynamics = tf.Overdamped
 
-# Same as LittleType, but they will have different potentials and maybe other properties.
+# Same as EvlInternalType, but they will have different potentials and maybe other properties.
 # As a subclass of Little, still gets its own color, and binding the superclass to a
 # potential does NOT result in this getting bound.
-class LeadingEdgeType(LittleType):
+class EvlLeadingEdgeType(EvlInternalType):
     pass
 
 ########
@@ -54,9 +54,9 @@ def init_from_import() -> None:
             window_size=_window_size,
             throw_exc=True)
     
-    g.Little = tf.ParticleType_FindFromName("LittleType")
-    g.Big = tf.ParticleType_FindFromName("BigType")
-    g.LeadingEdge = tf.ParticleType_FindFromName("LeadingEdgeType")
+    g.Little = tf.ParticleType_FindFromName("EvlInternalType")
+    g.Big = tf.ParticleType_FindFromName("YolkType")
+    g.LeadingEdge = tf.ParticleType_FindFromName("EvlLeadingEdgeType")
     
     state.import_additional_state(latest_extra_state_entry.path)
     gc.initialize_state()
@@ -94,9 +94,9 @@ def init() -> None:
             window_size=_window_size,
             throw_exc=True)
     
-    g.Little = LittleType.get()
-    g.Big = BigType.get()
-    g.LeadingEdge = LeadingEdgeType.get()
+    g.Little = EvlInternalType.get()
+    g.Big = YolkType.get()
+    g.LeadingEdge = EvlLeadingEdgeType.get()
     
     g.Little.style.color = epu.evl_undivided_color
     g.LeadingEdge.style.color = epu.evl_margin_undivided_color
