@@ -131,7 +131,10 @@ harmonic_angle_tolerance: float = 0.008 * math.pi
 # Both of these values are in units of force-per-unit-length of EVL edge
 yolk_cortical_tension: float = 0.25    # just balances interior bonds at initialization
 external_force: float = 0.45           # +additional to produce full epiboly
-force_is_weighted_by_distance_from_pole: bool = True
+
+# Note, for backward compatibility, the dict key for this in the metadata file has to still
+# use the old "force_is_weighted_by..." name instead of this new "...enabled" name!
+force_regulation_enabled: bool = True
 
 # Potential.max any greater than this, numerical problems ensue
 max_potential_cutoff: float = 6
@@ -339,7 +342,7 @@ def get_state() -> dict:
                         "harmonic_angle_tolerance": harmonic_angle_tolerance,
                         "yolk_cortical_tension": yolk_cortical_tension,
                         "external_force": external_force,
-                        "force_is_weighted_by_distance_from_pole": force_is_weighted_by_distance_from_pole,
+                        "force_is_weighted_by_distance_from_pole": force_regulation_enabled,
                         "max_potential_cutoff": max_potential_cutoff,
                         "bondable_neighbor_discovery": bondable_neighbor_discovery.name,
                         "bondable_neighbors_min_candidates": bondable_neighbors_min_candidates,
@@ -428,7 +431,7 @@ def set_state(d: dict) -> None:
     global harmonic_repulsion_spring_constant, harmonic_spring_constant, harmonic_edge_spring_constant
     global spring_constant_cell_size_factor
     global harmonic_yolk_evl_spring_constant, harmonic_angle_spring_constant, harmonic_angle_tolerance
-    global yolk_cortical_tension, external_force, force_is_weighted_by_distance_from_pole, max_potential_cutoff
+    global yolk_cortical_tension, external_force, force_regulation_enabled, max_potential_cutoff
     global bondable_neighbor_discovery, bondable_neighbors_min_candidates, bondable_neighbors_max_candidates
     global bond_remodeling_enabled
     global coupled_bond_remodeling_freq, min_neighbor_count, max_edge_neighbor_count
@@ -490,7 +493,7 @@ def set_state(d: dict) -> None:
     harmonic_angle_tolerance = model["harmonic_angle_tolerance"]
     yolk_cortical_tension = model["yolk_cortical_tension"]
     external_force = model["external_force"]
-    force_is_weighted_by_distance_from_pole = model["force_is_weighted_by_distance_from_pole"]
+    force_regulation_enabled = model["force_is_weighted_by_distance_from_pole"]
     max_potential_cutoff = model["max_potential_cutoff"]
     bondable_neighbor_discovery = BondableNeighborDiscovery[model["bondable_neighbor_discovery"]]
     bondable_neighbors_min_candidates = model["bondable_neighbors_min_candidates"]
