@@ -2011,8 +2011,10 @@ def post_process_graphs(simulation_data: list[dict],
         in a given row are equal to exclusion_flag, that means that sim was finished by that point.
         The flag should not be included in the data.
         
-        This function was helpfully written by ChatGPT, according to my specifications. The full
-        conversation can be found here: https://chatgpt.com/share/67a065a6-6c58-8013-b0d8-0ff1dddcc45a
+        This function was helpfully written by ChatGPT, according to my specifications. ChatGPT also
+        helped me design the algorithm by helping me to understand alternative statistical approaches
+        for dealing with biased data. The full conversation can be found here:
+        https://chatgpt.com/share/67a065a6-6c58-8013-b0d8-0ff1dddcc45a
 
         Each column represents a dataset for a specific x-coordinate. Values equal to `exclusion_flag` are
         removed. Optionally (if remove_bias is True), the same number of lowest remaining values are also
