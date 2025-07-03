@@ -538,6 +538,8 @@ def initialize_embryo_with_graph_boundary() -> None:
     yolk_particle.frozen = True
     yolk_particle.style = tf.rendering.Style()
     yolk_particle.style.color = g.Yolk.style.color
+    # Uncomment to make the yolk invisible:
+    # yolk_particle.style.visible = False
     
     initialize_full_sphere_evl_cells()
     screenshot_true_zero()
