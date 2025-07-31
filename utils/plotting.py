@@ -1280,6 +1280,8 @@ def set_state(d: dict) -> None:
     _strain_rate_bond_phi = d["strain_rate_bond_phi"]
     
 def post_process_graphs(simulation_data: list[dict],
+                        range_low: float,
+                        range_high: float,
                         include_legends: bool = True,
                         config_section_key: str = "model",
                         first_config_var_key: str = "",
@@ -1298,6 +1300,8 @@ def post_process_graphs(simulation_data: list[dict],
     
     :param simulation_data: contains the entire plot history and config of each simulation run,
         from which we will pull the data needed to draw the composite plots.
+    :param range_low: low percentile to plot with medians to show the range of the data
+    :param range_high: high percentile to plot with medians to show the range of the data
     :param include_legends: if False, ignore the remaining parameters, and plot all the simulations
         ungrouped, all in the same color, and with no legends.
     :param config_section_key: the key for the config section in which to find the variable that we are varying.
@@ -2059,10 +2063,10 @@ def post_process_graphs(simulation_data: list[dict],
                     valid_values.sort()
                     valid_values = valid_values[num_to_remove:]
             
-                # Compute the median and store results
-                median_value: float = float(np.median(valid_values))
+                # Compute the median and percentile range, and store results
+                nd_low, nd_median, nd_high = np.percentile(valid_values, [range_low, 50, range_high])
                 filtered_x.append(x[col_idx])
-                filtered_medians.append(median_value)
+                filtered_medians.append(float(nd_median))
     
         return filtered_x, filtered_medians
 
@@ -2236,8 +2240,9 @@ def post_process_graphs(simulation_data: list[dict],
                         result["norm_times"] = filtered_x
                     result["data"] = medians
                 else:
-                    # Simple case, just take the median of each column
-                    result["data"] = np.median(all_data, axis=0).tolist()  # type: ignore
+                    # Simple case, just take the median and percentile range of each column
+                    nd_lows, nd_medians, nd_highs = np.percentile(all_data, [range_low, 50, range_high], axis=0)
+                    result["data"] = nd_medians.tolist()  # type: ignore
                 treatment_medians[treatment_key][x_axis_type] = result
                 
         # Now gather the sets of interpolations we want to plot together. One interpolated over the phi axis,

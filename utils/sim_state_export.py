@@ -340,7 +340,9 @@ if __name__ == "__main__":
         for directory_name in directory_names:
             print(directory_name, file=output_file)
     
-    plot.post_process_graphs(simulation_data, include_legends, config_section_key,
+    range_low: float = 5
+    range_high: float = 95
+    plot.post_process_graphs(simulation_data, range_low, range_high, include_legends, config_section_key,
                              first_config_var_key, second_config_var_key,
                              num_legend_format, true_legend_format, false_legend_format,
                              second_true_legend_format, second_false_legend_format,
