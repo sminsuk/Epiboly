@@ -2008,11 +2008,12 @@ def post_process_graphs(simulation_data: list[dict],
     def compute_filtered_medians(x: list[float],
                                  all_data: list[list[float]],
                                  exclusion_flag: float,
-                                 remove_bias: bool = False) -> tuple[list[float], list[float]]:
+                                 remove_bias: bool = False
+                                 ) -> tuple[list[float], list[float], list[float], list[float]]:
         """
-        Compute the median of each column in all_data after filtering out invalid values.
-        We assume the excluded values represent sims that ended early, so, if high values of x
-        in a given row are equal to exclusion_flag, that means that sim was finished by that point.
+        Compute the median (and low/high percentile) of each column in all_data after filtering out invalid values.
+        We assume the excluded values represent sims that ended early, so if, for high values of x
+        in a given row, the data are equal to exclusion_flag, that means that sim was finished by that point.
         The flag should not be included in the data.
         
         This function was helpfully written by ChatGPT, according to my specifications. ChatGPT also
@@ -2037,13 +2038,17 @@ def post_process_graphs(simulation_data: list[dict],
         :return: A tuple containing:
             - A filtered list of x-coordinates.
             - The computed median values for the remaining data in each column.
+            - The computed low percentile for the same data.
+            - The computed high percentile for the same data.
         """
         # Convert input data to a NumPy array for efficient filtering
         data_array: np.ndarray = np.array(all_data, dtype=float)
     
-        # Lists to store the filtered x-values and their corresponding median values
+        # Lists to store the filtered x-values and their corresponding median/low/high data values
         filtered_x: list[float] = []
         filtered_medians: list[float] = []
+        filtered_range_lows: list[float] = []
+        filtered_range_highs: list[float] = []
     
         # Iterate over each column in all_data
         for col_idx in range(data_array.shape[1]):
@@ -2067,8 +2072,10 @@ def post_process_graphs(simulation_data: list[dict],
                 nd_low, nd_median, nd_high = np.percentile(valid_values, [range_low, 50, range_high])
                 filtered_x.append(x[col_idx])
                 filtered_medians.append(float(nd_median))
+                filtered_range_lows.append(float(nd_low))
+                filtered_range_highs.append(float(nd_high))
     
-        return filtered_x, filtered_medians
+        return filtered_x, filtered_medians, filtered_range_lows, filtered_range_highs
 
     def interpolate_and_show_medians(rawdicts: list[PlotData],
                                      filename: str,
@@ -2229,11 +2236,13 @@ def post_process_graphs(simulation_data: list[dict],
                 if is_model_1(sim_list):
                     filtered_x: list[float]
                     medians: list[float]
+                    lows: list[float]
+                    highs: list[float]
                     x_axis: list[float] = result["phi"] if x_axis_type == "phi" else result["norm_times"]
-                    filtered_x, medians = compute_filtered_medians(x_axis,
-                                                                   all_data,
-                                                                   exclusion_flag=beyond_domain,
-                                                                   remove_bias=remove_bias)
+                    filtered_x, medians, lows, highs = compute_filtered_medians(x_axis,
+                                                                                all_data,
+                                                                                exclusion_flag=beyond_domain,
+                                                                                remove_bias=remove_bias)
                     if x_axis_type == "phi":
                         result["phi"] = filtered_x
                     else:
