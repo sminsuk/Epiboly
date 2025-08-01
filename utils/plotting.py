@@ -94,6 +94,8 @@ _previous_universe_time: float = 0.0
 
 class PlotData(TypedDict, total=False):
     data: list[float] | list[int]   # required
+    range_low: list[float]          # for post-process use only; ignored in real-time plotting
+    range_high: list[float]
     phi: list[float]                # x axis (any of these 3) required in post-process; ignored in real-time plotting
     timesteps: list[int]
     norm_times: list[float]
@@ -2248,10 +2250,14 @@ def post_process_graphs(simulation_data: list[dict],
                     else:
                         result["norm_times"] = filtered_x
                     result["data"] = medians
+                    result["range_low"] = lows
+                    result["range_high"] = highs
                 else:
                     # Simple case, just take the median and percentile range of each column
                     nd_lows, nd_medians, nd_highs = np.percentile(all_data, [range_low, 50, range_high], axis=0)
-                    result["data"] = nd_medians.tolist()  # type: ignore
+                    result["data"] = nd_medians.tolist()
+                    result["range_low"] = nd_lows.tolist()
+                    result["range_high"] = nd_highs.tolist()
                 treatment_medians[treatment_key][x_axis_type] = result
                 
         # Now gather the sets of interpolations we want to plot together. One interpolated over the phi axis,
