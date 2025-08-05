@@ -146,7 +146,8 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                           plot_v_time: bool = None,
                           normalize_time: bool = False,
                           suppress_timestep_zero: bool = False,
-                          post_process: bool = False) -> None:
+                          post_process: bool = False,
+                          plot_ranges: bool = False) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
     
     When plotting in real time during simulation run, plot_v_time will typically be None, and we'll (at least for now)
@@ -186,6 +187,10 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         an artifact; we want to start at the very high value that comes at the next timestep measured.
     :param post_process: plotting post-process (presumably with multiple datasets per plot) as opposed to during
         the real-time simulation (which may have one or more datasets per plot).
+    :param plot_ranges: in consensus plots, add a shaded area for the data range. Those values should be provided in
+        the "range_low" and "range_high" element of each Plotdata. Those will only be present post-process (so only
+        when post_process is True), and only for consensus plots. When plot_ranges is False, ignore them; when
+        plot_ranges is True, check for their presence and plot them
     """
     if plot_v_time is None:
         plot_v_time = False if post_process else _balanced_force_ever()
@@ -1302,8 +1307,8 @@ def post_process_graphs(simulation_data: list[dict],
     
     :param simulation_data: contains the entire plot history and config of each simulation run,
         from which we will pull the data needed to draw the composite plots.
-    :param range_low: low percentile to plot with medians to show the range of the data
-    :param range_high: high percentile to plot with medians to show the range of the data
+    :param range_low: low percentile (should be < 50) to plot with medians to show the range of the data
+    :param range_high: high percentile (should be > 50) to plot with medians to show the range of the data
     :param include_legends: if False, ignore the remaining parameters, and plot all the simulations
         ungrouped, all in the same color, and with no legends.
     :param config_section_key: the key for the config section in which to find the variable that we are varying.
@@ -2273,15 +2278,25 @@ def post_process_graphs(simulation_data: list[dict],
         color_code_and_clean_up_labels(normtime_dicts, extradata=extradata, extradata_colorindex=extradata_colorindex)
         color_code_and_clean_up_labels(phi_dicts)
     
+        # Calculate two sets of y-limits, one for plotting without ranges, and one for plotting with...
+        #
         # For using consensus y-limits:
         # Since the data was interpolated differently in the time dict vs the phi dict, they might have slightly
         # different ranges. So to make the y-axis scales identical on the two plots we'll generate, combine
         # ALL the data from both to determine the y limits.
         all_data: list[list[float]] = []
+        all_range_data: list[list[float]] = []
         if "normalized time" in x_axes:
             all_data.extend([plot_data["data"] for plot_data in normtime_dicts])
+            all_range_data.extend([plot_data["range_low"] for plot_data in normtime_dicts
+                                   # if extradata was present, that one won't have a range, so filter it out
+                                   if "range_low" in plot_data])
+            all_range_data.extend([plot_data["range_high"] for plot_data in normtime_dicts
+                                   if "range_high" in plot_data])
         if "phi" in x_axes:
             all_data.extend([plot_data["data"] for plot_data in phi_dicts])
+            all_range_data.extend([plot_data["range_low"] for plot_data in phi_dicts])
+            all_range_data.extend([plot_data["range_high"] for plot_data in phi_dicts])
     
         filename_suffix: str = f", grouped by {first_config_var_key}" if include_legends else ""
         filename_suffix += f" and {second_config_var_key}" if second_config_var_key else ""
@@ -2292,10 +2307,19 @@ def post_process_graphs(simulation_data: list[dict],
             # in this case, each of the plots gets its own tailored y-limits.
             # They might each be very different:
             current_data: list[list[float]] = [plot_data["data"] for plot_data in dicts_list]
+            current_range_data: list[list[float]] = []
+            current_range_data.extend([plot_data["range_low"] for plot_data in dicts_list
+                                       # if extradata was present, that one won't have a range, so filter it out
+                                       if "range_low" in plot_data])
+            current_range_data.extend([plot_data["range_high"] for plot_data in dicts_list
+                                       if "range_high" in plot_data])
         
-            the_data: list[list[float]] = all_data if x_axis_types_share_y_limits else current_data
-            limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=the_data)
+            the_data:       list[list[float]] = all_data if x_axis_types_share_y_limits else current_data
+            the_range_data: list[list[float]] = all_range_data if x_axis_types_share_y_limits else current_range_data
+            limits:       tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=the_data)
+            range_limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=the_range_data)
         
+            # Ranges are present, but first plot without them
             _plot_datasets_v_time(datadicts=dicts_list,
                                   filename=f"{filename} v. {x_axis_type}, Median{filename_suffix}",
                                   limits=limits,
@@ -2305,6 +2329,18 @@ def post_process_graphs(simulation_data: list[dict],
                                   plot_v_time=(x_axis_type != "phi"),
                                   normalize_time=(x_axis_type == "normalized time"),
                                   post_process=True)
+            
+            # Plot again with ranges: same params except range_limits instead of limits, and with an extended filename
+            _plot_datasets_v_time(datadicts=dicts_list,
+                                  filename=f"{filename} v. {x_axis_type}, Median{filename_suffix} (with ranges)",
+                                  limits=range_limits,
+                                  ylabel=f"{ylabel} (Median)",
+                                  axvline=axvline if x_axis_type == "phi" else None,
+                                  yticks=yticks,
+                                  plot_v_time=(x_axis_type != "phi"),
+                                  normalize_time=(x_axis_type == "normalized time"),
+                                  post_process=True,
+                                  plot_ranges=True)
 
     def show_multi_straightness() -> None:
         """Overlay multiple Straightness Index plots on one Axes, grouped and color-coded by the provided config_var"""
