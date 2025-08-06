@@ -190,7 +190,10 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
     :param plot_ranges: in consensus plots, add a shaded area for the data range. Those values should be provided in
         the "range_low" and "range_high" element of each Plotdata. Those will only be present post-process (so only
         when post_process is True), and only for consensus plots. When plot_ranges is False, ignore them; when
-        plot_ranges is True, check for their presence and plot them
+        plot_ranges is True, check for their presence and plot them. Note that Axes.fill_between() is fine with only
+        a single set of boundary data passed (the other defaulting to float 0), and uses 0 for the missing boundary,
+        so I might as well support that even though I don't currently need it. So at least one of the two must
+        be present.
     """
     if plot_v_time is None:
         plot_v_time = False if post_process else _balanced_force_ever()
@@ -231,20 +234,42 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                  datadict["timesteps"])
             if suppress_timestep_zero:
                 x = x[1:]
+                
+        range_y1: list[float] = []
+        range_y2: list[float] = []
+        if plot_ranges:
+            # Determine whether either or both fill boundaries are present, and if so, use them.
+            if "range_low" in datadict:
+                range_y1 = datadict["range_low"]
+                if "range_high" in datadict:
+                    range_y2 = datadict["range_high"]
+            elif "range_high" in datadict:
+                range_y1 = datadict["range_high"]
+                
         data: list[float] = datadict["data"]
         if suppress_timestep_zero:
             data = data[1:]
+            range_y1 = range_y1[1:]
+            range_y2 = range_y2[1:]
         plot_format: str = datadict["fmt"] if "fmt" in datadict else plot_formats if plot_formats else "-"
         color: str = datadict["color"] if "color" in datadict else None
         label: object = None if "label" not in datadict else datadict["label"]
         if label is not None:
             legend_needed = True
         if color:
-            # use the specified colors, overriding the ones in "fmt"
+            # use the specified colors, overriding the ones in plot_format
             ax.plot(x, data, "-", color=color, label=label)
+            if range_y1:
+                # This case should never occur since I think color is only set for individual trajectory plots,
+                # while range_y1 will only ever be non-empty for consensus plots, but include just in case:
+                ax.fill_between(x, range_y1, range_y2 or 0, color=color, alpha=0.1)
         else:
-            # use the colors specified in "fmt"
-            ax.plot(x, data, plot_format, label=label)
+            # use the colors specified in plot_format. Since it was passed in as a format string, which fill_between()
+            # doesn't understand, use this clever trick to robustly extract the color from the plotted line, no
+            # matter how the string was specified (thanks, ChatGPT):
+            [line] = ax.plot(x, data, plot_format, label=label)
+            if range_y1:
+                ax.fill_between(x, range_y1, range_y2 or 0, color=line.get_color(), alpha=0.1)
     if legend_needed:
         ax.legend(loc=legend_loc)
     
