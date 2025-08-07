@@ -174,7 +174,8 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         phi just reflects cessation config); but it won't work on a plot v. timesteps, because the position
         will vary among the datasets. If necessary to display that, it would have to be by a different means, like
         a special marker on each line in the plot.
-    :param legend_loc: optional, specify where legend will go if there is one.
+    :param legend_loc: optional, specify where legend will go if there is one. In post-process, interpret None to
+        mean draw the legend outside the plot axes, as opposed to "best".
     :param yticks: Currently using this in only 2 spots, ad hoc, not anticipating more. But if I start using this
         more generally, then... ToDo: define a proper typed dict and do parameter validation
     :param title: A title for the plot.
@@ -271,7 +272,11 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
             if range_y1:
                 ax.fill_between(x, range_y1, range_y2 or 0, color=line.get_color(), alpha=0.1)
     if legend_needed:
-        ax.legend(loc=legend_loc)
+        if post_process and legend_loc is None:
+            # Place legend outside the plot. Much better for preparing publishable figs!
+            ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
+        else:
+            ax.legend(loc=legend_loc)
     
     # save
     savepath: str = os.path.join(_plot_path, filename + ".png")
