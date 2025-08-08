@@ -1598,9 +1598,13 @@ def post_process_graphs(simulation_data: list[dict],
         x_axis_types = ["timesteps", "normalized time"]
         show_composite_medians(datadicts, filename, ylabel, limits, yticks=yticks)
         
-        # Plot again with the Kimmel data added in. Use color index 3 because this is intended for the particular
-        # case where the figure is grouped by Model 1/Model 2, and with/without cell division, and we want it to match
-        # the color of Model 2 with cell division (model flag and cell division flag both == True, so "11", i.e., 3)
+        # Plot again with the Kimmel data added in, for purposes of publication. Originally, used color index 3
+        # because this was intended for the particular case where the figure was grouped by Model 1/Model 2, and
+        # with/without cell division (so 4 separate curves), and we wanted it to match the color of Model 2 with
+        # cell division (model flag and cell division flag both == True, so "11", i.e., 3). Later, switched to
+        # showing Model 1 and 2 in SEPARATE plots (2 curves each), so Model 2 with cell division would now be
+        # color index 1. However, with only 2 curves in the plot, it doesn't seem so important to match the
+        # colors that way, and I decided I actually like it better in the nice bold red. So leave it as is.
         # And this time, we only want it for the one x-axis type.
         x_axis_types = ["normalized time"]
         extradata: PlotData = kimmel_percent_epiboly_as_phi()
