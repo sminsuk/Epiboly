@@ -1820,8 +1820,8 @@ def post_process_graphs(simulation_data: list[dict],
                                remove_bias: bool = False) -> None:
         """A convenience passthrough"""
         # How we did it before: now deprecated; for now, keep for comparison purposes. Get rid of it later.
-        show_binned_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
-                            suppress_timestep_zero, extradata, extradata_colorindex)
+        # show_binned_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
+        #                     suppress_timestep_zero, extradata, extradata_colorindex)
         
         # New version, interpolating all the data and aligning all sims of the same treatment
         interpolate_and_show_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
