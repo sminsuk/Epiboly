@@ -363,6 +363,24 @@ def adjust_global_evl_potentials() -> None:
 
         replace_all_evl_evl_potentials(new_potential=evl_evl_repulsion)
 
+def disable_evl_evl_attraction() -> None:
+    """As a test, do the internal EVL cells need to be attracted to the yolk?
+    
+    To be called at the end of equilibration, before the sim proper begins. Leave the leading edge alone,
+    but disable it for the internal cells
+    ToDo: Should make a config bool to test here, instead of commenting out the function call
+    """
+    # Just like during initialization, but now let max = r0,
+    # i.e. only repulsion when too close; no attraction when further apart
+    r0: float = g.Yolk.radius + g.Evl.radius
+    yolk_internal_evl_pot = tf.Potential.harmonic(k=cfg.harmonic_yolk_evl_spring_constant,
+                                                  r0=r0,
+                                                  min=0.275,
+                                                  max=r0)  # don't attract, just repel
+    
+    # Bind to Evl (interior) particles only.
+    tf.bind.types(yolk_internal_evl_pot, g.Yolk, g.Evl)
+
 def find_boundary() -> None:
     """Boundary cells are those above the line that are bonded to any below the line"""
     # Call this once, just to display the value of leading edge phi where we want the edge cells to actually be
@@ -557,6 +575,9 @@ def initialize_embryo_with_graph_boundary() -> None:
     adjust_global_evl_potentials()
     initialize_leading_edge_bending_resistance()
     initialize_paint_pattern()
+    
+    # Uncomment the following to have internal cells and yolk only repel and not attract each other
+    # disable_evl_evl_attraction()
     
 def initialize_embryo_with_config() -> None:
     """Older init method of arbitrarily deciding how many edge particles to have, and creating a ring of them
