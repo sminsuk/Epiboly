@@ -54,7 +54,7 @@ def make_bond(p1: tf.ParticleHandle, p2: tf.ParticleHandle, verbose: bool = Fals
     """
     k: float = cfg.harmonic_edge_spring_constant if is_edge_bond(p1, p2) else cfg.harmonic_spring_constant
     
-    # Smaller cells get lower spring constant. See comment in congig.py for rationale of how much to reduce by.
+    # Smaller cells get lower spring constant. See comment in config.py for rationale of how much to reduce by.
     # Configured amount is applicable to a bond between one small cell and one large; square that (apply it
     # twice) for a bond between 2 smaller cells.
     if epu.is_divided(p1):
