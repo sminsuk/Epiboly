@@ -255,6 +255,8 @@ if __name__ == "__main__":
     include_legends: bool = True
     first_config_var_key: str = "config key for variable goes here"
     second_config_var_key: str = ""
+    # Also specify, for final publication plots, the desired height. None, to use default values.
+    desired_height_inches: float | None = None
     
     # If grouping by treatment, and no presets available below, provide these values (or consider creating a preset).
     # Where to find the variable in the config, and how to show the legends for each group.
@@ -346,4 +348,4 @@ if __name__ == "__main__":
                              first_config_var_key, second_config_var_key,
                              num_legend_format, true_legend_format, false_legend_format,
                              second_true_legend_format, second_false_legend_format,
-                             x_axis_types, x_axis_types_share_y_limits, flip_bool_color)
+                             x_axis_types, x_axis_types_share_y_limits, flip_bool_color, desired_height_inches)

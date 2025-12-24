@@ -24,6 +24,7 @@ from typing import TypedDict
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.legend import Legend
 import matplotlib.pyplot as plt
 
 import tissue_forge as tf
@@ -147,7 +148,8 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
                           normalize_time: bool = False,
                           suppress_timestep_zero: bool = False,
                           post_process: bool = False,
-                          plot_ranges: bool = False) -> None:
+                          plot_ranges: bool = False,
+                          desired_height_inches: float = None) -> None:
     """Plot one or more datasets on a single set of Figure/Axes
     
     When plotting in real time during simulation run, plot_v_time will typically be None, and we'll (at least for now)
@@ -195,7 +197,41 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         a single set of boundary data passed (the other defaulting to float 0), and uses 0 for the missing boundary,
         so I might as well support that even though I don't currently need it. So at least one of the two must
         be present.
+    :param desired_height_inches: when plotting final version for publication, adjust everything for the desired
+        size at publication. Proportions will be maintained, so width is not explicitly specified. This should
+        result in appropriate font and axis tick sizes and so on.
     """
+    def adjust_figsize(move_legend_outside: bool) -> None:
+        """Resize the Figure to the desired height. And then move the legend outside.
+
+        (With help/advice from ChatGPT on how to get the scaling effect I want in matplotlib.)
+        """
+        # Draw figure in its expected export form so we can measure
+        fig.tight_layout()
+        fig.canvas.draw()
+        
+        # Scale
+        current_width: float
+        current_height: float
+        current_width, current_height = fig.get_size_inches()
+        scale: float = desired_height_inches / current_height
+        desired_width_inches: float = current_width * scale
+        fig.set_size_inches(desired_width_inches, desired_height_inches)
+        
+        # I don't quite remember why I included the following "if True", since I'm finally committing this code,
+        # several months after I wrote it. I think I wanted the option to retain the previous logic, of only moving
+        # the legend outside when no explicit legend location was specified, so I built that logic in here,
+        # but then overrode it with "if True" so that for now, as long as a size adjustment is being
+        # applied, I *always* move the legend outside. Now that I've generated all the figures this way,
+        # it seems to work pretty well.
+        if True or move_legend_outside:
+            legend: Legend = ax.get_legend()
+            
+            # Cannot assume the figure has a legend
+            if legend:
+                legend.set_bbox_to_anchor((1.02, 0.5))  # type: ignore  # where to pin the legend
+                legend.set_loc("center left")  # what part of the legend to pin
+    
     if plot_v_time is None:
         plot_v_time = False if post_process else _balanced_force_ever()
         
@@ -272,11 +308,10 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
             if range_y1:
                 ax.fill_between(x, range_y1, range_y2 or 0, color=line.get_color(), alpha=0.1)
     if legend_needed:
-        if post_process and legend_loc is None:
-            # Place legend outside the plot. Much better for preparing publishable figs!
-            ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
-        else:
-            ax.legend(loc=legend_loc)
+        ax.legend(loc=legend_loc)
+    
+    if post_process and desired_height_inches is not None:
+        adjust_figsize(move_legend_outside=legend_loc is None)
     
     # save
     savepath: str = os.path.join(_plot_path, filename + ".png")
@@ -1330,7 +1365,8 @@ def post_process_graphs(simulation_data: list[dict],
                         second_false_legend_format: str = "False",
                         x_axis_types: list[str] = None,
                         x_axis_types_share_y_limits: bool = False,
-                        flip_bool_color: bool = False) -> None:
+                        flip_bool_color: bool = False,
+                        desired_height_inches: float = None) -> None:
     """Print various plots with data from multiple simulation runs
     
     All the nested functions access these parameters:
@@ -1357,6 +1393,9 @@ def post_process_graphs(simulation_data: list[dict],
     :param flip_bool_color: if True, then the config var should be of type bool, and we wish the True value
         (instead of the False value, which is the default) to appear first in the legend and to be plotted
         using cycler color C0.
+    :param desired_height_inches: when plotting final version for publication, adjust everything for the desired
+        size at publication. Proportions will be maintained, so width is not explicitly specified. This should
+        result in appropriate font and axis tick sizes and so on.
     """
     def normalize(datadicts: list[PlotData], suppress_scaling: bool = False) -> None:
         """Calculate the normalized-time axis based on the timestep axis
@@ -1620,7 +1659,8 @@ def post_process_graphs(simulation_data: list[dict],
                               ylabel=ylabel,
                               yticks=yticks,
                               plot_v_time=True,
-                              post_process=True)
+                              post_process=True,
+                              desired_height_inches=desired_height_inches)
 
         _plot_datasets_v_time(datadicts,
                               filename=f"{filename} v. normalized time",
@@ -1629,7 +1669,8 @@ def post_process_graphs(simulation_data: list[dict],
                               yticks=yticks,
                               plot_v_time=True,
                               normalize_time=True,
-                              post_process=True)
+                              post_process=True,
+                              desired_height_inches=desired_height_inches)
 
     def replot_individual_margin_pop(simulation: dict,
                                      limits: tuple[float, float],
@@ -1679,14 +1720,16 @@ def post_process_graphs(simulation_data: list[dict],
                               limits=limits,
                               legend_loc="upper left",
                               title=title,
-                              post_process=True)
+                              post_process=True,
+                              desired_height_inches=desired_height_inches)
         _plot_datasets_v_time(datasets,
                               filename=f"Margin cell rearrangement, plus cumulative v. timesteps, {has_div} {plot_num}",
                               limits=limits,
                               legend_loc="upper left",
                               title=title,
                               plot_v_time=True,
-                              post_process=True)
+                              post_process=True,
+                              desired_height_inches=desired_height_inches)
 
     def replot_individual_margin_pops() -> None:
         """Plot from two individual sims, four different margin population metrics together, but just one sim per Axes
@@ -1810,7 +1853,8 @@ def post_process_graphs(simulation_data: list[dict],
                                   plot_v_time=(x_axis_type != "phi"),
                                   normalize_time=(x_axis_type == "normalized time"),
                                   suppress_timestep_zero=suppress_timestep_zero,
-                                  post_process=True)
+                                  post_process=True,
+                                  desired_height_inches=desired_height_inches)
 
     def show_composite_medians(rawdicts: list[PlotData],
                                filename: str,
@@ -2362,7 +2406,8 @@ def post_process_graphs(simulation_data: list[dict],
                                   yticks=yticks,
                                   plot_v_time=(x_axis_type != "phi"),
                                   normalize_time=(x_axis_type == "normalized time"),
-                                  post_process=True)
+                                  post_process=True,
+                                  desired_height_inches=desired_height_inches)
             
             # Plot again with ranges: same params except range_limits instead of limits, and with an extended filename
             _plot_datasets_v_time(datadicts=dicts_list,
@@ -2374,7 +2419,8 @@ def post_process_graphs(simulation_data: list[dict],
                                   plot_v_time=(x_axis_type != "phi"),
                                   normalize_time=(x_axis_type == "normalized time"),
                                   post_process=True,
-                                  plot_ranges=True)
+                                  plot_ranges=True,
+                                  desired_height_inches=desired_height_inches)
 
     def show_multi_straightness() -> None:
         """Overlay multiple Straightness Index plots on one Axes, grouped and color-coded by the provided config_var"""
