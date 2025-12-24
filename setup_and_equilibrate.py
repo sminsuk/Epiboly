@@ -44,7 +44,8 @@ def initialize_full_sphere_evl_cells() -> None:
         # (gets list of plain python list[3])
         vectors = tfu.random_nd_spherical(npoints=_num_spherical_positions, dim=3)
         
-        # Note: algorithm claims uniform distribution, but in practice I find plenty of clustering of points.
+        # Note: algorithm creates a uniform distribution in the statistical sense, but not in the sense of "evenly
+        # spaced". There is plenty of clustering of points, which is expected in a statistically "uniform" distribution.
         # This does not matter because in our equilibration process, volume exclusion caused by the repulsive
         # potential (defined by the assigned cell radius) will result in the particles distributing themselves
         # evenly over the surface. Thus by the time the equilibration phase ends and the simulation proper begins,
