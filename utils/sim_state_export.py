@@ -290,6 +290,10 @@ if __name__ == "__main__":
     if first_config_var_key == "k_edge_bond_angle":
         config_section_key = "model"
         num_legend_format = r"$\lambda$ = {}"
+    if first_config_var_key == "k_bond_angle":
+        config_section_key = "model"
+        num_legend_format = r"$\lambda$ = {}"
+        # x_axis_types = ["phi", "timesteps", "normalized time"]
     if first_config_var_key == "harmonic_edge_spring_constant":
         config_section_key = "model"
         num_legend_format = "k = {}"
