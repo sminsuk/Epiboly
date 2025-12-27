@@ -126,7 +126,7 @@ def _add_time_axis(axes: Axes, plot_v_time: bool = False, normalize_time: bool =
         axes.set_xlabel("Normalized time" if normalize_time else "Timesteps")
         return
     
-    axes.set_xlabel(r"Leading edge  $\bar{\phi}$  (radians)")
+    axes.set_xlabel("Leading edge position")
     axes.set_xlim(np.pi * 7 / 16, np.pi)
     axes.set_xticks([np.pi / 2, np.pi * 5/8, np.pi * 3/4, np.pi * 7/8, np.pi],
                     labels=[r"$\pi$/2", "", r"3$\pi$/4", "", r"$\pi$"])
@@ -745,7 +745,7 @@ def _show_speed_by_phi_diffs() -> None:
     _plot_datasets_v_time([speed_data],
                           filename=f"Speed by phi diffs v. {time_axis}",
                           limits=limits,
-                          ylabel="Speed (radians / unit simulation time)",
+                          ylabel="Epiboly speed",
                           axvline=axvline,
                           suppress_timestep_zero=True)
 
@@ -1070,7 +1070,7 @@ def _show_margin_lopsidedness(normal_vec: tf.fVector3) -> None:
     _plot_datasets_v_time([lopsidedness_data],
                           filename="Margin lopsidedness",
                           limits=(-0.002 * np.pi, 0.102 * np.pi),
-                          ylabel="Margin lopsidedness (angle of axis)",
+                          ylabel="Margin lopsidedness",
                           plot_formats=".-b",
                           yticks=yticks)
 
@@ -1149,7 +1149,7 @@ def _show_progress_graph() -> None:
     _plot_datasets_v_time([progress_data],
                           filename="Leading edge phi",
                           limits=(np.pi * 7 / 16, np.pi),
-                          ylabel=r"Leading edge  $\bar{\phi}$  (radians)",
+                          ylabel="Leading edge\nposition",
                           plot_formats="b.",
                           yticks=yticks,
                           plot_v_time=True)
@@ -1622,7 +1622,7 @@ def post_process_graphs(simulation_data: list[dict],
             return kimmeldata
 
         filename = "Leading edge phi"
-        ylabel: str = r"Leading edge  $\bar{\phi}$  (radians)"
+        ylabel: str = "Leading edge\nposition"
         limits: tuple[float, float] = (np.pi * 7 / 16, np.pi + 0.05)
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
@@ -1800,7 +1800,7 @@ def post_process_graphs(simulation_data: list[dict],
         count_filename: str = "Margin cell count"
         cum_filename: str = "Margin cell rearrangement, cumulative"
         count_ylabel: str = "Margin cell count"
-        cum_ylabel: str = "Cumulative edge rearrangement events"
+        cum_ylabel: str = "Cumulative edge\nrearrangement events"
         default_limits: tuple[float, float] = (-2, 10)
         show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits, axvline)
         show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits, axvline)
@@ -2083,7 +2083,7 @@ def post_process_graphs(simulation_data: list[dict],
             _plot_datasets_v_time(datadicts=dicts_list,
                                   filename=f"{filename} v. {x_axis_type}, Median{filename_suffix}",
                                   limits=limits,
-                                  ylabel=f"{ylabel} (Median)",
+                                  ylabel=ylabel,
                                   axvline=axvline if x_axis_type == "phi" else None,
                                   yticks=yticks,
                                   plot_v_time=(x_axis_type != "phi"),
@@ -2401,7 +2401,7 @@ def post_process_graphs(simulation_data: list[dict],
             _plot_datasets_v_time(datadicts=dicts_list,
                                   filename=f"{filename} v. {x_axis_type}, Median{filename_suffix}",
                                   limits=limits,
-                                  ylabel=f"{ylabel} (Median)",
+                                  ylabel=ylabel,
                                   axvline=axvline if x_axis_type == "phi" else None,
                                   yticks=yticks,
                                   plot_v_time=(x_axis_type != "phi"),
@@ -2413,7 +2413,7 @@ def post_process_graphs(simulation_data: list[dict],
             _plot_datasets_v_time(datadicts=dicts_list,
                                   filename=f"{filename} v. {x_axis_type}, Median{filename_suffix} (with ranges)",
                                   limits=range_limits,
-                                  ylabel=f"{ylabel} (Median)",
+                                  ylabel=ylabel,
                                   axvline=axvline if x_axis_type == "phi" else None,
                                   yticks=yticks,
                                   plot_v_time=(x_axis_type != "phi"),
@@ -2465,7 +2465,7 @@ def post_process_graphs(simulation_data: list[dict],
         normalize(datadicts)
     
         filename: str = "Margin lopsidedness"
-        ylabel: str = "Margin lopsidedness (angle of axis)"
+        ylabel: str = "Margin lopsidedness"
         default_limits: tuple[float, float] = (-0.002 * np.pi, 0.102 * np.pi)
         yticks = {"major_range": np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
                   "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
@@ -2525,7 +2525,7 @@ def post_process_graphs(simulation_data: list[dict],
         normalize(datadicts)
     
         filename: str = "Circumferential tension"
-        ylabel: str = "Average circumferential tension at leading edge"
+        ylabel: str = "Circumferential tension"
         default_limits: tuple[float, float] = (-0.01, 0.2)
         show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
     
@@ -2582,7 +2582,7 @@ def post_process_graphs(simulation_data: list[dict],
         normalize(datadicts)
     
         filename: str = "Leading edge speed (position based)"
-        ylabel: str = "Speed (radians / unit simulation time)"
+        ylabel: str = "Epiboly speed"
         default_limits: tuple[float, float] = (-0.0005, 0.03)
         show_composite_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
     
