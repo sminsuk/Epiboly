@@ -100,6 +100,7 @@ class PlotData(TypedDict, total=False):
     phi: list[float]                # x axis (any of these 3) required in post-process; ignored in real-time plotting
     timesteps: list[int]
     norm_times: list[float]
+    model_id: int
     fmt: str                        # not required
     color: str                      # not required, and if present and not None, overrides fmt color
     label: object                   # not required; can be str or anything that can be turned into str (float, int...)
@@ -1411,11 +1412,8 @@ def post_process_graphs(simulation_data: list[dict],
         datadict: PlotData
         assert all(["timesteps" in datadict for datadict in datadicts]), "Can't normalize; timesteps not present!"
         
-        # For these boolean tests, see longer explanation in interpolate_and_show_medians() > is_model_1()
         def sim_is_model_1(sim: PlotData) -> bool:
-            # Assumes first_config_var_key == "force_is_weighted_by_distance_from_pole"
-            # "label" field of sim only distinguishes the two models when that is the case
-            return sim["label"] is False
+            return sim["model_id"] == 1
 
         comparing_models_1_and_2: bool = False
         if first_config_var_key == "force_is_weighted_by_distance_from_pole":
@@ -1767,6 +1765,9 @@ def post_process_graphs(simulation_data: list[dict],
         for simulation in simulation_data:
             leading_edge_phi: list[float] = simulation["plot"]["leading_edge_phi"]
             timesteps: list[int] = simulation["plot"]["timesteps"]
+            model_id: int = 2 if (
+                    simulation["config"]["config_values"]["model"]["force_is_weighted_by_distance_from_pole"]
+            ) else 1
             label = (None if not include_legends else
                      simulation["config"]["config_values"][config_section_key][first_config_var_key])
             second_label = (None if not second_config_var_key else
@@ -1775,6 +1776,7 @@ def post_process_graphs(simulation_data: list[dict],
             margin_count: PlotData = {"data": simulation["plot"]["margin_count"],
                                       "phi": leading_edge_phi,
                                       "timesteps": timesteps,
+                                      "model_id": model_id,
                                       "label": label,
                                       "second_label": second_label}
             margin_count_dicts.append(margin_count)
@@ -1785,6 +1787,7 @@ def post_process_graphs(simulation_data: list[dict],
             margin_cum: PlotData = {"data": margin_cum_total,
                                     "phi": leading_edge_phi,
                                     "timesteps": timesteps,
+                                    "model_id": model_id,
                                     "label": label,
                                     "second_label": second_label}
             margin_cum_dicts.append(margin_cum)
@@ -1964,19 +1967,11 @@ def post_process_graphs(simulation_data: list[dict],
             (Passthrough to compute_filtered_medians().)
         """
         def is_model_1(sim_list: list[PlotData]) -> bool:
-            # We assume every sim within a treatment is the same model, so we can check it by looking at
-            # sim_list[0]. In the most general case, we ALWAYS need to know which model it is, so we would
-            # need to add another field to PlotData to capture it. Maybe something ToDo later.
-            # But in practice, the only time I currently do plots for Model 1 is when I'm comparing Models 1
-            # and 2 in the same plot, which means we have already captured it as the definition of the treatment
-            # we are grouping by, so first_config_var_key will equal "force_is_weighted_by_distance_from_pole"
-            # and the "label" field of each PlotData will be False (because Model 1 is when the force is NOT
-            # weighted by distance).
+            # We assume every sim within a treatment is the same model, so we can check it by looking at sim_list[0].
             if not sim_list:
                 # None or empty list
                 return False
-            return (first_config_var_key == "force_is_weighted_by_distance_from_pole" and
-                    sim_list[0]["label"] is False)
+            return sim_list[0]["model_id"] == 1
         
         # At least for now, don't try this with timesteps as the x-axis. I don't think it can work,
         # because the duration of a sim can vary so much; and I don't think I need it.
@@ -2306,6 +2301,9 @@ def post_process_graphs(simulation_data: list[dict],
                 "data": simulation["plot"][data_key],
                 "phi": simulation["plot"]["leading_edge_phi"],
                 "timesteps": simulation["plot"]["timesteps"],
+                "model_id": 2 if (
+                        simulation["config"]["config_values"]["model"]["force_is_weighted_by_distance_from_pole"]
+                        ) else 1,
                 "label": (None if not include_legends else
                           simulation["config"]["config_values"][config_section_key][first_config_var_key]),
                 "second_label": (None if not second_config_var_key else
