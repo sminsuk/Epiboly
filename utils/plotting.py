@@ -1576,17 +1576,11 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_progress() -> None:
         """Overlay multiple progress plots on one Axes, color-coded by treatment"""
-        # We put the phi values in twice. It's the data we want to plot (hence "data"), not the x-axis
-        # (hence we won't use "phi"), but show_composite_medians() needs it to be there.
-        datadicts: list[PlotData] = [{
-                "data": simulation["plot"]["leading_edge_phi"],
-                "phi": simulation["plot"]["leading_edge_phi"],
-                "timesteps": simulation["plot"]["timesteps"],
-                "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
-                "second_label": (None if not second_config_var_key else
-                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
-                } for simulation in simulation_data]
+        # extract_simulation_data() puts "leadging_edge_phi" data in the "phi" field of each PlotData; by
+        # also passing that as our data_key, we put those values into each PlotData twice. It's the data we
+        # want to plot (hence will go in ths "data" field), not the x-axis (so we won't use the "phi" field
+        # in this case), but interpolate_and_show_medians() needs it to be there.
+        datadicts: list[PlotData] = extract_simulation_data("leading_edge_phi")
         normalize(datadicts)
         
         def kimmel_percent_epiboly_as_phi() -> PlotData:
@@ -1628,14 +1622,14 @@ def post_process_graphs(simulation_data: list[dict],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
                   "labels": [r"$\pi$/2", r"3$\pi$/4", r"$\pi$"]}
         
-        # show_composite_medians() uses the nonlocal variable x_axis_types (parameter passed to the
-        # enclosing function post_process_graphs()), but in this edge case we want show_composite_medians()
+        # interpolate_and_show_medians() uses the nonlocal variable x_axis_types (parameter passed to the
+        # enclosing function post_process_graphs()), but in this edge case we want interpolate_and_show_medians()
         # to ignore that and always plot vs. timesteps and normalized time, so (kludge...)
         # temporarily swap it out, then restore it so any other plotting function will still work
         nonlocal x_axis_types
         original_x_axis_types: list[str] = x_axis_types.copy()
         x_axis_types = ["timesteps", "normalized time"]
-        show_composite_medians(datadicts, filename, ylabel, limits, yticks=yticks)
+        interpolate_and_show_medians(datadicts, filename, ylabel, limits, yticks=yticks)
         
         # Plot again with the Kimmel data added in, for purposes of publication. Originally, used color index 3
         # because this was intended for the particular case where the figure was grouped by Model 1/Model 2, and
@@ -1647,8 +1641,8 @@ def post_process_graphs(simulation_data: list[dict],
         # And this time, we only want it for the one x-axis type.
         x_axis_types = ["normalized time"]
         extradata: PlotData = kimmel_percent_epiboly_as_phi()
-        show_composite_medians(datadicts, filename + " plus Kimmel data", ylabel, limits, yticks=yticks,
-                               extradata=extradata, extradata_colorindex=3)
+        interpolate_and_show_medians(datadicts, filename + " plus Kimmel data", ylabel, limits, yticks=yticks,
+                                     extradata=extradata, extradata_colorindex=3)
         x_axis_types = original_x_axis_types
 
         color_code_and_clean_up_labels(datadicts)
@@ -1802,8 +1796,8 @@ def post_process_graphs(simulation_data: list[dict],
         count_ylabel: str = "Margin cell count"
         cum_ylabel: str = "Cumulative edge\nrearrangement events"
         default_limits: tuple[float, float] = (-2, 10)
-        show_composite_medians(margin_count_dicts, count_filename, count_ylabel, default_limits, axvline)
-        show_composite_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits, axvline)
+        interpolate_and_show_medians(margin_count_dicts, count_filename, count_ylabel, default_limits, axvline)
+        interpolate_and_show_medians(margin_cum_dicts, cum_filename, cum_ylabel, default_limits, axvline)
 
         color_code_and_clean_up_labels(margin_count_dicts)
         color_code_and_clean_up_labels(margin_cum_dicts)
@@ -1856,240 +1850,6 @@ def post_process_graphs(simulation_data: list[dict],
                                   post_process=True,
                                   desired_height_inches=desired_height_inches)
 
-    def show_composite_medians(rawdicts: list[PlotData],
-                               filename: str,
-                               ylabel: str,
-                               default_limits: tuple[float, float],
-                               axvline: float = None,
-                               yticks: dict = None,
-                               suppress_timestep_zero: bool = False,
-                               extradata: PlotData = None,
-                               extradata_colorindex: int = None,
-                               remove_bias: bool = False) -> None:
-        """A convenience passthrough"""
-        # How we did it before: now deprecated; for now, keep for comparison purposes. Get rid of it later.
-        # show_binned_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
-        #                     suppress_timestep_zero, extradata, extradata_colorindex)
-        
-        # New version, interpolating all the data and aligning all sims of the same treatment
-        interpolate_and_show_medians(rawdicts, filename, ylabel, default_limits, axvline, yticks,
-                                     suppress_timestep_zero, extradata, extradata_colorindex, remove_bias)
-
-    def show_binned_medians(rawdicts: list[PlotData],
-                            filename: str,
-                            ylabel: str,
-                            default_limits: tuple[float, float],
-                            axvline: float = None,
-                            yticks: dict = None,
-                            suppress_timestep_zero: bool = False,
-                            extradata: PlotData = None,
-                            extradata_colorindex: int = None) -> None:
-        """Combine multiple datasets into composite metrics, one per 'treatment'.
-        
-        DEPRECATED. Keeping it around until I know that the interpolation version works properly
-        
-        'Treatment' refers to the different values of a single variable that we are contrasting.
-        
-        The handling of the labels and legends assumes there is more than one treatment being
-        compared in the plot, but if we ever need to do this for just a single treatment, that can
-        be tweaked as necessary.
-        
-        Note that when balanced-force control data is included, the plots v. phi will be garbage because
-        there is no phi progression; and the plots v. normalized time should work but "1.0" no longer means
-        epiboly completion, but just reaching a predetermined timestep. Those control datasets should look
-        the same on the timestep and normalized time plots, just with the x-axes labeled accordingly.
-        
-        :param rawdicts: one PlotData for each simulation that is to be plotted. It should have already
-            been normalized (normalized time data calculated for each simulation). "label" field should
-            be numerical, representing the treatment.
-        :param filename: will be used as part of the filename for the saved plots.
-        :param ylabel: title of the y-axis.
-        :param default_limits: y-axis limits for whatever data was passed. These will be expanded if
-            the range of the actual data exceeds the default_limits.
-        :param yticks: special tick marks for the y-axis.
-        :param axvline: assumed to be identical for all simulations v. phi (otherwise you wouldn't be able to
-            plot it), so calculated once by caller and passed in. Only to be used for plots v. phi, not plots v. time.
-        :param suppress_timestep_zero: don't plot the first point in each dataset (regardless of x_axis_type).
-        :param extradata: Pass-through to color_code_and_clean_up_labels(); see definition there.
-        :param extradata_colorindex: Pass-through to color_code_and_clean_up_labels(); see definition there.
-        """
-        composite_dicts: dict[str, PlotData] = {}
-        composite_key: str
-        # Using str keys for the different treatments, since I'm unsure how safe it is to use floats as keys
-        # composite_dicts will contain one PlotData for each treatment, keyed by the treatment value
-
-        for rawdict in rawdicts:
-            composite_key = str(rawdict["label"]) + str(rawdict["second_label"])
-            
-            # Create the appropriate key-value pair in which to store the content of the current rawdict,
-            # if it doesn't yet exist. (I.e., the first time each treatment is encountered.)
-            if composite_key not in composite_dicts:
-                composite_dicts[composite_key] = {"data": [],
-                                                  "phi": [],
-                                                  "timesteps": [],
-                                                  "norm_times": [],
-                                                  "label": rawdict["label"],
-                                                  "second_label": rawdict["second_label"]}
-                
-            # Add each list from the current rawdict into the corresponding list in the composite dict
-            composite_dict: PlotData = composite_dicts[composite_key]
-            plotdata_key: str
-            for plotdata_key in ["data", "phi", "timesteps", "norm_times"]:
-                # (Type checker doesn't like variables as keys; it's fine.)
-                rawdata: list = rawdict[plotdata_key]  # type: ignore
-                if suppress_timestep_zero:
-                    rawdata = rawdata[1:]
-                composite_dict[plotdata_key].extend(rawdata)  # type: ignore
-            
-        # After exiting the above outer loop (for rawdict in rawdicts), we now have a dict (composite_dicts)
-        # containing exactly one sub-dict for each treatment. Their lists are no longer in chronological
-        # order, since we simply concatenated all component lists from the rawdicts. But this won't matter
-        # since we'll now bin them. (In two different ways, once for plotting v. phi, and once for plotting v.
-        # normalized time.)
-        
-        # Binned dicts will be structured just like composite_dicts, i.e., each will contain one sub-dict for
-        # each treatment. But now the lists inside each dict will only contain num_bins elements,
-        # representing the averaged time and data values from multiple original rawdicts (multiple
-        # original simulation runs). Each binned dict will have a "data" member, but they won't contain the
-        # same values, because the binning will shake out differently, depending on whether it's for plotting
-        # v. phi, or v. normalized time.
-        num_bins = 20
-        binned_v_phi_dicts: dict[str, PlotData] = {}
-        binned_v_timesteps_dicts: dict[str, PlotData] = {}
-        binned_v_normtime_dicts: dict[str, PlotData] = {}
-        
-        # bin the normalized time values over this range:
-        min_normtime: float = 0.0
-        max_normtime: float = 1.0
-        
-        # bin the timestep values over this range:
-        all_timesteps: list[list[int]] = [composite_dict["timesteps"] for composite_dict in composite_dicts.values()]
-        flat_iterator = chain.from_iterable(all_timesteps)
-        min_timestep: int = 0
-        max_timestep: int = max(flat_iterator)
-        
-        # bin the phi values over this range:
-        all_phi: list[list[float]] = [composite_dict["phi"] for composite_dict in composite_dicts.values()]
-        flat_iterator = chain.from_iterable(all_phi)
-        min_phi: float = min(flat_iterator)
-        max_phi: float = np.pi
-        
-        for composite_key, composite_dict in composite_dicts.items():
-            np_data = np.array(composite_dict["data"])
-            np_phi = np.array(composite_dict["phi"])
-            np_timesteps = np.array(composite_dict["timesteps"])
-            np_normtimes = np.array(composite_dict["norm_times"])
-            
-            normtime_edges: np.ndarray = np.linspace(min_normtime, max_normtime, num_bins + 1)
-            timestep_edges: np.ndarray = np.linspace(min_timestep, max_timestep, num_bins + 1)
-            phi_edges: np.ndarray = np.linspace(min_phi, max_phi, num_bins + 1)
-            normtime_bin_size: float = normtime_edges[1] - normtime_edges[0]
-            timestep_bin_size: float = timestep_edges[1] - timestep_edges[0]
-            phi_bin_size: float = phi_edges[1] - phi_edges[0]
-            normtime_indices: np.ndarray = np.digitize(np_normtimes, normtime_edges)
-            timestep_indices: np.ndarray = np.digitize(np_timesteps, timestep_edges)
-            phi_indices: np.ndarray = np.digitize(np_phi, phi_edges)
-            
-            # Note: numpy ufunc equality and masking!
-            # https://jakevdp.github.io/PythonDataScienceHandbook/02.06-boolean-arrays-and-masks.html
-            normtime_bins: list[np.ndarray] = [np_data[normtime_indices == i] for i in range(1, normtime_edges.size)]
-            timestep_bins: list[np.ndarray] = [np_data[timestep_indices == i] for i in range(1, timestep_edges.size)]
-            phi_bins: list[np.ndarray] = [np_data[phi_indices == i] for i in range(1, phi_edges.size)]
-
-            # Finally, construct the x and y datasets we'll actually plot
-            normtime_bin: np.ndarray
-            timestep_bin: np.ndarray
-            phi_bin: np.ndarray
-            normtime_median_data: list[float] = []
-            timestep_median_data: list[float] = []
-            phi_median_data: list[float] = []
-            normtime_axis: list[float] = []
-            timestep_axis: list[int] = []
-            phi_axis: list[float] = []
-            for i, normtime_bin in enumerate(normtime_bins):
-                if normtime_bin.size > 0:
-                    # should be always.
-                    # np.median() returns ndarray but is really float because bins are 1d
-                    normtime_median_data.append(np.median(normtime_bin).item())
-                    # position each point horizontally halfway between the bin edges
-                    normtime_axis.append(normtime_edges[i] + normtime_bin_size / 2)
-            for i, timestep_bin in enumerate(timestep_bins):
-                if timestep_bin.size > 0:
-                    timestep_median_data.append(np.median(timestep_bin).item())
-                    timestep_axis.append(timestep_edges[i] + timestep_bin_size / 2)
-            for i, phi_bin in enumerate(phi_bins):
-                if phi_bin.size > 0:
-                    # There may be many empty bins when balanced-force-control data is included, since they
-                    # never progress, and I'm binning all the way out to pi.
-                    phi_median_data.append(np.median(phi_bin).item())
-                    phi_axis.append(phi_edges[i] + phi_bin_size / 2)
-                    
-            binned_v_normtime_dicts[composite_key] = {"data": normtime_median_data,
-                                                      "norm_times": normtime_axis,
-                                                      "label": composite_dict["label"],
-                                                      "second_label": composite_dict["second_label"]}
-            binned_v_timesteps_dicts[composite_key] = {"data": timestep_median_data,
-                                                       "timesteps": timestep_axis,
-                                                       "label": composite_dict["label"],
-                                                       "second_label": composite_dict["second_label"]}
-            binned_v_phi_dicts[composite_key] = {"data": phi_median_data,
-                                                 "phi": phi_axis,
-                                                 "label": composite_dict["label"],
-                                                 "second_label": composite_dict["second_label"]}
-            
-        # Finally, after exiting the above loop, we have three of dict[str: PlotData], one binned by
-        # normalized times, one by timesteps, and one by phi. Now we can plot them.
-        normtime_dicts_list: list[PlotData] = list(binned_v_normtime_dicts.values())
-        timestep_dicts_list: list[PlotData] = list(binned_v_timesteps_dicts.values())
-        phi_dicts_list: list[PlotData] = list(binned_v_phi_dicts.values())
-        color_code_and_clean_up_labels(normtime_dicts_list,
-                                       extradata=extradata, extradata_colorindex=extradata_colorindex)
-        color_code_and_clean_up_labels(timestep_dicts_list)
-        color_code_and_clean_up_labels(phi_dicts_list)
-        
-        # For using consensus y-limits:
-        # Since the data was binned differently in the time dicts vs the phi dict, they might have slightly
-        # different ranges. So to make the y-axis scales identical on the three plots we'll generate, combine
-        # ALL the data from all three to determine the y limits. (The two time dicts – timestep and normalized –
-        # might be binned the same? I'm not 100% sure, but it's easy enough to include them both):
-        # ToDo: I will be switching to a proper resampling approach instead of this binning approach,
-        #  which statistically is completely wrong. At that point, I'm not sure I can even plot a
-        #  composite plot v timesteps anymore, because the duration of a sim can vary so much. So then
-        #  I can probably retire this case (using consensus: x_axis_types_share_y_limits = True).
-        all_data: list[list[float]] = []
-        if "normalized time" in x_axis_types:
-            all_data.extend([plot_data["data"] for plot_data in normtime_dicts_list])
-        if "timesteps" in x_axis_types:
-            all_data.extend([plot_data["data"] for plot_data in timestep_dicts_list])
-        if "phi" in x_axis_types:
-            all_data.extend([plot_data["data"] for plot_data in phi_dicts_list])
-        
-        filename_suffix: str = f", grouped by {first_config_var_key}" if include_legends else ""
-        filename_suffix += f" and {second_config_var_key}" if second_config_var_key else ""
-        filename_suffix += " - DEPRECATED"
-        for x_axis_type in x_axis_types:
-            dicts_list: list[PlotData] = (timestep_dicts_list if x_axis_type == "timesteps" else
-                                          normtime_dicts_list if x_axis_type == "normalized time" else
-                                          phi_dicts_list)
-            
-            # if not using consensus y-limits:
-            # in this case, each of the three plots gets its own tailored y-limits.
-            # They might each be very different:
-            current_data: list[list[float]] = [plot_data["data"] for plot_data in dicts_list]
-            
-            the_data: list[list[float]] = all_data if x_axis_types_share_y_limits else current_data
-            limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=the_data)
-            
-            _plot_datasets_v_time(datadicts=dicts_list,
-                                  filename=f"{filename} v. {x_axis_type}, Median{filename_suffix}",
-                                  limits=limits,
-                                  ylabel=ylabel,
-                                  axvline=axvline if x_axis_type == "phi" else None,
-                                  yticks=yticks,
-                                  plot_v_time=(x_axis_type != "phi"),
-                                  normalize_time=(x_axis_type == "normalized time"),
-                                  post_process=True)
-        
     def compute_filtered_medians(x: list[float],
                                  all_data: list[list[float]],
                                  exclusion_flag: float,
@@ -2218,8 +1978,9 @@ def post_process_graphs(simulation_data: list[dict],
             return (first_config_var_key == "force_is_weighted_by_distance_from_pole" and
                     sim_list[0]["label"] is False)
         
-        # At least for now, don't try this with timnesteps as the x-axis. I don't think it can work, and
-        # I don't think I need it. This means we're plotting against phi, or normalized time, or both.
+        # At least for now, don't try this with timesteps as the x-axis. I don't think it can work,
+        # because the duration of a sim can vary so much; and I don't think I need it.
+        # This means we're plotting against phi, or normalized time, or both.
         x_axis_type: str
         x_axes: list[str] = x_axis_types.copy()
         if "timesteps" in x_axes:
@@ -2425,23 +2186,14 @@ def post_process_graphs(simulation_data: list[dict],
     def show_multi_straightness() -> None:
         """Overlay multiple Straightness Index plots on one Axes, grouped and color-coded by the provided config_var"""
         axvline: float = get_cell_division_cessation_phi()
-
-        datadicts: list[PlotData] = [{
-                "data": simulation["plot"]["straightness_cyl"],
-                "phi": simulation["plot"]["leading_edge_phi"],
-                "timesteps": simulation["plot"]["timesteps"],
-                "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
-                "second_label": (None if not second_config_var_key else
-                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
-                } for simulation in simulation_data]
+        datadicts: list[PlotData] = extract_simulation_data("straightness_cyl")
         normalize(datadicts)
         
         filename: str = "Straightness Index"
         ylabel: str = "Straightness Index (SI)"
         default_limits: tuple[float, float] = (0.9, 1.001)
         # Use axvline here, because I want it where I use this fig.:
-        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
+        interpolate_and_show_medians(datadicts, filename, ylabel, default_limits, axvline)
 
         color_code_and_clean_up_labels(datadicts, use_alpha=True)
         
@@ -2453,15 +2205,7 @@ def post_process_graphs(simulation_data: list[dict],
 
     def show_multi_lopsidedness() -> None:
         """Overlay multiple Lopsidedness plots on one Axes, grouped and color-coded by the provided config_var"""
-        datadicts: list[PlotData] = [{
-                "data": simulation["plot"]["margin_lopsidedness"],
-                "phi": simulation["plot"]["leading_edge_phi"],
-                "timesteps": simulation["plot"]["timesteps"],
-                "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
-                "second_label": (None if not second_config_var_key else
-                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
-                } for simulation in simulation_data]
+        datadicts: list[PlotData] = extract_simulation_data("margin_lopsidedness")
         normalize(datadicts)
     
         filename: str = "Margin lopsidedness"
@@ -2470,7 +2214,7 @@ def post_process_graphs(simulation_data: list[dict],
         yticks = {"major_range": np.arange(0, 0.102 * np.pi, 0.05 * np.pi),
                   "minor_range": np.arange(0, 0.102 * np.pi, 0.01 * np.pi),
                   "labels": ["0", r"0.05$\pi$", r"0.10$\pi$"]}
-        show_composite_medians(datadicts, filename, ylabel, default_limits, yticks=yticks, remove_bias=True)
+        interpolate_and_show_medians(datadicts, filename, ylabel, default_limits, yticks=yticks, remove_bias=True)
     
         color_code_and_clean_up_labels(datadicts, use_alpha=True)
     
@@ -2485,22 +2229,13 @@ def post_process_graphs(simulation_data: list[dict],
         Deprecated in favor of show_multi_circumferential_tension()
         """
         axvline: float = get_cell_division_cessation_phi()
-        
-        datadicts: list[PlotData] = [{
-                "data": simulation["plot"]["median_tension_leading_edge"],
-                "phi": simulation["plot"]["leading_edge_phi"],
-                "timesteps": simulation["plot"]["timesteps"],
-                "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
-                "second_label": (None if not second_config_var_key else
-                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
-                } for simulation in simulation_data]
+        datadicts: list[PlotData] = extract_simulation_data("median_tension_leading_edge")
         normalize(datadicts)
         
         filename: str = "Leading edge tension"
         ylabel: str = "Average tension at leading edge"
         default_limits: tuple[float, float] = (-0.01, 0.2)
-        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
+        interpolate_and_show_medians(datadicts, filename, ylabel, default_limits, axvline)
         
         color_code_and_clean_up_labels(datadicts)
         
@@ -2512,22 +2247,13 @@ def post_process_graphs(simulation_data: list[dict],
     def show_multi_circumferential_tension() -> None:
         """Overlay multiple **circumferential** tension plots, grouped and color-coded by the provided config_var"""
         axvline: float = get_cell_division_cessation_phi(force=True)
-    
-        datadicts: list[PlotData] = [{
-                "data": simulation["plot"]["median_tension_circumferential"],
-                "phi": simulation["plot"]["leading_edge_phi"],
-                "timesteps": simulation["plot"]["timesteps"],
-                "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
-                "second_label": (None if not second_config_var_key else
-                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
-                } for simulation in simulation_data]
+        datadicts: list[PlotData] = extract_simulation_data("median_tension_circumferential")
         normalize(datadicts)
     
         filename: str = "Circumferential tension"
         ylabel: str = "Circumferential tension"
         default_limits: tuple[float, float] = (-0.01, 0.2)
-        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline)
+        interpolate_and_show_medians(datadicts, filename, ylabel, default_limits, axvline)
     
         color_code_and_clean_up_labels(datadicts)
     
@@ -2542,22 +2268,13 @@ def post_process_graphs(simulation_data: list[dict],
         Deprecated in favor of show_multi_speed_leading_edge_position_based()
         """
         axvline: float = get_cell_division_cessation_phi()
-        
-        datadicts: list[PlotData] = [{
-                "data": simulation["plot"]["median_speed_leading_edge"],
-                "phi": simulation["plot"]["leading_edge_phi"],
-                "timesteps": simulation["plot"]["timesteps"],
-                "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
-                "second_label": (None if not second_config_var_key else
-                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
-                } for simulation in simulation_data]
+        datadicts: list[PlotData] = extract_simulation_data("median_speed_leading_edge")
         normalize(datadicts)
 
         filename: str = "Leading edge speed (velocity based)"
         ylabel: str = "Average vegetalward speed"
         default_limits: tuple[float, float] = (-0.005, 0.08)
-        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
+        interpolate_and_show_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
 
         color_code_and_clean_up_labels(datadicts)
 
@@ -2569,22 +2286,13 @@ def post_process_graphs(simulation_data: list[dict],
     def show_multi_speed_leading_edge_position_based() -> None:
         """Overlay multiple leading-edge speed plots, grouped and color-coded by the provided config_var"""
         axvline: float = get_cell_division_cessation_phi()
-    
-        datadicts: list[PlotData] = [{
-                "data": simulation["plot"]["speed_by_phi_diffs"],
-                "phi": simulation["plot"]["leading_edge_phi"],
-                "timesteps": simulation["plot"]["timesteps"],
-                "label": (None if not include_legends else
-                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
-                "second_label": (None if not second_config_var_key else
-                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
-                } for simulation in simulation_data]
+        datadicts: list[PlotData] = extract_simulation_data("speed_by_phi_diffs")
         normalize(datadicts)
     
         filename: str = "Leading edge speed (position based)"
         ylabel: str = "Epiboly speed"
         default_limits: tuple[float, float] = (-0.0005, 0.03)
-        show_composite_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
+        interpolate_and_show_medians(datadicts, filename, ylabel, default_limits, axvline, suppress_timestep_zero=True)
     
         color_code_and_clean_up_labels(datadicts)
     
@@ -2592,6 +2300,17 @@ def post_process_graphs(simulation_data: list[dict],
         limits: tuple[float, float] = _expand_limits_if_needed(limits=default_limits, data=all_data)
     
         plot_datasets_v_selected_time_proxies(datadicts, filename, ylabel, limits, axvline, suppress_timestep_zero=True)
+        
+    def extract_simulation_data(data_key: str) -> list[PlotData]:
+        return [{
+                "data": simulation["plot"][data_key],
+                "phi": simulation["plot"]["leading_edge_phi"],
+                "timesteps": simulation["plot"]["timesteps"],
+                "label": (None if not include_legends else
+                          simulation["config"]["config_values"][config_section_key][first_config_var_key]),
+                "second_label": (None if not second_config_var_key else
+                                 simulation["config"]["config_values"][config_section_key][second_config_var_key])
+                } for simulation in simulation_data]
 
     def show_multi_tension_hello_world() -> None:
         """Overlay multiple tension plots on one Axes: all cells vs. leading edge cells, in different colors
