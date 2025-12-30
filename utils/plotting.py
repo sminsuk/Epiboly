@@ -1973,6 +1973,44 @@ def post_process_graphs(simulation_data: list[dict],
                 return False
             return sim_list[0]["model_id"] == 1
         
+        def calculate_percentiles(sim_list: list[PlotData]) -> PlotData:
+            """The simpler proccedure: Just take the median and percentile range of each column"""
+            # Each PlotData in the list contains the same relevant x-axis and other fields, we want
+            # our result to have all that, and just combine the "data" fields.
+            result: PlotData = sim_list[0].copy()
+            all_data: list[list[float]] = [sim["data"] for sim in sim_list]
+            
+            nd_lows, nd_medians, nd_highs = np.percentile(all_data, [range_low, 50, range_high], axis=0)
+            result["data"] = nd_medians.tolist()
+            result["range_low"] = nd_lows.tolist()
+            result["range_high"] = nd_highs.tolist()
+            return result
+        
+        def calculate_percentiles_allow_truncated_domains(x_axis_type: str, sim_list: list[PlotData]) -> PlotData:
+            """Allow for truncated domains; same idea, procedure just a bit more involved"""
+            # Each PlotData in the list contains the same relevant x-axis and other fields, we want
+            # our result to have all that, and just combine the "data" fields.
+            result: PlotData = sim_list[0].copy()
+            all_data: list[list[float]] = [sim["data"] for sim in sim_list]
+            
+            filtered_x: list[float]
+            medians: list[float]
+            lows: list[float]
+            highs: list[float]
+            x_axis: list[float] = result["phi"] if x_axis_type == "phi" else result["norm_times"]
+            filtered_x, medians, lows, highs = compute_filtered_medians(x_axis,
+                                                                        all_data,
+                                                                        exclusion_flag=beyond_domain,
+                                                                        remove_bias=remove_bias)
+            if x_axis_type == "phi":
+                result["phi"] = filtered_x
+            else:
+                result["norm_times"] = filtered_x
+            result["data"] = medians
+            result["range_low"] = lows
+            result["range_high"] = highs
+            return result
+        
         # At least for now, don't try this with timesteps as the x-axis. I don't think it can work,
         # because the duration of a sim can vary so much; and I don't think I need it.
         # This means we're plotting against phi, or normalized time, or both.
@@ -2039,17 +2077,26 @@ def post_process_graphs(simulation_data: list[dict],
                 min_x: float = min(flat_iterator)
                 
                 # Prepare to handle cases where the individual sims don't have similar domains (x-axis range)
-                # This is an issue only with Model 1 (unregulated force), where each sim gets terminated when
+                # This is an issue mainly with Model 1 (unregulated force), where each sim gets terminated when
                 # a projection gets too near the vegetal pole, leading to different termination points for
-                # each. This approach should always work, but, let's do it ONLY for Model 1; the rest of the time,
-                # let's stick with the simpler procedure.
+                # each. However, it's also occasionally needed for Model 2, if we're including some treatments
+                # that never complete epiboly on their own and therefore are terminated manually.
+                # This approach should always work, so just do it always. However, I'm retaining (commented out)
+                # the simpler procedure that I formerly used with Model 2: both because I haven't yet exhaustively
+                # tested the blanket approach with ALL possible use cases, and because it presents a simpler version
+                # of the algorithm for the benefit of any future reader trying to understand what's being done here.
                 # "left" and "right" tell the interp() function how to behave when attempting to interpolate
                 # outside the domain. When used, they need to match our data type (float). Use them to flag
                 # truncated Model 1 data:
-                left = None
-                right = None
-                if is_model_1(sim_list):
-                    left = right = beyond_domain
+                left = beyond_domain
+                right = beyond_domain
+                
+                # # (Previously, when allowing for truncated domain plotting only for Model 1,
+                # # but keeping it simple for Model 2: )
+                # left = None
+                # right = None
+                # if is_model_1(sim_list):
+                #     left = right = beyond_domain
                     
                 # Get the new x axis
                 x_interpolated: np.ndarray = np.linspace(min_x, max_x, num=21)
@@ -2070,33 +2117,16 @@ def post_process_graphs(simulation_data: list[dict],
         # are what we want to plot.
         for treatment_key, x_axis_lists in treatments.items():
             for x_axis_type, sim_list in x_axis_lists.items():
-                # Each PlotData in the list contains the same relevant x-axis and other fields, we want
-                # our result to have all that, and just combine the "data" fields.
-                result: PlotData = sim_list[0].copy()
-                all_data: list[list[float]] = [sim["data"] for sim in sim_list]
-                if is_model_1(sim_list):
-                    filtered_x: list[float]
-                    medians: list[float]
-                    lows: list[float]
-                    highs: list[float]
-                    x_axis: list[float] = result["phi"] if x_axis_type == "phi" else result["norm_times"]
-                    filtered_x, medians, lows, highs = compute_filtered_medians(x_axis,
-                                                                                all_data,
-                                                                                exclusion_flag=beyond_domain,
-                                                                                remove_bias=remove_bias)
-                    if x_axis_type == "phi":
-                        result["phi"] = filtered_x
-                    else:
-                        result["norm_times"] = filtered_x
-                    result["data"] = medians
-                    result["range_low"] = lows
-                    result["range_high"] = highs
-                else:
-                    # Simple case, just take the median and percentile range of each column
-                    nd_lows, nd_medians, nd_highs = np.percentile(all_data, [range_low, 50, range_high], axis=0)
-                    result["data"] = nd_medians.tolist()
-                    result["range_low"] = nd_lows.tolist()
-                    result["range_high"] = nd_highs.tolist()
+                result: PlotData = calculate_percentiles_allow_truncated_domains(x_axis_type, sim_list)
+                
+                # # (Previously, when allowing for truncated domain plotting only for Model 1,
+                # # but keeping it simple for Model 2)
+                # result: PlotData
+                # if is_model_1(sim_list):
+                #     result = calculate_percentiles_allow_truncated_domains(x_axis_type, sim_list)
+                # else:
+                #     result = calculate_percentiles(sim_list)
+                    
                 treatment_medians[treatment_key][x_axis_type] = result
                 
         # Now gather the sets of interpolations we want to plot together. One interpolated over the phi axis,
