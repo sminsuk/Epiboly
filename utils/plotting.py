@@ -244,7 +244,7 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         ax.set_ylabel(ylabel)
     _add_time_axis(ax, plot_v_time, post_process and normalize_time)
     if axvline is not None:
-        ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
+        ax.axvline(x=axvline, linestyle="--", color="0.25", linewidth=1.0)
     
     if limits:
         ax.set_ylim(limits)
@@ -414,13 +414,13 @@ def _plot_data_history(values_history: list[list[float]],
     if xlabel is not None:
         binned_values_ax.set_xlabel(xlabel)
     if axvline is not None:
-        binned_values_ax.axvline(x=axvline, linestyle=":", color="k", linewidth=0.5)
+        binned_values_ax.axvline(x=axvline, linestyle="--", color="0.25", linewidth=1.0)
     binned_values_ax.set_xlim(0, np.pi)
     binned_values_ax.set_xticks([0, np.pi / 2, np.pi], labels=["0", r"$\pi$/2", r"$\pi$"])
     if ylabel is not None:
         binned_values_ax.set_ylabel(ylabel)
     if axhline is not None:
-        binned_values_ax.axhline(y=axhline, linestyle=":", color="k", linewidth=0.5)
+        binned_values_ax.axhline(y=axhline, linestyle="--", color="0.25", linewidth=1.0)
     if ylim is not None:
         if end:
             if secondary:
@@ -541,7 +541,7 @@ def _show_test_tension_v_phi(end: bool) -> None:
     tensions_ax.set_xlabel("Particle phi")
     tensions_ax.set_xlim(0, np.pi)
     tensions_ax.set_ylabel("Particle tension\n(mean bond displacement from equilibrium)")
-    tensions_ax.axhline(y=0, linestyle=":", color="k", linewidth=0.5)  # tension/compression boundary
+    tensions_ax.axhline(y=0, linestyle="--", color="0.25", linewidth=1.0)  # tension/compression boundary
     tensions_ax.text(0.02, 0.97, f"T={_timestep}", transform=tensions_ax.transAxes,
                      verticalalignment="top", horizontalalignment="left",
                      fontsize=28, fontweight="bold")
