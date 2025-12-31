@@ -1613,6 +1613,7 @@ def post_process_graphs(simulation_data: list[dict],
             kimmeldata: PlotData = {"data": kimmel_polar_angle,
                                     "phi": kimmel_polar_angle,
                                     "timesteps": kimmel_time_ints,
+                                    "model_id": 0,
                                     "label": "Kimmel et al. 1995"}
             # Create the normalized time axis
             normalize([kimmeldata])
