@@ -26,6 +26,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.legend import Legend
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 import tissue_forge as tf
 import epiboly_globals as g
@@ -112,6 +113,10 @@ def _init_graphs() -> None:
     tfu.init_export() should have been run before running this, to create the parent directories.
     """
     global _plot_path
+    
+    # Set font globally (Helvetica preference, with fallbacks)
+    mpl.rcParams["font.family"] = "sans-serif"
+    mpl.rcParams["font.sans-serif"] = ["Helvetica", "Arial", "DejaVu Sans"]
     
     _plot_path = os.path.join(tfu.export_path(), "Plots")
     os.makedirs(_plot_path, exist_ok=True)
