@@ -320,8 +320,8 @@ def _plot_datasets_v_time(datadicts: list[PlotData],
         adjust_figsize(move_legend_outside=legend_loc is None)
     
     # save
-    savepath: str = os.path.join(_plot_path, filename + ".png")
-    fig.savefig(savepath, transparent=False, bbox_inches="tight")
+    savepath: str = os.path.join(_plot_path, filename + (".svg" if post_process else ".png"))
+    fig.savefig(savepath, transparent=False, bbox_inches="tight")   # "transparent" needed for png; ignored for .svg
     plt.close(fig)
 
 def _expand_limits_if_needed(limits: tuple[float, float], data: list) -> tuple[float, float]:
