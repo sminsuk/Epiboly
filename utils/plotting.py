@@ -1980,7 +1980,7 @@ def post_process_graphs(simulation_data: list[dict],
             return sim_list[0]["model_id"] == 1
         
         def calculate_percentiles(sim_list: list[PlotData]) -> PlotData:
-            """The simpler proccedure: Just take the median and percentile range of each column"""
+            """The simpler procedure: Just take the median and percentile range of each column"""
             # Each PlotData in the list contains the same relevant x-axis and other fields, we want
             # our result to have all that, and just combine the "data" fields.
             result: PlotData = sim_list[0].copy()
@@ -2070,17 +2070,19 @@ def post_process_graphs(simulation_data: list[dict],
                 sim: PlotData
                 
                 # First, figure out the min and max x that we want in our interpolated plots.
-                # They should be within the common range of all plots.
-                # For plotting v. phi (assuming Model 2), each sim should have a point >= stopping condition,
+                # They should be within the common range of all plots, so that we can always interpolate
+                # (no need to extrapolate).
+                # For plotting v. phi, each sim (that reached completion) should have a point >= stopping condition.
                 max_x: float = 1.0 if x_axis_type == "normalized time" else cfg.stopping_condition_phi
                 
-                # Because the lowest x, when plotting v. phi, is stochastic, we don't know exactly what it is.
+                # The lowest x, when plotting v. phi, is stochastic, so may differ among replicates.
                 # And for both kinds of plots, we may have removed the first data point (if suppress_timestep_zero).
-                # So find the current lowest x.
-                all_x_vals: list[list[float]] = [sim["phi"] if x_axis_type == "phi" else sim["norm_times"]
-                                                 for sim in sim_list]
-                flat_iterator = chain.from_iterable(all_x_vals)
-                min_x: float = min(flat_iterator)
+                # So find the lowest x of each replicate (the left edge of each plot), and for our min x
+                # select the RIGHT-most of those, i.e. the furthest right of all the left edges.
+                # That way, each sim will have a point <= the left edge of the interpolated axis.
+                all_left_edges: list[float] = [sim["phi"][0] if x_axis_type == "phi" else sim["norm_times"][0]
+                                               for sim in sim_list]
+                min_x: float = max(all_left_edges)
                 
                 # Prepare to handle cases where the individual sims don't have similar domains (x-axis range)
                 # This is an issue mainly with Model 1 (unregulated force), where each sim gets terminated when
@@ -2093,8 +2095,8 @@ def post_process_graphs(simulation_data: list[dict],
                 # of the algorithm for the benefit of any future reader trying to understand what's being done here.
                 # "left" and "right" tell the interp() function how to behave when attempting to interpolate
                 # outside the domain. When used, they need to match our data type (float). Use them to flag
-                # truncated Model 1 data:
-                left = beyond_domain
+                # right-truncated data:
+                left = None
                 right = beyond_domain
                 
                 # # (Previously, when allowing for truncated domain plotting only for Model 1,
@@ -2102,7 +2104,7 @@ def post_process_graphs(simulation_data: list[dict],
                 # left = None
                 # right = None
                 # if is_model_1(sim_list):
-                #     left = right = beyond_domain
+                #     right = beyond_domain
                     
                 # Get the new x axis
                 x_interpolated: np.ndarray = np.linspace(min_x, max_x, num=21)
