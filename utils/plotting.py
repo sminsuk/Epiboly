@@ -1155,7 +1155,7 @@ def _show_progress_graph() -> None:
     _plot_datasets_v_time([progress_data],
                           filename="Leading edge phi",
                           limits=(np.pi * 7 / 16, np.pi),
-                          ylabel="Leading edge\nposition",
+                          ylabel="Leading edge position",
                           plot_formats="b.",
                           yticks=yticks,
                           plot_v_time=True)
@@ -1620,7 +1620,7 @@ def post_process_graphs(simulation_data: list[dict],
             return kimmeldata
 
         filename = "Leading edge phi"
-        ylabel: str = "Leading edge\nposition"
+        ylabel: str = "Leading edge position"
         limits: tuple[float, float] = (np.pi * 7 / 16, np.pi + 0.05)
         yticks = {"major_range": [np.pi / 2, np.pi * 3 / 4, np.pi],
                   "minor_range": [np.pi * 5 / 8, np.pi * 7 / 8],
